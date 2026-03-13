@@ -1,5 +1,8 @@
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom'
 import LoginPage from './pages/LoginPage'
+import DashboardPage from './pages/DashboardPage'
+import DeliveriesPage from './pages/DeliveriesPage'
+import StoresPage from './pages/StoresPage'
 import Placeholder from './pages/Placeholder'
 import AppShell from './components/AppShell'
 import { AuthProvider, useAuth } from './context/AuthContext'
@@ -24,12 +27,11 @@ function App() {
             <Route path="/" element={<Navigate to="/login" replace />} />
             <Route path="/login" element={<PublicRoute><LoginPage /></PublicRoute>} />
 
-            {/* Authenticated routes with AppShell layout */}
             <Route element={<ProtectedRoute><AppShell /></ProtectedRoute>}>
-              <Route path="/dashboard" element={<Placeholder />} />
-              <Route path="/deliveries" element={<Placeholder />} />
+              <Route path="/dashboard" element={<DashboardPage />} />
+              <Route path="/deliveries" element={<DeliveriesPage />} />
               <Route path="/orders" element={<Navigate to="/deliveries" replace />} />
-              <Route path="/stores" element={<Placeholder />} />
+              <Route path="/stores" element={<StoresPage />} />
               <Route path="/analytics" element={<Placeholder />} />
               <Route path="/payments" element={<Placeholder />} />
               <Route path="/settings" element={<Placeholder />} />

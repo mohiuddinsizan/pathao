@@ -1,55 +1,39 @@
 import { createContext, useContext, useEffect, useState } from "react";
-import { applyPalette } from "@/themes/apply-palette";
-import {
-  getPaletteByName,
-  allPalettes,
-  DEFAULT_PALETTE,
-} from "@/themes/palettes";
 
 const ThemeContext = createContext(undefined);
+const LS_KEY = "theme";
 
-const LS_PALETTE = "palette";
-
-function getInitialPaletteName() {
-  if (typeof window === "undefined") return DEFAULT_PALETTE;
-  const stored = localStorage.getItem(LS_PALETTE);
-  if (stored && getPaletteByName(stored)) return stored;
-  return DEFAULT_PALETTE;
+function getInitial() {
+  if (typeof window === "undefined") return "dark";
+  const stored = localStorage.getItem(LS_KEY);
+  if (stored === "light" || stored === "dark") return stored;
+  return window.matchMedia("(prefers-color-scheme: dark)").matches
+    ? "dark"
+    : "light";
 }
 
 export function ThemeProvider({ children }) {
-  const [paletteName, setPaletteName] = useState(getInitialPaletteName);
-
-  const palette = getPaletteByName(paletteName) ?? getPaletteByName(DEFAULT_PALETTE);
-  const theme = palette.mode;
+  const [theme, setThemeState] = useState(getInitial);
 
   useEffect(() => {
     const root = document.documentElement;
-
-    if (palette.mode === "dark") {
+    if (theme === "dark") {
       root.classList.add("dark");
     } else {
       root.classList.remove("dark");
     }
+    localStorage.setItem(LS_KEY, theme);
+  }, [theme]);
 
-    applyPalette(palette.colors);
-    localStorage.setItem(LS_PALETTE, paletteName);
-  }, [palette, paletteName]);
+  const toggleTheme = () =>
+    setThemeState((prev) => (prev === "dark" ? "light" : "dark"));
 
-  const setPalette = (name) => {
-    if (getPaletteByName(name)) setPaletteName(name);
+  const setTheme = (t) => {
+    if (t === "dark" || t === "light") setThemeState(t);
   };
 
   return (
-    <ThemeContext.Provider
-      value={{
-        theme,
-        palette,
-        paletteName,
-        allPalettes,
-        setPalette,
-      }}
-    >
+    <ThemeContext.Provider value={{ theme, toggleTheme, setTheme }}>
       {children}
     </ThemeContext.Provider>
   );

@@ -2,10 +2,6 @@
 
 @custom-variant dark (&:is(.dark *));
 
-/*
- * shadcn/ui Design Tokens
- * @theme inline maps CSS vars to Tailwind v4 utility classes.
- */
 @theme inline {
   --color-background: hsl(var(--background));
   --color-foreground: hsl(var(--foreground));
@@ -45,42 +41,80 @@
   --radius-xl: calc(var(--radius) + 4px);
 }
 
+/* ─── Light mode (default) ─── */
 @layer base {
   :root {
-    /* Fallback palette (Obsidian Indigo dark) — overridden by ThemeProvider JS */
-    --background: 240 24% 15%;
-    --foreground: 240 10% 90%;
-    --card: 240 22% 20%;
-    --card-foreground: 240 10% 90%;
-    --popover: 240 22% 20%;
-    --popover-foreground: 240 10% 90%;
-    --primary: 239 84% 67%;
-    --primary-foreground: 0 0% 100%;
-    --secondary: 240 20% 28%;
-    --secondary-foreground: 240 10% 90%;
-    --muted: 240 18% 25%;
-    --muted-foreground: 240 10% 65%;
-    --accent: 240 20% 32%;
-    --accent-foreground: 240 10% 92%;
-    --destructive: 0 84% 50%;
-    --destructive-foreground: 0 0% 100%;
-    --border: 240 15% 32%;
-    --input: 240 15% 32%;
-    --ring: 239 84% 67%;
+    --background: 0 0% 100%;
+    --foreground: 222 47% 11%;
+    --card: 0 0% 100%;
+    --card-foreground: 222 47% 11%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 222 47% 11%;
+    --primary: 221 83% 53%;
+    --primary-foreground: 210 40% 98%;
+    --secondary: 210 40% 96%;
+    --secondary-foreground: 222 47% 11%;
+    --muted: 210 40% 96%;
+    --muted-foreground: 215 16% 47%;
+    --accent: 210 40% 96%;
+    --accent-foreground: 222 47% 11%;
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 214 32% 91%;
+    --input: 214 32% 91%;
+    --ring: 221 83% 53%;
     --radius: 0.5rem;
-    --chart-1: 239 84% 67%;
-    --chart-2: 280 65% 60%;
-    --chart-3: 200 70% 55%;
-    --chart-4: 160 60% 50%;
-    --chart-5: 340 75% 60%;
-    --sidebar-background: 240 24% 12%;
-    --sidebar-foreground: 240 10% 90%;
-    --sidebar-primary: 239 84% 67%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 240 20% 28%;
-    --sidebar-accent-foreground: 240 10% 90%;
-    --sidebar-border: 240 15% 32%;
-    --sidebar-ring: 239 84% 67%;
+    --chart-1: 221 83% 53%;
+    --chart-2: 160 60% 45%;
+    --chart-3: 30 80% 55%;
+    --chart-4: 280 65% 60%;
+    --chart-5: 340 75% 55%;
+    --sidebar-background: 0 0% 98%;
+    --sidebar-foreground: 222 47% 11%;
+    --sidebar-primary: 221 83% 53%;
+    --sidebar-primary-foreground: 210 40% 98%;
+    --sidebar-accent: 210 40% 96%;
+    --sidebar-accent-foreground: 222 47% 11%;
+    --sidebar-border: 214 32% 91%;
+    --sidebar-ring: 221 83% 53%;
+  }
+}
+
+/* ─── Dark mode ─── */
+@layer base {
+  .dark {
+    --background: 224 71% 4%;
+    --foreground: 213 31% 91%;
+    --card: 224 71% 4%;
+    --card-foreground: 213 31% 91%;
+    --popover: 224 71% 4%;
+    --popover-foreground: 213 31% 91%;
+    --primary: 217 91% 60%;
+    --primary-foreground: 210 40% 98%;
+    --secondary: 222 47% 11%;
+    --secondary-foreground: 210 40% 98%;
+    --muted: 223 47% 11%;
+    --muted-foreground: 215 20% 65%;
+    --accent: 216 34% 17%;
+    --accent-foreground: 210 40% 98%;
+    --destructive: 0 63% 51%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 216 34% 17%;
+    --input: 216 34% 17%;
+    --ring: 217 91% 60%;
+    --chart-1: 217 91% 60%;
+    --chart-2: 160 60% 45%;
+    --chart-3: 30 80% 55%;
+    --chart-4: 280 65% 60%;
+    --chart-5: 340 75% 55%;
+    --sidebar-background: 224 71% 4%;
+    --sidebar-foreground: 213 31% 91%;
+    --sidebar-primary: 217 91% 60%;
+    --sidebar-primary-foreground: 210 40% 98%;
+    --sidebar-accent: 216 34% 17%;
+    --sidebar-accent-foreground: 210 40% 98%;
+    --sidebar-border: 216 34% 17%;
+    --sidebar-ring: 217 91% 60%;
   }
 }
 
@@ -90,7 +124,7 @@
   }
   body {
     @apply bg-background text-foreground;
-    font-family: "Inter", "Noto Sans Bengali", system-ui, -apple-system, sans-serif;
+    font-family: "Plus Jakarta Sans", system-ui, -apple-system, sans-serif;
     font-synthesis: none;
     text-rendering: optimizeLegibility;
     -webkit-font-smoothing: antialiased;
@@ -103,36 +137,10 @@
   }
 }
 
-/* Thin, auto-hiding scrollbar */
 @layer utilities {
-  .scrollbar-autohide {
-    scrollbar-width: thin;
-    scrollbar-color: transparent transparent;
-    &:hover {
-      scrollbar-color: hsl(var(--muted-foreground) / 0.25) transparent;
-    }
-    &::-webkit-scrollbar {
-      width: 5px;
-      height: 5px;
-    }
-    &::-webkit-scrollbar-track {
-      background: transparent;
-    }
-    &::-webkit-scrollbar-thumb {
-      background: transparent;
-      border-radius: 9999px;
-    }
-    &:hover::-webkit-scrollbar-thumb {
-      background: hsl(var(--muted-foreground) / 0.25);
-    }
-    &:hover::-webkit-scrollbar-thumb:hover {
-      background: hsl(var(--muted-foreground) / 0.4);
-    }
-  }
-
   .scrollbar-thin {
     scrollbar-width: thin;
-    scrollbar-color: hsl(var(--muted-foreground) / 0.3) transparent;
+    scrollbar-color: hsl(var(--muted-foreground) / 0.2) transparent;
     &::-webkit-scrollbar {
       width: 6px;
       height: 6px;
@@ -141,11 +149,11 @@
       background: transparent;
     }
     &::-webkit-scrollbar-thumb {
-      background: hsl(var(--muted-foreground) / 0.3);
+      background: hsl(var(--muted-foreground) / 0.2);
       border-radius: 9999px;
     }
     &::-webkit-scrollbar-thumb:hover {
-      background: hsl(var(--muted-foreground) / 0.5);
+      background: hsl(var(--muted-foreground) / 0.4);
     }
   }
 
@@ -158,7 +166,6 @@
   }
 }
 
-/* Global scrollbar theming */
 *::-webkit-scrollbar {
   width: 6px;
   height: 6px;
@@ -169,7 +176,19 @@
 *::-webkit-scrollbar-thumb {
   background: hsl(var(--muted-foreground) / 0.15);
   border-radius: 9999px;
+  transition: background 0.2s;
 }
 *::-webkit-scrollbar-thumb:hover {
   background: hsl(var(--muted-foreground) / 0.35);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }

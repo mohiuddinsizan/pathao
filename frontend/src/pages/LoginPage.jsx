@@ -1,12 +1,7 @@
-/**
- * Login Page — polished email + password form matching reference UI.
- * Grid background, centered Card, PalettePicker in footer.
- */
-
 import { useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
-import PalettePicker from "@/components/PalettePicker";
+import ThemeToggle from "@/components/ThemeToggle";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -18,7 +13,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Loader2 } from "lucide-react";
+import { Loader2, Package } from "lucide-react";
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
@@ -53,10 +48,18 @@ export default function LoginPage() {
   return (
     <div className="relative flex min-h-svh items-center justify-center overflow-hidden bg-background p-4">
       {/* Subtle grid background */}
-      <div className="absolute inset-0 bg-[linear-gradient(to_right,hsl(var(--border))_1px,transparent_1px),linear-gradient(to_bottom,hsl(var(--border))_1px,transparent_1px)] bg-size-[4rem_4rem] bg-center mask-[radial-gradient(ellipse_at_center,black_20%,transparent_70%)] pointer-events-none" />
+      <div className="absolute inset-0 bg-[linear-gradient(to_right,hsl(var(--border)/0.5)_1px,transparent_1px),linear-gradient(to_bottom,hsl(var(--border)/0.5)_1px,transparent_1px)] bg-[size:4rem_4rem] bg-center [mask-image:radial-gradient(ellipse_at_center,black_40%,transparent_70%)] pointer-events-none" />
 
-      <Card className="relative w-full max-w-sm shadow-lg">
-        <CardHeader className="text-center space-y-1">
+      {/* Theme toggle top-right */}
+      <div className="absolute top-4 right-4 z-10">
+        <ThemeToggle />
+      </div>
+
+      <Card className="relative w-full max-w-sm border shadow-lg">
+        <CardHeader className="text-center space-y-2 pb-2">
+          <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-xl bg-primary">
+            <Package className="h-6 w-6 text-primary-foreground" />
+          </div>
           <CardTitle className="text-2xl font-bold tracking-tight">
             Pathao Parcel
           </CardTitle>
@@ -66,14 +69,13 @@ export default function LoginPage() {
         </CardHeader>
 
         <CardContent>
-          {/* Error */}
           {error && (
             <div
               ref={errorRef}
               role="alert"
               aria-live="assertive"
               tabIndex={-1}
-              className="mb-4 rounded-md border border-destructive/50 bg-destructive/10 p-3 text-sm text-foreground outline-none"
+              className="mb-4 rounded-lg border border-destructive/50 bg-destructive/10 p-3 text-sm text-foreground outline-none"
             >
               {error}
             </div>
@@ -110,7 +112,7 @@ export default function LoginPage() {
             <Button
               type="submit"
               disabled={isPending}
-              className="w-full"
+              className="w-full cursor-pointer"
             >
               {isPending && (
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -120,8 +122,10 @@ export default function LoginPage() {
           </form>
         </CardContent>
 
-        <CardFooter className="justify-center">
-          <PalettePicker />
+        <CardFooter className="justify-center pb-6">
+          <p className="text-xs text-muted-foreground">
+            Demo: demo@pathao.com / demo123
+          </p>
         </CardFooter>
       </Card>
     </div>
