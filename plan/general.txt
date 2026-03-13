@@ -3,6 +3,48 @@
   CSE 326 | Group Project | Feature: Order Creation & Management
 ================================================================================
 
+
+================================================================================
+  GETTING STARTED — READ THIS FIRST
+================================================================================
+
+Repo: https://github.com/smammahdi/isd-pathao.git
+
+1. Clone the repo:
+     git clone https://github.com/smammahdi/isd-pathao.git
+     cd isd-pathao
+
+2. Create your own branch (use your roll number):
+     git checkout -b <your-roll-number>
+     Example: git checkout -b 2105057
+
+3. Push your branch to remote:
+     git push -u origin <your-roll-number>
+
+4. Do ALL your work on YOUR branch. Never push directly to main.
+
+5. When your feature is ready, create a Pull Request on GitHub:
+     Base: main  ←  Compare: <your-branch>
+
+6. Wait for at least 1 review before merging.
+
+IMPORTANT:
+  - Before starting work, make sure 2105056 has pushed the project scaffold
+    (frontend/, backend/, database/ directories are in main).
+  - Pull latest main into your branch before starting:
+      git checkout <your-branch>
+      git pull origin main
+  - Read YOUR task file (plan/<your-roll>.txt) for detailed instructions.
+  - Follow the commit message convention:
+      feat: add order creation endpoint
+      fix: correct pagination offset
+      style: update card borders
+      test: add order listing tests
+      docs: update API docs
+
+
+================================================================================
+
 PROJECT OVERVIEW
 ----------------
 Convert the existing merchant-desktop React mock UI into a fully functional
