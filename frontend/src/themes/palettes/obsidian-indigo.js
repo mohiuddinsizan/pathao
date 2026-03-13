@@ -1,0 +1,45 @@
+/**
+ * Obsidian Indigo — Dark Mode
+ * The signature Pathao dark palette with Electric Indigo primary.
+ * Hex swatches: #1C1C2E / #2A2A40 / #6366F1 / #E0E0E8
+ */
+export const obsidianIndigo = {
+  name: "obsidian-indigo",
+  label: "Obsidian Indigo",
+  mode: "dark",
+  swatches: ["#1C1C2E", "#2A2A40", "#6366F1", "#E0E0E8"],
+  colors: {
+    background: "240 24% 15%",
+    foreground: "240 10% 90%",
+    card: "240 22% 20%",
+    "card-foreground": "240 10% 90%",
+    popover: "240 22% 20%",
+    "popover-foreground": "240 10% 90%",
+    primary: "239 84% 67%",
+    "primary-foreground": "0 0% 100%",
+    secondary: "240 20% 28%",
+    "secondary-foreground": "240 10% 90%",
+    muted: "240 18% 25%",
+    "muted-foreground": "240 10% 65%",
+    accent: "240 20% 32%",
+    "accent-foreground": "240 10% 92%",
+    destructive: "0 84% 50%",
+    "destructive-foreground": "0 0% 100%",
+    border: "240 15% 32%",
+    input: "240 15% 32%",
+    ring: "239 84% 67%",
+    "chart-1": "239 84% 67%",
+    "chart-2": "280 65% 60%",
+    "chart-3": "200 70% 55%",
+    "chart-4": "160 60% 50%",
+    "chart-5": "340 75% 60%",
+    "sidebar-background": "240 24% 12%",
+    "sidebar-foreground": "240 10% 90%",
+    "sidebar-primary": "239 84% 67%",
+    "sidebar-primary-foreground": "0 0% 100%",
+    "sidebar-accent": "240 20% 28%",
+    "sidebar-accent-foreground": "240 10% 90%",
+    "sidebar-border": "240 15% 32%",
+    "sidebar-ring": "239 84% 67%",
+  },
+};

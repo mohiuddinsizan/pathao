@@ -1,0 +1,45 @@
+/**
+ * Midnight Violet — Dark Mode
+ * A deeper, moodier dark palette with violet undertones.
+ * Hex swatches: #13111C / #1E1B2E / #8B5CF6 / #D4D0E8
+ */
+export const midnightViolet = {
+  name: "midnight-violet",
+  label: "Midnight Violet",
+  mode: "dark",
+  swatches: ["#13111C", "#1E1B2E", "#8B5CF6", "#D4D0E8"],
+  colors: {
+    background: "256 28% 9%",
+    foreground: "260 20% 88%",
+    card: "256 26% 14%",
+    "card-foreground": "260 20% 88%",
+    popover: "256 26% 14%",
+    "popover-foreground": "260 20% 88%",
+    primary: "263 70% 66%",
+    "primary-foreground": "0 0% 100%",
+    secondary: "256 22% 22%",
+    "secondary-foreground": "260 20% 88%",
+    muted: "256 18% 19%",
+    "muted-foreground": "256 12% 58%",
+    accent: "256 22% 26%",
+    "accent-foreground": "260 20% 90%",
+    destructive: "0 84% 50%",
+    "destructive-foreground": "0 0% 100%",
+    border: "256 15% 26%",
+    input: "256 15% 26%",
+    ring: "263 70% 66%",
+    "chart-1": "263 70% 66%",
+    "chart-2": "239 84% 67%",
+    "chart-3": "330 65% 60%",
+    "chart-4": "190 70% 50%",
+    "chart-5": "40 80% 60%",
+    "sidebar-background": "256 28% 7%",
+    "sidebar-foreground": "260 20% 88%",
+    "sidebar-primary": "263 70% 66%",
+    "sidebar-primary-foreground": "0 0% 100%",
+    "sidebar-accent": "256 22% 22%",
+    "sidebar-accent-foreground": "260 20% 88%",
+    "sidebar-border": "256 15% 26%",
+    "sidebar-ring": "263 70% 66%",
+  },
+};

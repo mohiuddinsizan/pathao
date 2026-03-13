@@ -1,9 +1,9 @@
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom'
-import Login from './pages/LoginNew'
+import LoginPage from './pages/LoginPage'
 import Placeholder from './pages/Placeholder'
 import AppShell from './components/AppShell'
 import { AuthProvider, useAuth } from './context/AuthContext'
-import { ThemeProvider } from './context/ThemeContext'
+import { ThemeProvider } from './hooks/use-theme'
 
 function ProtectedRoute({ children }) {
   const { isAuthenticated } = useAuth()
@@ -22,7 +22,7 @@ function App() {
         <Router>
           <Routes>
             <Route path="/" element={<Navigate to="/login" replace />} />
-            <Route path="/login" element={<PublicRoute><Login /></PublicRoute>} />
+            <Route path="/login" element={<PublicRoute><LoginPage /></PublicRoute>} />
 
             {/* Authenticated routes with AppShell layout */}
             <Route element={<ProtectedRoute><AppShell /></ProtectedRoute>}>
@@ -33,7 +33,6 @@ function App() {
               <Route path="/analytics" element={<Placeholder />} />
               <Route path="/payments" element={<Placeholder />} />
               <Route path="/settings" element={<Placeholder />} />
-              <Route path="/support" element={<Placeholder />} />
             </Route>
           </Routes>
         </Router>

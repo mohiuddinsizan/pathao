@@ -1,9 +1,11 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap');
 @import "tailwindcss";
 
 @custom-variant dark (&:is(.dark *));
 
-/* ─── shadcn/ui Design Tokens → Tailwind v4 ─── */
+/*
+ * shadcn/ui Design Tokens
+ * @theme inline maps CSS vars to Tailwind v4 utility classes.
+ */
 @theme inline {
   --color-background: hsl(var(--background));
   --color-foreground: hsl(var(--foreground));
@@ -24,7 +26,12 @@
   --color-border: hsl(var(--border));
   --color-input: hsl(var(--input));
   --color-ring: hsl(var(--ring));
-  --color-sidebar: hsl(var(--sidebar-background));
+  --color-chart-1: hsl(var(--chart-1));
+  --color-chart-2: hsl(var(--chart-2));
+  --color-chart-3: hsl(var(--chart-3));
+  --color-chart-4: hsl(var(--chart-4));
+  --color-chart-5: hsl(var(--chart-5));
+  --color-sidebar-background: hsl(var(--sidebar-background));
   --color-sidebar-foreground: hsl(var(--sidebar-foreground));
   --color-sidebar-primary: hsl(var(--sidebar-primary));
   --color-sidebar-primary-foreground: hsl(var(--sidebar-primary-foreground));
@@ -36,89 +43,44 @@
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
   --radius-xl: calc(var(--radius) + 4px);
-  --font-sans: "Inter", system-ui, -apple-system, sans-serif;
-  --font-mono: "JetBrains Mono", ui-monospace, monospace;
 }
 
-/* ─── DARK MODE (default) — Obsidian & Electric Indigo ─── */
 @layer base {
   :root {
-    --background: 222 47% 8%;
-    --foreground: 210 40% 96%;
-    --card: 222 47% 11%;
-    --card-foreground: 210 40% 96%;
-    --popover: 222 47% 11%;
-    --popover-foreground: 210 40% 96%;
+    /* Fallback palette (Obsidian Indigo dark) — overridden by ThemeProvider JS */
+    --background: 240 24% 15%;
+    --foreground: 240 10% 90%;
+    --card: 240 22% 20%;
+    --card-foreground: 240 10% 90%;
+    --popover: 240 22% 20%;
+    --popover-foreground: 240 10% 90%;
     --primary: 239 84% 67%;
     --primary-foreground: 0 0% 100%;
-    --secondary: 222 47% 15%;
-    --secondary-foreground: 210 40% 90%;
-    --muted: 222 47% 14%;
-    --muted-foreground: 215 20% 55%;
-    --accent: 222 47% 16%;
-    --accent-foreground: 210 40% 96%;
-    --destructive: 0 84% 60%;
+    --secondary: 240 20% 28%;
+    --secondary-foreground: 240 10% 90%;
+    --muted: 240 18% 25%;
+    --muted-foreground: 240 10% 65%;
+    --accent: 240 20% 32%;
+    --accent-foreground: 240 10% 92%;
+    --destructive: 0 84% 50%;
     --destructive-foreground: 0 0% 100%;
-    --border: 222 40% 18%;
-    --input: 222 40% 18%;
+    --border: 240 15% 32%;
+    --input: 240 15% 32%;
     --ring: 239 84% 67%;
-    --radius: 0.625rem;
-    --sidebar-background: 222 47% 9%;
-    --sidebar-foreground: 210 40% 96%;
+    --radius: 0.5rem;
+    --chart-1: 239 84% 67%;
+    --chart-2: 280 65% 60%;
+    --chart-3: 200 70% 55%;
+    --chart-4: 160 60% 50%;
+    --chart-5: 340 75% 60%;
+    --sidebar-background: 240 24% 12%;
+    --sidebar-foreground: 240 10% 90%;
     --sidebar-primary: 239 84% 67%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 222 47% 14%;
-    --sidebar-accent-foreground: 210 40% 96%;
-    --sidebar-border: 222 40% 15%;
+    --sidebar-accent: 240 20% 28%;
+    --sidebar-accent-foreground: 240 10% 90%;
+    --sidebar-border: 240 15% 32%;
     --sidebar-ring: 239 84% 67%;
-
-    /* Status colors */
-    --status-pending: 45 93% 47%;
-    --status-assigned: 217 91% 60%;
-    --status-picked-up: 262 83% 58%;
-    --status-in-transit: 199 89% 48%;
-    --status-delivered: 142 71% 45%;
-    --status-cancelled: 0 84% 60%;
-    --status-returned: 25 95% 53%;
-  }
-
-  /* ─── LIGHT MODE — High Contrast for Accessibility ─── */
-  .light {
-    --background: 0 0% 100%;
-    --foreground: 222 47% 8%;
-    --card: 220 14% 97%;
-    --card-foreground: 222 47% 8%;
-    --popover: 0 0% 100%;
-    --popover-foreground: 222 47% 8%;
-    --primary: 239 84% 50%;
-    --primary-foreground: 0 0% 100%;
-    --secondary: 220 14% 92%;
-    --secondary-foreground: 222 47% 11%;
-    --muted: 220 14% 94%;
-    --muted-foreground: 222 20% 35%;
-    --accent: 220 14% 90%;
-    --accent-foreground: 222 47% 11%;
-    --destructive: 0 84% 45%;
-    --destructive-foreground: 0 0% 100%;
-    --border: 220 14% 78%;
-    --input: 220 14% 78%;
-    --ring: 239 84% 50%;
-    --sidebar-background: 220 14% 95%;
-    --sidebar-foreground: 222 47% 8%;
-    --sidebar-primary: 239 84% 50%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 220 14% 88%;
-    --sidebar-accent-foreground: 222 47% 11%;
-    --sidebar-border: 220 14% 82%;
-    --sidebar-ring: 239 84% 50%;
-
-    --status-pending: 45 93% 40%;
-    --status-assigned: 217 91% 45%;
-    --status-picked-up: 262 83% 48%;
-    --status-in-transit: 199 89% 38%;
-    --status-delivered: 142 71% 35%;
-    --status-cancelled: 0 84% 50%;
-    --status-returned: 25 95% 43%;
   }
 }
 
@@ -127,13 +89,87 @@
     @apply border-border;
   }
   body {
-    @apply bg-background text-foreground antialiased;
-    font-family: var(--font-sans);
+    @apply bg-background text-foreground;
+    font-family: "Inter", "Noto Sans Bengali", system-ui, -apple-system, sans-serif;
+    font-synthesis: none;
+    text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    overflow: hidden;
+  }
+  html {
+    overflow: hidden;
+    height: 100%;
   }
 }
 
-/* Scrollbar */
-::-webkit-scrollbar { width: 6px; height: 6px; }
-::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: hsl(var(--muted)); border-radius: 9999px; }
-::-webkit-scrollbar-thumb:hover { background: hsl(var(--muted-foreground)); }
+/* Thin, auto-hiding scrollbar */
+@layer utilities {
+  .scrollbar-autohide {
+    scrollbar-width: thin;
+    scrollbar-color: transparent transparent;
+    &:hover {
+      scrollbar-color: hsl(var(--muted-foreground) / 0.25) transparent;
+    }
+    &::-webkit-scrollbar {
+      width: 5px;
+      height: 5px;
+    }
+    &::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    &::-webkit-scrollbar-thumb {
+      background: transparent;
+      border-radius: 9999px;
+    }
+    &:hover::-webkit-scrollbar-thumb {
+      background: hsl(var(--muted-foreground) / 0.25);
+    }
+    &:hover::-webkit-scrollbar-thumb:hover {
+      background: hsl(var(--muted-foreground) / 0.4);
+    }
+  }
+
+  .scrollbar-thin {
+    scrollbar-width: thin;
+    scrollbar-color: hsl(var(--muted-foreground) / 0.3) transparent;
+    &::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    &::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    &::-webkit-scrollbar-thumb {
+      background: hsl(var(--muted-foreground) / 0.3);
+      border-radius: 9999px;
+    }
+    &::-webkit-scrollbar-thumb:hover {
+      background: hsl(var(--muted-foreground) / 0.5);
+    }
+  }
+
+  .scrollbar-hidden {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+    &::-webkit-scrollbar {
+      display: none;
+    }
+  }
+}
+
+/* Global scrollbar theming */
+*::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+*::-webkit-scrollbar-thumb {
+  background: hsl(var(--muted-foreground) / 0.15);
+  border-radius: 9999px;
+}
+*::-webkit-scrollbar-thumb:hover {
+  background: hsl(var(--muted-foreground) / 0.35);
+}
