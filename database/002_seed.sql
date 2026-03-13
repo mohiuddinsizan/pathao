@@ -13,7 +13,7 @@ INSERT INTO merchants (id, email, password_hash, name, phone, business_name)
 VALUES (
     'a1b2c3d4-e5f6-7890-abcd-ef1234567890',
     'demo@pathao.com',
-    '$2b$12$LJ3m4ys3zQfO8MnWdBQgWeUBOzEPE.X/k8BqVy.dLP0VfKJHKEHyG',
+    '$2b$12$it93kXzSsBAF0wv/fiLcH.f0ksBifzVrBNhEjRTax5fJxJNsjDtF2',
     'Rahim Ahmed',
     '01712345678',
     'Rahim Electronics'

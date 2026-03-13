@@ -28,6 +28,9 @@ Thumbs.db
 
 # Logs
 *.log
+
+# Temporary test scripts
+test_db.py
 npm-debug.log*
 
 # Test

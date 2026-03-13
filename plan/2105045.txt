@@ -332,3 +332,41 @@ NOTES
     project. Use AreaChart or BarChart with the brand color (#6366F1).
   - Inactive stores should appear grayed out in the stores list but NOT
     appear in the order creation store dropdown.
+
+
+================================================================================
+  ADDITIONAL TASK: LIGHT / DARK MODE TOGGLE
+================================================================================
+
+  [ ] Implement a Light / Dark mode toggle for the entire application.
+
+  Requirements:
+  - Add a toggle button/switch in the top navigation bar (or Settings page)
+  - Default mode should be DARK (current theme)
+  - Light mode should invert backgrounds, text colors, card colors, and
+    borders while keeping the brand accent color (#6366F1 Electric Indigo)
+  - Persist the user's preference in localStorage so it survives page refresh
+  - Use CSS custom properties (already defined in variables.css) to make
+    switching seamless — add a `[data-theme="light"]` or `.light-mode` class
+    on the root element and override the CSS variables
+  - Ensure ALL pages look correct in both modes: Login, Dashboard,
+    Deliveries, Stores, Create Delivery modal, Settings, etc.
+
+  Suggested approach:
+  1. Create a ThemeContext (React context) with toggle function
+  2. Wrap the app in ThemeProvider
+  3. On toggle, add/remove a CSS class on <html> or <body>
+  4. Define light-mode CSS variable overrides in variables.css:
+       [data-theme="light"] {
+         --bg-primary: #f8f9fa;
+         --bg-secondary: #ffffff;
+         --text-primary: #1a1a2e;
+         --text-secondary: #4a4a6a;
+         --card-bg: #ffffff;
+         --border-color: #e2e8f0;
+         /* ... etc. */
+       }
+  5. Add a sun/moon icon toggle button in the header (use Lucide icons:
+     Sun and Moon)
+
+  Priority: MEDIUM (do this after core tasks are done)
