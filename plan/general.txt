@@ -1,0 +1,526 @@
+================================================================================
+  PATHAO ORDER MANAGEMENT — FINAL DEMO IMPLEMENTATION PLAN
+  CSE 326 | Group Project | Feature: Order Creation & Management
+================================================================================
+
+PROJECT OVERVIEW
+----------------
+Convert the existing merchant-desktop React mock UI into a fully functional
+full-stack application. The merchant can create stores, manage parcels/orders,
+view dashboard stats, and track order statuses.
+
+Stack:    React (Vite) + FastAPI (Python) + Supabase (PostgreSQL)
+Deploy:   Vercel (frontend) + Render (backend) + Supabase (DB)
+Repo:     https://github.com/smammahdi/isd-pathao-demo
+
+
+================================================================================
+  ARCHITECTURE
+================================================================================
+
+  ┌──────────────────────────┐
+  │   React Frontend         │  Vite + React 19 + React Router v7
+  │   (merchant-desktop)     │  Recharts, Lucide, Axios
+  └──────────┬───────────────┘
+             │  REST API (JSON) + JWT Bearer token
+  ┌──────────▼───────────────┐
+  │   FastAPI Backend        │  Python 3.11+
+  │   /api/*                 │  Pydantic, JWT, bcrypt
+  └──────────┬───────────────┘
+             │  asyncpg / psycopg2
+  ┌──────────▼───────────────┐
+  │   Supabase PostgreSQL    │  Hosted + managed
+  └──────────────────────────┘
+
+
+================================================================================
+  PROJECT STRUCTURE
+================================================================================
+
+isd-pathao-demo/
+├── frontend/                     React app (refactored from merchant-desktop)
+│   ├── public/
+│   ├── src/
+│   │   ├── api/                  API service layer (Axios + JWT interceptor)
+│   │   │   ├── client.js         Axios instance with base URL + interceptors
+│   │   │   ├── auth.js           Auth API calls (login, register, getMe)
+│   │   │   ├── orders.js         Order API calls (CRUD + filters)
+│   │   │   ├── stores.js         Store API calls (CRUD)
+│   │   │   └── dashboard.js      Dashboard stats API call
+│   │   ├── components/
+│   │   │   ├── Layout.jsx        Sidebar + main area
+│   │   │   ├── Navbar.jsx        Top bar with search + actions
+│   │   │   ├── LoadingSkeleton.jsx   Skeleton loaders
+│   │   │   ├── EmptyState.jsx    Empty state component
+│   │   │   ├── StatusBadge.jsx   Reusable status badge
+│   │   │   └── Toast.jsx         Toast notification system
+│   │   ├── context/
+│   │   │   └── AuthContext.jsx   JWT-based auth state
+│   │   ├── hooks/
+│   │   │   ├── useOrders.js      Order data fetching hook
+│   │   │   ├── useStores.js      Store data fetching hook
+│   │   │   └── useDashboard.js   Dashboard data hook
+│   │   ├── pages/
+│   │   │   ├── Login.jsx
+│   │   │   ├── Register.jsx
+│   │   │   ├── Dashboard.jsx
+│   │   │   ├── Orders.jsx
+│   │   │   ├── OrderDetail.jsx   (optional: can be modal in Orders)
+│   │   │   ├── Stores.jsx
+│   │   │   ├── Analytics.jsx
+│   │   │   ├── Payments.jsx      (demo-only, shows mock data)
+│   │   │   ├── Settings.jsx
+│   │   │   └── Support.jsx
+│   │   ├── styles/
+│   │   │   ├── variables.css     Design tokens (colors, spacing, fonts)
+│   │   │   └── global.css        Global styles
+│   │   ├── utils/
+│   │   │   ├── constants.js      Status configs, labels, colors
+│   │   │   └── helpers.js        Formatters, validators
+│   │   ├── App.jsx               Router setup
+│   │   └── main.jsx              Entry point
+│   ├── package.json
+│   └── vite.config.js
+│
+├── backend/                      FastAPI application
+│   ├── app/
+│   │   ├── __init__.py
+│   │   ├── main.py               App entry, CORS, lifespan
+│   │   ├── config.py             Environment variables (pydantic-settings)
+│   │   ├── database.py           DB connection pool (asyncpg)
+│   │   ├── auth/
+│   │   │   ├── __init__.py
+│   │   │   ├── jwt_handler.py    Token create/verify
+│   │   │   ├── password.py       bcrypt hash/verify
+│   │   │   └── dependencies.py   get_current_merchant dependency
+│   │   ├── schemas/              Pydantic request/response models
+│   │   │   ├── __init__.py
+│   │   │   ├── auth.py           LoginRequest, RegisterRequest, TokenResponse
+│   │   │   ├── orders.py         OrderCreate, OrderUpdate, OrderResponse, OrderList
+│   │   │   ├── stores.py         StoreCreate, StoreUpdate, StoreResponse
+│   │   │   └── dashboard.py      DashboardStats
+│   │   ├── routers/              API route handlers
+│   │   │   ├── __init__.py
+│   │   │   ├── auth.py           /api/auth/*
+│   │   │   ├── orders.py         /api/orders/*
+│   │   │   ├── stores.py         /api/stores/*
+│   │   │   └── dashboard.py      /api/dashboard/*
+│   │   └── services/             Business logic (DB queries)
+│   │       ├── __init__.py
+│   │       ├── auth_service.py
+│   │       ├── order_service.py
+│   │       ├── store_service.py
+│   │       └── dashboard_service.py
+│   ├── tests/                    Test files
+│   │   ├── __init__.py
+│   │   ├── conftest.py           Test fixtures
+│   │   ├── test_auth.py
+│   │   ├── test_orders.py
+│   │   ├── test_stores.py
+│   │   └── test_dashboard.py
+│   ├── requirements.txt
+│   ├── Dockerfile
+│   └── .env.example
+│
+├── database/
+│   ├── 001_schema.sql            All table definitions
+│   ├── 002_seed.sql              Demo data (merchant, stores, orders, drivers)
+│   └── README.md                 How to run migrations
+│
+├── plan/                         This folder - task assignments
+├── .gitignore
+├── .env.example
+└── README.md                     Project overview + setup instructions
+
+
+================================================================================
+  DATABASE SCHEMA
+================================================================================
+
+TABLE: merchants
+  - id              UUID PRIMARY KEY DEFAULT gen_random_uuid()
+  - email           VARCHAR(255) UNIQUE NOT NULL
+  - password_hash   VARCHAR(255) NOT NULL
+  - name            VARCHAR(255) NOT NULL
+  - phone           VARCHAR(20)
+  - business_name   VARCHAR(255)
+  - created_at      TIMESTAMPTZ DEFAULT NOW()
+  - updated_at      TIMESTAMPTZ DEFAULT NOW()
+
+TABLE: stores
+  - id              UUID PRIMARY KEY DEFAULT gen_random_uuid()
+  - merchant_id     UUID REFERENCES merchants(id) ON DELETE CASCADE
+  - name            VARCHAR(255) NOT NULL
+  - branch          VARCHAR(255)
+  - address         TEXT
+  - city            VARCHAR(100)
+  - zone            VARCHAR(100)
+  - phone           VARCHAR(20)
+  - email           VARCHAR(255)
+  - is_active       BOOLEAN DEFAULT true
+  - created_at      TIMESTAMPTZ DEFAULT NOW()
+  - updated_at      TIMESTAMPTZ DEFAULT NOW()
+
+TABLE: drivers  (reference-only for demo)
+  - id              UUID PRIMARY KEY DEFAULT gen_random_uuid()
+  - name            VARCHAR(255) NOT NULL
+  - phone           VARCHAR(20) NOT NULL
+  - vehicle         VARCHAR(100)
+  - rating          DECIMAL(2,1) DEFAULT 5.0
+  - is_available    BOOLEAN DEFAULT true
+
+TABLE: orders
+  - id              UUID PRIMARY KEY DEFAULT gen_random_uuid()
+  - order_id        VARCHAR(20) UNIQUE NOT NULL  (e.g. PTH-100001)
+  - merchant_id     UUID REFERENCES merchants(id) ON DELETE CASCADE
+  - store_id        UUID REFERENCES stores(id) ON DELETE SET NULL
+  - driver_id       UUID REFERENCES drivers(id) ON DELETE SET NULL  (nullable)
+  - status          VARCHAR(20) DEFAULT 'pending'
+                    CHECK (status IN ('pending','assigned','picked_up',
+                           'in_transit','delivered','cancelled'))
+  - recipient_name  VARCHAR(255) NOT NULL
+  - recipient_phone VARCHAR(20) NOT NULL
+  - recipient_address TEXT NOT NULL
+  - pickup_address  TEXT  (from store or custom address)
+  - destination_area VARCHAR(255)
+  - parcel_type     VARCHAR(50)  (document, small_box, medium_parcel, fragile)
+  - item_description TEXT
+  - item_weight     VARCHAR(20)
+  - amount          DECIMAL(10,2) NOT NULL
+  - payment_method  VARCHAR(20) DEFAULT 'cod'  (cod, prepaid, bkash)
+  - cod_amount      DECIMAL(10,2) DEFAULT 0
+  - notes           TEXT
+  - created_at      TIMESTAMPTZ DEFAULT NOW()
+  - updated_at      TIMESTAMPTZ DEFAULT NOW()
+
+TABLE: order_status_history
+  - id              UUID PRIMARY KEY DEFAULT gen_random_uuid()
+  - order_id        UUID REFERENCES orders(id) ON DELETE CASCADE
+  - status          VARCHAR(20) NOT NULL
+  - changed_at      TIMESTAMPTZ DEFAULT NOW()
+  - note            TEXT
+
+INDEXES:
+  - orders(merchant_id)
+  - orders(store_id)
+  - orders(status)
+  - orders(created_at DESC)
+  - orders(order_id)  -- UNIQUE already creates index
+  - order_status_history(order_id)
+
+SEQUENCE for order IDs:
+  CREATE SEQUENCE order_id_seq START WITH 100001;
+  -- In application: format as PTH-{nextval}
+
+
+================================================================================
+  API ENDPOINTS
+================================================================================
+
+All protected endpoints require:  Authorization: Bearer <jwt_token>
+All responses follow:  { "data": ..., "message": "..." }
+
+--- AUTH ---
+POST   /api/auth/register
+  Body: { email, password, name, phone?, business_name? }
+  Returns: { data: { token, merchant }, message: "Registered" }
+
+POST   /api/auth/login
+  Body: { email, password }
+  Returns: { data: { token, merchant }, message: "Login successful" }
+
+GET    /api/auth/me
+  Headers: Authorization: Bearer <token>
+  Returns: { data: { id, email, name, phone, business_name } }
+
+--- ORDERS (scoped to merchant) ---
+GET    /api/orders
+  Query: store_id, status, date_from, date_to, search, sort_by,
+         page (default 1), limit (default 20)
+  Returns: { data: { orders: [...], total, page, limit, pages } }
+
+POST   /api/orders
+  Body: { store_id?, recipient_name, recipient_phone, recipient_address,
+          pickup_address?, destination_area?, parcel_type?,
+          item_description?, item_weight?, amount, payment_method?,
+          cod_amount?, notes? }
+  Returns: { data: order, message: "Order created" }
+
+GET    /api/orders/{order_id}
+  Returns: { data: { ...order, status_history: [...], store: {...} } }
+
+PUT    /api/orders/{order_id}
+  Constraint: Only when status = 'pending'
+  Body: (same fields as create, all optional)
+  Returns: { data: order, message: "Order updated" }
+
+PATCH  /api/orders/{order_id}/status
+  Body: { status: "assigned" | "picked_up" | "in_transit" | "delivered" | "cancelled", note? }
+  Constraint: Status must follow valid transitions
+  Returns: { data: order, message: "Status updated" }
+
+DELETE /api/orders/{order_id}
+  Constraint: Only when status = 'pending'
+  Effect: Sets status to 'cancelled'
+  Returns: { message: "Order cancelled" }
+
+--- STORES (scoped to merchant) ---
+GET    /api/stores
+  Returns: { data: [...stores] }
+
+POST   /api/stores
+  Body: { name, branch?, address?, city?, zone?, phone?, email? }
+  Returns: { data: store, message: "Store created" }
+
+GET    /api/stores/{store_id}
+  Returns: { data: store }
+
+PUT    /api/stores/{store_id}
+  Body: (same fields, all optional)
+  Returns: { data: store, message: "Store updated" }
+
+DELETE /api/stores/{store_id}
+  Effect: Deactivates or deletes the store
+  Returns: { message: "Store deactivated" }
+
+--- DASHBOARD ---
+GET    /api/dashboard/stats
+  Returns: {
+    data: {
+      total_orders, pending_count, in_transit_count, delivered_count,
+      cancelled_count, total_revenue, today_orders, today_revenue,
+      success_rate, total_stores, active_stores,
+      weekly_trend: [{ day, count, revenue }],
+      status_distribution: { pending: n, assigned: n, ... }
+    }
+  }
+
+--- DRIVERS (reference) ---
+GET    /api/drivers
+  Returns: { data: [...drivers] }
+
+
+================================================================================
+  DESIGN SYSTEM — "OBSIDIAN & INDIGO" THEME
+================================================================================
+
+Replacing the current pure-black + crimson-red with a premium, warm dark theme.
+
+COLORS:
+  Background:
+    --bg-primary:      #0B0E14     Deep Obsidian
+    --bg-secondary:    #0F1219     Sidebar / slightly shifted BG
+    --bg-surface:      #161B26     Card / surface default
+    --bg-elevated:     #1E2533     Modals / popovers / active widgets
+    --bg-hover:        #252D3D     Interactive surface hover
+
+  Brand:
+    --brand-primary:   #6366F1     Electric Indigo
+    --brand-light:     #818CF8     Active tab backgrounds, subtle highlights
+    --brand-dark:      #4F46E5     Pressed / active state
+    --brand-accent:    #06B6D4     Cyan — secondary data, sparklines
+
+  Text:
+    --text-primary:    #F8FAFC     Soft off-white (NOT pure white)
+    --text-secondary:  #94A3B8     Descriptions, helper text
+    --text-muted:      #64748B     Metadata, timestamps
+
+  Status / Semantic:
+    --status-pending:  #F59E0B     Amber
+    --status-assigned: #8B5CF6     Violet
+    --status-transit:  #3B82F6     Blue
+    --status-delivered:#10B981     Emerald
+    --status-cancelled:#F43F5E     Rose (softer than pure red)
+
+  Borders:
+    --border-default:  #1E293B     Card outlines
+    --border-subtle:   #161B26     Internal dividers
+
+TYPOGRAPHY:
+  --font-primary:    'Inter', system-ui, -apple-system, sans-serif
+  --font-mono:       'JetBrains Mono', 'Fira Code', monospace
+
+  Scale:
+    --text-xs:   12px    Labels, metadata
+    --text-sm:   14px    Body text, table cells
+    --text-base: 16px    Default body
+    --text-lg:   18px    Section headers
+    --text-xl:   20px    Page subtitles
+    --text-2xl:  24px    Page titles
+    --text-3xl:  30px    Dashboard stat numbers
+    --text-4xl:  36px    Hero numbers
+
+  Weights:
+    Regular: 400     Body text
+    Medium:  500     Labels, nav items
+    Semibold: 600    Headings, buttons
+    Bold:    700     Dashboard stat values
+
+SPACING (8px base grid):
+  4px, 8px, 12px, 16px, 20px, 24px, 32px, 40px, 48px, 64px
+
+BORDER RADIUS:
+  --radius-sm:  6px      Buttons, inputs, badges
+  --radius-md:  8px      Cards
+  --radius-lg:  12px     Large cards, modals
+  --radius-xl:  16px     Container elements
+
+SHADOWS (use 1px borders instead of heavy shadows in dark mode):
+  Cards: 1px solid var(--border-default)
+  Elevated: 1px solid var(--border-default) + subtle shadow for depth
+  Shadow: 0 4px 16px rgba(0, 0, 0, 0.3)
+
+DESIGN PRINCIPLES:
+  1. Surgical color use — brand color ONLY for primary CTA + active nav
+  2. 1px borders to define cards (not heavy shadows)
+  3. Off-white text (#F8FAFC) — never pure #FFFFFF
+  4. Generous whitespace — let content breathe
+  5. Status colors at ~12% opacity as backgrounds with solid text
+  6. Monospace font for order IDs and tracking numbers
+  7. Hover states: bg shifts to --bg-hover, border slightly brightens
+  8. Smooth transitions: all 150ms ease-in-out
+
+
+================================================================================
+  ORDER STATUS FLOW
+================================================================================
+
+Valid status transitions:
+
+  pending ──→ assigned ──→ picked_up ──→ in_transit ──→ delivered
+     │                                                       
+     └──→ cancelled                                          
+
+  - Orders start as 'pending'
+  - Only 'pending' orders can be edited or cancelled
+  - Status changes are recorded in order_status_history
+  - For demo: include "Simulate Status" buttons to advance status
+
+
+================================================================================
+  GIT WORKFLOW
+================================================================================
+
+Branches:
+  main          Protected — only merge via PR
+  develop       Integration branch — all features merge here
+  feature/*     Per-member feature branches
+
+Naming:
+  feature/2105056-project-setup-auth
+  feature/2105057-order-creation
+  feature/2105058-order-listing
+  feature/2105040-order-detail-edit
+  feature/2105045-dashboard-analytics
+  feature/2105039-testing
+
+Commit Messages (conventional):
+  feat: add order creation API endpoint
+  fix: correct pagination offset calculation
+  style: update card border colors to new theme
+  test: add order creation integration tests
+  docs: update README with setup instructions
+
+Pull Request Rules:
+  - At least 1 review before merging to develop
+  - All tests must pass
+  - No merge conflicts
+
+
+================================================================================
+  DEVELOPMENT PHASES
+================================================================================
+
+PHASE 1: FOUNDATION  (Member 2105056)
+  - Set up monorepo structure
+  - FastAPI boilerplate with CORS + middleware
+  - Supabase PostgreSQL connection
+  - Database schema creation (all tables)
+  - JWT authentication (login, register, token verify)
+  - Frontend API service layer (Axios + interceptor)
+  - Design system CSS variables
+  - Seed data script
+  ★ BLOCKER: All other members depend on this being complete
+
+PHASE 2: CORE FEATURES  (All members in parallel)
+  - 2105057: Order creation (backend + frontend)
+  - 2105058: Order listing & filtering (backend + frontend)
+  - 2105040: Order detail, edit, cancel, status simulation (backend + frontend)
+  - 2105045: Dashboard + stores + UI components (backend + frontend)
+  - 2105039: Write tests for all features as they are built
+
+PHASE 3: INTEGRATION & DEPLOYMENT  (Member 2105056 + all)
+  - Merge all feature branches into develop
+  - Fix integration issues
+  - Deploy to Vercel + Render + Supabase
+  - End-to-end testing on deployed version
+
+PHASE 4: POLISH & DEMO PREP  (All)
+  - Final UI polish
+  - Seed demo data
+  - Prepare demo walkthrough script
+  - Practice demo run
+
+
+================================================================================
+  SHARED CONVENTIONS
+================================================================================
+
+API Response Format:
+  {
+    "data": <object or array>,
+    "message": "Human-readable message"
+  }
+
+  Error format:
+  {
+    "detail": "Error description"
+  }
+
+Frontend API Calls:
+  - All API calls go through src/api/client.js
+  - JWT token stored in localStorage as 'auth_token'
+  - Axios interceptor adds Bearer token to all requests
+  - 401 responses trigger automatic logout + redirect to /login
+
+Form Validation:
+  - Client-side: validate on blur + on submit
+  - Server-side: Pydantic validates all inputs, returns 422 with field errors
+  - Display inline error messages below each field
+
+Loading States:
+  - Use skeleton loaders for lists (not spinners)
+  - Disable + show loading indicator on buttons during submit
+  - Show toast notification on success/error
+
+Status Badge Colors:
+  - Pending:   amber bg (12% opacity), amber text
+  - Assigned:  violet bg, violet text
+  - Picked Up: blue bg, blue text
+  - In Transit: blue bg, blue text
+  - Delivered: emerald bg, emerald text
+  - Cancelled: rose bg, rose text
+
+Environment Variables:
+  Frontend (.env):
+    VITE_API_URL=http://localhost:8000/api   (or deployed URL)
+
+  Backend (.env):
+    DATABASE_URL=postgresql://...@db.xxx.supabase.co:5432/postgres
+    JWT_SECRET=<random-secret>
+    JWT_EXPIRY_HOURS=24
+    FRONTEND_URL=http://localhost:5173   (for CORS)
+
+
+================================================================================
+  TEAM — ROLL NUMBERS & ASSIGNMENTS
+================================================================================
+
+  2105056 — Project Setup, Auth, Supabase, Deployment, Design System
+  2105057 — Order Creation (Backend + Frontend)
+  2105058 — Order Listing, Filtering, Search, Pagination (Backend + Frontend)
+  2105040 — Order Detail, Edit, Cancel, Status Simulation (Backend + Frontend)
+  2105045 — Dashboard, Stores, Analytics, UI Components (Backend + Frontend)
+  2105039 — Testing (All features — unit + integration + E2E)
+
+  See individual member files (plan/2105XXX.txt) for detailed task breakdowns.

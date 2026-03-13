@@ -1,0 +1,193 @@
+================================================================================
+  MEMBER: 2105056 — PROJECT SETUP, AUTH, SUPABASE & DEPLOYMENT
+================================================================================
+  Branch: feature/2105056-project-setup-auth
+  Role:   Team lead — sets up the entire foundation for others to build on
+================================================================================
+
+
+PHASE 1: PROJECT SCAFFOLD
+=========================
+These tasks MUST be done first. All other members are blocked until this is
+complete and pushed.
+
+  [ ] 1. Set up monorepo structure
+      - Create frontend/ and backend/ and database/ directories
+      - Copy merchant-desktop source into frontend/ (from mock-ui/react-apps/)
+      - Remove all hardcoded mock data from Orders.jsx
+      - Set up .gitignore (node_modules, __pycache__, .env, .venv, etc.)
+      - Create README.md with project overview + setup instructions
+
+  [ ] 2. Backend boilerplate (FastAPI)
+      - Initialize Python project with virtual env
+      - Create requirements.txt:
+          fastapi
+          uvicorn[standard]
+          asyncpg
+          pydantic[email]
+          pydantic-settings
+          python-jose[cryptography]
+          passlib[bcrypt]
+          python-multipart
+      - Create app/main.py with CORS middleware:
+          origins = [FRONTEND_URL] (configurable via env)
+      - Create app/config.py with pydantic-settings:
+          DATABASE_URL, JWT_SECRET, JWT_EXPIRY_HOURS, FRONTEND_URL
+      - Create app/database.py:
+          - asyncpg connection pool
+          - get_db() dependency
+      - Create .env.example with all required variables
+      - Create Dockerfile for Render deployment
+
+  [ ] 3. Database setup on Supabase
+      - Create Supabase project
+      - Write database/001_schema.sql (all 5 tables + indexes + sequence)
+      - Write database/002_seed.sql:
+          - 1 demo merchant (demo@pathao.com / demo123)
+          - 3 stores
+          - 4 drivers (reference data)
+          - 15-20 sample orders across all statuses
+          - Status history entries for non-pending orders
+      - Run schema on Supabase via SQL editor
+      - Share DATABASE_URL securely with team (use .env, NOT committed)
+
+
+PHASE 2: AUTHENTICATION
+========================
+
+  [ ] 4. Auth backend
+      - app/auth/password.py:
+          hash_password(plain) -> str
+          verify_password(plain, hashed) -> bool
+      - app/auth/jwt_handler.py:
+          create_token(merchant_id: UUID) -> str
+          verify_token(token: str) -> dict (raises 401)
+      - app/auth/dependencies.py:
+          get_current_merchant(token: str = Depends(oauth2_scheme))
+          → queries merchants table, returns merchant dict
+      - app/schemas/auth.py:
+          RegisterRequest (email, password, name, phone?, business_name?)
+          LoginRequest (email, password)
+          TokenResponse (token: str, merchant: MerchantResponse)
+          MerchantResponse (id, email, name, phone, business_name)
+      - app/routers/auth.py:
+          POST /api/auth/register
+            - Validate no duplicate email
+            - Hash password
+            - Insert into merchants
+            - Return token + merchant data
+          POST /api/auth/login
+            - Verify email exists + password matches
+            - Return token + merchant data
+          GET /api/auth/me
+            - Protected route
+            - Return current merchant info
+      - app/services/auth_service.py:
+          - create_merchant(db, data) -> merchant
+          - authenticate_merchant(db, email, password) -> merchant or None
+          - get_merchant_by_id(db, id) -> merchant
+
+  [ ] 5. Auth frontend
+      - src/api/client.js:
+          - Axios instance with VITE_API_URL as baseURL
+          - Request interceptor: attach Bearer token from localStorage
+          - Response interceptor: on 401, clear token, redirect to /login
+      - src/api/auth.js:
+          login(email, password) -> { token, merchant }
+          register(data) -> { token, merchant }
+          getMe() -> merchant
+      - src/context/AuthContext.jsx:
+          - Replace demo auth with real JWT flow
+          - On mount: check localStorage for token, call getMe() to validate
+          - login(email, password): call API, store token, set merchant state
+          - register(data): call API, store token, set merchant state
+          - logout(): remove token, clear state, navigate to /login
+      - src/pages/Login.jsx:
+          - Wire up to real auth API
+          - Show loading state on button during API call
+          - Show error toast on failed login
+          - Keep demo credentials info for easy testing
+      - src/pages/Register.jsx:  (NEW)
+          - Name, email, password, phone, business name fields
+          - Client-side validation
+          - Wire to register API
+
+
+PHASE 3: DESIGN SYSTEM
+=======================
+
+  [ ] 6. CSS variables & theming
+      - src/styles/variables.css:
+          - All colors from the Obsidian & Indigo palette (see general.txt)
+          - Typography scale (text-xs through text-4xl)
+          - Spacing scale (4px to 64px)
+          - Border radius scale
+          - Transition defaults
+      - src/styles/global.css:
+          - Apply --bg-primary as body background
+          - Set --text-primary as default text color
+          - Font: 'Inter', system-ui
+          - Base resets + scrollbar styling
+      - Update all existing components to use CSS variables instead of
+        hardcoded colors — this is gradual, each member updates their pages
+
+  [ ] 7. Template / guidance code for other members
+      - Create a SAMPLE router file: backend/app/routers/_template.py
+        showing how to structure a route with authentication dependency
+      - Create a SAMPLE service file: backend/app/services/_template.py
+        showing how to query the DB using asyncpg
+      - Create a SAMPLE page showing how to call the API from React,
+        handle loading/error/success states with the api/client.js
+      - Write brief instructions in the plan files or README so members
+        can follow the pattern
+
+
+PHASE 4: DEPLOYMENT & FINAL INTEGRATION
+========================================
+
+  [ ] 8. Deploy backend to Render
+      - Create Render web service pointed to the repo's backend/ directory
+      - Set environment variables (DATABASE_URL, JWT_SECRET, FRONTEND_URL)
+      - Use Docker or native Python runtime
+      - Ensure CORS allows the Vercel frontend URL
+      - Test all endpoints on deployed URL
+
+  [ ] 9. Deploy frontend to Vercel
+      - Connect repo to Vercel, set root directory to frontend/
+      - Set VITE_API_URL environment variable to Render backend URL
+      - Set build command: npm run build
+      - Test deployed frontend against deployed backend
+
+  [ ] 10. Final integration
+      - Merge all feature branches into develop
+      - Resolve conflicts
+      - Run all tests
+      - Deploy final version
+      - Seed production database with demo data
+      - Verify end-to-end flow on deployed app
+      - Create demo script / walkthrough
+
+
+DELIVERABLES CHECKLIST
+======================
+  [ ] Monorepo structure with frontend/ + backend/ + database/
+  [ ] FastAPI running with CORS + environment config
+  [ ] Supabase DB with all tables + seed data
+  [ ] JWT auth working (register + login + protected routes)
+  [ ] Frontend API service layer (Axios + interceptors)
+  [ ] Design system CSS variables applied
+  [ ] Template/guidance code for other members
+  [ ] Backend deployed on Render
+  [ ] Frontend deployed on Vercel
+  [ ] All branches merged + tested
+  [ ] Demo walkthrough script written
+
+
+NOTES
+=====
+  - You are the bottleneck for Phase 1. Get it done ASAP so others can start.
+  - Share the deployed Supabase DATABASE_URL privately (never commit it).
+  - After Phase 1 is pushed, communicate to all members that they can start.
+  - Keep an eye on PRs from other members — review and help resolve issues.
+  - During Phase 4, coordinate with 2105039 (testing) to ensure all tests
+    pass on the deployed version.

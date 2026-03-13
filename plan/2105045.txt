@@ -1,0 +1,334 @@
+================================================================================
+  MEMBER: 2105045 — DASHBOARD, STORES, ANALYTICS & UI COMPONENTS
+================================================================================
+  Branch: feature/2105045-dashboard-stores
+  Depends on: 2105056 completing Phase 1 (project setup + auth + DB schema)
+================================================================================
+
+
+OVERVIEW
+========
+Build the dashboard (landing page with key stats), stores CRUD, and shared
+UI components. The dashboard should be minimal — a quick overview, NOT a
+full analytics page. The stores page lets merchants manage their pickup
+locations.
+
+
+BACKEND TASKS
+=============
+
+--- DASHBOARD ---
+
+  [ ] 1. Dashboard schemas
+      File: backend/app/schemas/dashboard.py
+
+      DashboardStats:
+        - total_orders:         int
+        - pending_count:        int
+        - in_transit_count:     int
+        - delivered_count:      int
+        - cancelled_count:      int
+        - total_revenue:        Decimal
+        - today_orders:         int
+        - today_revenue:        Decimal
+        - success_rate:         float     (delivered / total * 100)
+        - total_stores:         int
+        - active_stores:        int
+        - weekly_trend:         list[DayTrend]
+        - status_distribution:  dict[str, int]
+
+      DayTrend:
+        - day:      str      (Mon, Tue, etc. or date string)
+        - count:    int
+        - revenue:  Decimal
+
+  [ ] 2. Dashboard service
+      File: backend/app/services/dashboard_service.py
+
+      async def get_dashboard_stats(db, merchant_id) -> dict:
+        Run a single query (or 2-3 efficient queries):
+        
+        Query 1 — Order stats:
+          SELECT
+            COUNT(*) as total_orders,
+            COUNT(*) FILTER (WHERE status = 'pending') as pending_count,
+            COUNT(*) FILTER (WHERE status IN ('assigned','picked_up','in_transit'))
+              as in_transit_count,
+            COUNT(*) FILTER (WHERE status = 'delivered') as delivered_count,
+            COUNT(*) FILTER (WHERE status = 'cancelled') as cancelled_count,
+            COALESCE(SUM(amount) FILTER (WHERE status = 'delivered'), 0)
+              as total_revenue,
+            COUNT(*) FILTER (WHERE created_at >= CURRENT_DATE) as today_orders,
+            COALESCE(SUM(amount) FILTER (WHERE status = 'delivered'
+              AND created_at >= CURRENT_DATE), 0) as today_revenue
+          FROM orders
+          WHERE merchant_id = $1
+
+        Query 2 — Weekly trend (last 7 days):
+          SELECT
+            TO_CHAR(created_at, 'Dy') as day,
+            DATE(created_at) as date,
+            COUNT(*) as count,
+            COALESCE(SUM(amount), 0) as revenue
+          FROM orders
+          WHERE merchant_id = $1
+            AND created_at >= CURRENT_DATE - INTERVAL '6 days'
+          GROUP BY DATE(created_at), TO_CHAR(created_at, 'Dy')
+          ORDER BY date
+
+        Query 3 — Store counts:
+          SELECT
+            COUNT(*) as total_stores,
+            COUNT(*) FILTER (WHERE is_active) as active_stores
+          FROM stores
+          WHERE merchant_id = $1
+
+        Compute success_rate = delivered / total * 100 (handle division by 0)
+
+  [ ] 3. Dashboard endpoint
+      File: backend/app/routers/dashboard.py
+
+      GET /api/dashboard/stats
+        - Protected
+        - Call get_dashboard_stats()
+        - Return { data: DashboardStats }
+
+
+--- STORES ---
+
+  [ ] 4. Store schemas
+      File: backend/app/schemas/stores.py
+
+      StoreCreate:
+        - name:     str (required, 2-100 chars)
+        - branch:   Optional[str]
+        - address:  Optional[str]
+        - city:     Optional[str]
+        - zone:     Optional[str]
+        - phone:    Optional[str]
+        - email:    Optional[str] (validated email format)
+
+      StoreUpdate:
+        - Same fields as StoreCreate, all Optional
+
+      StoreResponse:
+        - id, merchant_id, name, branch, address, city, zone,
+          phone, email, is_active, created_at, updated_at
+        - order_count: int   (number of orders from this store)
+
+  [ ] 5. Store service
+      File: backend/app/services/store_service.py
+
+      async def get_stores(db, merchant_id) -> list:
+        - SELECT s.*, COUNT(o.id) as order_count
+          FROM stores s
+          LEFT JOIN orders o ON s.id = o.store_id
+          WHERE s.merchant_id = $1
+          GROUP BY s.id
+          ORDER BY s.created_at DESC
+
+      async def get_store(db, merchant_id, store_id) -> dict:
+        - Fetch single store, verify belongs to merchant
+        - Include order_count
+
+      async def create_store(db, merchant_id, data) -> dict:
+        - INSERT into stores
+        - Return created store
+
+      async def update_store(db, merchant_id, store_id, data) -> dict:
+        - Verify belongs to merchant
+        - Dynamic UPDATE with only provided fields
+        - Return updated store
+
+      async def deactivate_store(db, merchant_id, store_id) -> None:
+        - Verify belongs to merchant
+        - SET is_active = false (soft delete)
+        - Existing orders keep their store reference
+
+  [ ] 6. Store endpoints
+      File: backend/app/routers/stores.py
+
+      GET    /api/stores             → get_stores() → list
+      POST   /api/stores             → create_store() → 201
+      GET    /api/stores/{store_id}  → get_store() → detail
+      PUT    /api/stores/{store_id}  → update_store() → updated
+      DELETE /api/stores/{store_id}  → deactivate_store() → soft delete
+
+      All protected with get_current_merchant
+
+
+--- DRIVERS (reference) ---
+
+  [ ] 7. Drivers endpoint (simple, reference only)
+      File: backend/app/routers/drivers.py
+
+      GET /api/drivers
+        - No auth required (or protected, your choice)
+        - SELECT * FROM drivers WHERE is_available = true
+        - Return { data: [...drivers] }
+        - Used by status simulation in 2105040's detail view
+
+
+FRONTEND TASKS
+==============
+
+--- DASHBOARD PAGE ---
+
+  [ ] 8. Dashboard API + hook
+      File: frontend/src/api/dashboard.js
+      File: frontend/src/hooks/useDashboard.js
+
+      getDashboardStats() → client.get('/dashboard/stats')
+      useDashboard hook: fetch stats on mount, return { stats, loading }
+
+  [ ] 9. Dashboard page
+      File: frontend/src/pages/Dashboard.jsx
+
+      KEEP IT MINIMAL — this is an overview, not an analytics deep-dive.
+
+      Layout:
+
+      A. WELCOME SECTION
+        - "Welcome back, {merchant.name}" greeting
+        - Today's date
+        - Quick action button: "Create New Order" → opens create modal
+
+      B. KPI CARDS ROW (4 cards max)
+        - Total Orders (all-time count)
+        - In Transit (active count, pulsing dot indicator)
+        - Delivered (with success rate %)
+        - Revenue (formatted ৳ amount)
+        Each card: icon + label + big number
+
+      C. MINI CHART (optional, 1 chart only)
+        - Weekly order trend (bar or area chart using Recharts)
+        - Simple, small, no axis labels — just the visual trend
+        - Or skip the chart entirely if too complex — a simple
+          "recent activity" list works too
+
+      D. RECENT ORDERS (5 most recent)
+        - Mini table: Order ID, Recipient, Status, Amount, Time
+        - "View All Orders →" link to Orders page
+
+      Design notes:
+        - Cards have subtle border (--border-default), NOT heavy shadows
+        - Use brand color sparingly — only on the "Create Order" CTA
+        - Big numbers in font-weight 700, --text-3xl size
+        - Status dots use semantic colors
+        - Generous padding and whitespace
+
+--- STORES PAGE ---
+
+  [ ] 10. Stores API + hook
+      File: frontend/src/api/stores.js
+      File: frontend/src/hooks/useStores.js
+
+      getStores(), createStore(data), updateStore(id, data), deleteStore(id)
+      useStores hook: fetch on mount, CRUD operations, return state
+
+  [ ] 11. Stores page
+      File: frontend/src/pages/Stores.jsx (new, or refactor if exists)
+
+      A. HEADER
+        - Page title: "Stores"
+        - "Add Store" button
+
+      B. STORES LIST / GRID
+        - Card for each store:
+          - Store name (bold)
+          - Branch name (if any)
+          - Address
+          - Phone, email
+          - Order count badge
+          - Active/Inactive status toggle
+          - Edit button, Deactivate/Delete button
+        - Empty state if no stores
+
+      C. ADD/EDIT STORE MODAL
+        - Fields: name, branch, address, city, zone, phone, email
+        - Validation: name required, email format if provided
+        - Loading state on submit
+
+      D. DEACTIVATE CONFIRMATION
+        - "Deactivate {store name}? It won't appear in the order creation
+           dropdown. Existing orders won't be affected."
+
+--- SHARED UI COMPONENTS ---
+
+  [ ] 12. Reusable components
+      These components are used across all pages. Build them so other
+      members can import and use them.
+
+      File: frontend/src/components/
+
+      Toast.jsx:
+        - Position: top-right, stacked
+        - Types: success (emerald), error (rose), info (blue), warning (amber)
+        - Auto-dismiss after 4 seconds
+        - Manual close button
+        - Slide-in animation
+        - Export: useToast() hook + ToastProvider
+
+      LoadingSkeleton.jsx:
+        - Reusable skeleton loader shapes: text line, card, table row
+        - Pulsing animation
+        - Export: <Skeleton type="card|row|text" />
+
+      EmptyState.jsx:
+        - Icon + title + description + optional CTA button
+        - Export: <EmptyState icon={} title="" description="" action={} />
+
+      StatusBadge.jsx:
+        - Status text + colored dot + background
+        - Colors from design system
+        - Export: <StatusBadge status="pending" />
+
+      ConfirmDialog.jsx:
+        - Modal with title, description, confirm + cancel buttons
+        - Destructive variant (red confirm button) for delete/cancel actions
+        - Export: <ConfirmDialog onConfirm={} onCancel={} />
+
+
+TESTING EXPECTATIONS (for 2105039)
+===================================
+  - GET /api/dashboard/stats returns all stat fields
+  - Stats are scoped to the authenticated merchant
+  - GET /api/stores returns merchant's stores
+  - POST /api/stores creates a store
+  - PUT /api/stores/{id} updates store
+  - DELETE /api/stores/{id} soft-deletes (is_active = false)
+  - Merchant A cannot access Merchant B's stores
+  - Dashboard KPI numbers match actual order counts
+  - Frontend: dashboard renders without errors
+  - Frontend: stores CRUD operations work end-to-end
+  - Frontend: toast notifications appear correctly
+  - Frontend: skeleton loaders display during data fetch
+
+
+DELIVERABLES CHECKLIST
+======================
+  [ ] GET /api/dashboard/stats endpoint with all metrics
+  [ ] All 5 store CRUD endpoints working
+  [ ] GET /api/drivers reference endpoint
+  [ ] Dashboard page — minimal, 4 KPI cards + recent orders
+  [ ] Stores page — list/grid + add/edit modal + deactivate
+  [ ] Toast notification system (ToastProvider + useToast)
+  [ ] LoadingSkeleton component
+  [ ] EmptyState component
+  [ ] StatusBadge component
+  [ ] ConfirmDialog component
+  [ ] Everything styled with Obsidian & Indigo theme
+
+
+NOTES
+=====
+  - Dashboard should load FAST — minimize API calls. One call to
+    /api/dashboard/stats should return everything needed.
+  - Toast and StatusBadge will be used by ALL other members. Push these
+    components early or even before your full features are done.
+  - The stores dropdown in 2105057's order creation form depends on your
+    GET /api/stores endpoint. Coordinate to make sure it's available.
+  - For the weekly trend chart, Recharts is already a dependency in the
+    project. Use AreaChart or BarChart with the brand color (#6366F1).
+  - Inactive stores should appear grayed out in the stores list but NOT
+    appear in the order creation store dropdown.

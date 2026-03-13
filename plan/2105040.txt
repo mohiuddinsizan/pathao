@@ -1,0 +1,292 @@
+================================================================================
+  MEMBER: 2105040 — ORDER DETAIL, EDIT, CANCEL & STATUS SIMULATION
+================================================================================
+  Branch: feature/2105040-order-detail-edit
+  Depends on: 2105056 completing Phase 1 (project setup + auth + DB schema)
+================================================================================
+
+
+OVERVIEW
+========
+Build the order detail view (single order with full info + status timeline),
+editing orders, cancelling orders, and status simulation buttons for demo.
+This is what the merchant sees when clicking an order from the list.
+
+
+BACKEND TASKS
+=============
+
+  [ ] 1. Create detail/update/delete schemas
+      File: backend/app/schemas/orders.py (add to existing)
+
+      OrderDetailResponse:
+        - All fields from OrderResponse
+        - status_history:  list[StatusHistoryItem]
+        - store:           Optional[StoreInfo]   (name, address, phone)
+
+      StatusHistoryItem:
+        - status:     str
+        - changed_at: datetime
+        - note:       Optional[str]
+
+      OrderUpdate:
+        - recipient_name:    Optional[str]
+        - recipient_phone:   Optional[str]
+        - recipient_address: Optional[str]
+        - pickup_address:    Optional[str]
+        - destination_area:  Optional[str]
+        - parcel_type:       Optional[str]
+        - item_description:  Optional[str]
+        - item_weight:       Optional[str]
+        - amount:            Optional[Decimal]
+        - payment_method:    Optional[str]
+        - cod_amount:        Optional[Decimal]
+        - notes:             Optional[str]
+
+      StatusUpdateRequest:
+        - status: str   (assigned | picked_up | in_transit | delivered | cancelled)
+        - note:   Optional[str]
+
+  [ ] 2. Create detail/update/status services
+      File: backend/app/services/order_service.py (add to existing)
+
+      async def get_order_detail(db, merchant_id, order_id) -> dict:
+        - Fetch order by UUID (not order_id string) 
+        - Verify order belongs to merchant
+        - Join with stores table for store info
+        - Fetch status_history ordered by changed_at ASC
+        - Return combined data
+
+      async def update_order(db, merchant_id, order_id, data) -> dict:
+        - Verify order belongs to merchant
+        - Verify order status is 'pending' (only pending can be edited)
+        - Build dynamic UPDATE query with only provided fields
+        - Update updated_at timestamp
+        - Return updated order
+
+      async def update_order_status(db, merchant_id, order_id, status, note) -> dict:
+        - Verify order belongs to merchant
+        - Validate status transition:
+            pending   → assigned, cancelled
+            assigned  → picked_up, cancelled
+            picked_up → in_transit
+            in_transit→ delivered
+        - Invalid transitions return 400
+        - UPDATE orders SET status = $new_status, updated_at = NOW()
+        - INSERT into order_status_history
+        - Return updated order with status_history
+
+      async def cancel_order(db, merchant_id, order_id) -> dict:
+        - Verify order belongs to merchant
+        - Verify order is 'pending' (via DELETE endpoint)
+        - Set status to 'cancelled'
+        - Add status_history entry
+        - Return success
+
+  [ ] 3. Create endpoints
+      File: backend/app/routers/orders.py (add to existing)
+
+      GET /api/orders/{order_id}
+        - Protected
+        - Validate order_id is valid UUID
+        - Call get_order_detail()
+        - Return { data: OrderDetailResponse }
+
+      PUT /api/orders/{order_id}
+        - Protected
+        - Only works when status = 'pending'
+        - Validate input via OrderUpdate
+        - Call update_order()
+        - Return { data: order, message: "Order updated" }
+        - 400 if order is not pending
+
+      PATCH /api/orders/{order_id}/status
+        - Protected
+        - Validate via StatusUpdateRequest
+        - Call update_order_status()
+        - Return { data: order, message: "Status updated to {status}" }
+        - 400 if invalid transition
+
+      DELETE /api/orders/{order_id}
+        - Protected
+        - Only works when status = 'pending'
+        - Call cancel_order()
+        - Return { message: "Order cancelled" }
+        - 400 if order is not pending
+
+
+STATUS TRANSITION MAP
+=====================
+  Current      → Allowed Next
+  ──────────────────────────────
+  pending      → assigned, cancelled
+  assigned     → picked_up, cancelled
+  picked_up    → in_transit
+  in_transit   → delivered
+  delivered    → (terminal - no transitions)
+  cancelled    → (terminal - no transitions)
+
+  Store this as a dict in the service:
+  VALID_TRANSITIONS = {
+      'pending':    ['assigned', 'cancelled'],
+      'assigned':   ['picked_up', 'cancelled'],
+      'picked_up':  ['in_transit'],
+      'in_transit': ['delivered'],
+      'delivered':  [],
+      'cancelled':  [],
+  }
+
+
+FRONTEND TASKS
+==============
+
+  [ ] 4. Order API service additions
+      File: frontend/src/api/orders.js (add to existing)
+
+      export async function getOrder(id) {
+        return client.get(`/orders/${id}`);
+      }
+      export async function updateOrder(id, data) {
+        return client.put(`/orders/${id}`, data);
+      }
+      export async function updateOrderStatus(id, status, note) {
+        return client.patch(`/orders/${id}/status`, { status, note });
+      }
+      export async function deleteOrder(id) {
+        return client.delete(`/orders/${id}`);
+      }
+
+  [ ] 5. Order Detail View
+      Can be a modal (side panel) or a full page. Recommended: side panel
+      that slides in from the right when clicking an order in the list.
+
+      File: frontend/src/pages/Orders.jsx or new OrderDetail component
+
+      Layout (3 sections, matching the mock-ui):
+
+      A. HEADER
+        - Order ID (PTH-XXXXXX in monospace)
+        - Status badge (colored)
+        - Created date
+        - Action buttons: Edit (if pending), Cancel (if pending),
+          Close panel
+
+      B. INFO CARDS (3 cards in a grid)
+        GENERAL INFO:
+          - Store name (or "Custom Pickup")
+          - Pickup address
+          - Destination area
+          - Payment method
+          - Amount (formatted)
+          - Notes
+
+        RECIPIENT INFO:
+          - Name
+          - Phone (clickable: tel: link)
+          - Address
+
+        PARCEL INFO:
+          - Parcel type
+          - Item description
+          - Weight
+          - COD amount (if applicable)
+
+      C. STATUS TIMELINE
+        - Vertical timeline showing all status changes
+        - Each entry: status icon + label + timestamp + note
+        - Current status highlighted with brand color
+        - Completed steps in muted/success color
+        - Future steps shown as dotted/grayed out
+
+  [ ] 6. Edit Order Modal
+      File: new component or within Orders.jsx
+
+      - Pre-fill form with current order data
+      - Same form fields as Create (2105057's modal), but in edit mode
+      - Only available when order status is 'pending'
+      - Disabled fields: order_id, status, created_at (read-only display)
+      - On save: call updateOrder API → refresh detail → show success toast
+      - On cancel: close modal without changes
+
+  [ ] 7. Cancel Order Confirmation
+      - Show confirmation dialog: "Are you sure you want to cancel PTH-XXXXXX?"
+      - Warn: "This action cannot be undone."
+      - On confirm: call deleteOrder API → refresh list → show toast
+      - On cancel: close dialog
+
+  [ ] 8. Status Simulation Panel (FOR DEMO ONLY)
+      This is critical for the demo — the professor needs to see status
+      changes in action.
+
+      - Show as a section at the bottom of the detail view
+      - Title: "Demo: Simulate Status Changes"
+      - Show buttons for each VALID next status based on current status
+      - Clicking a button:
+        1. Calls PATCH /api/orders/{id}/status
+        2. Animated status transition in the timeline
+        3. Status badge updates
+        4. Toast: "Status updated to Picked Up"
+      - Optional: add a note input for each status change
+
+      Button examples for current status:
+        pending     → [Assign Driver] [Cancel Order]
+        assigned    → [Mark Picked Up] [Cancel Order]
+        picked_up   → [Mark In Transit]
+        in_transit  → [Mark Delivered]
+        delivered   → (no buttons, show "Delivery Complete ✓")
+        cancelled   → (no buttons, show "Order Cancelled")
+
+  [ ] 9. Style with Obsidian & Indigo theme
+      - Detail panel: --bg-surface background
+      - Info cards: --bg-elevated with --border-default
+      - Timeline: vertical line in --border-default, active dot in --brand-primary
+      - Status buttons: use status colors as backgrounds (12% opacity)
+      - Simulate panel: --bg-elevated with dashed border to visually
+        separate it as a "demo" feature
+      - Transitions: smooth slide-in for detail panel (200ms ease-out)
+
+
+TESTING EXPECTATIONS (for 2105039)
+===================================
+  - GET /api/orders/{id} returns full detail with status_history
+  - GET /api/orders/{id} for non-existent order → 404
+  - PUT /api/orders/{id} on pending order → 200 + updated data
+  - PUT /api/orders/{id} on non-pending order → 400
+  - PATCH /api/orders/{id}/status with valid transition → 200
+  - PATCH /api/orders/{id}/status with invalid transition → 400
+  - DELETE /api/orders/{id} on pending → 200, status becomes cancelled
+  - DELETE /api/orders/{id} on non-pending → 400
+  - Merchant A cannot see/edit Merchant B's orders → 404 or 403
+  - Status history grows with each status change
+  - Frontend: detail panel shows correct data
+  - Frontend: edit only available for pending orders
+  - Frontend: status simulation buttons work correctly
+
+
+DELIVERABLES CHECKLIST
+======================
+  [ ] GET /api/orders/{id} endpoint with status history + store info
+  [ ] PUT /api/orders/{id} endpoint (only for pending orders)
+  [ ] PATCH /api/orders/{id}/status endpoint with transition validation
+  [ ] DELETE /api/orders/{id} endpoint (cancels pending orders)
+  [ ] Status transition validation with clear error messages
+  [ ] Frontend detail view with 3 info cards + timeline
+  [ ] Edit modal pre-filled with order data
+  [ ] Cancel confirmation dialog
+  [ ] Status simulation buttons (demo feature)
+  [ ] Animated status timeline
+  [ ] All styled with Obsidian & Indigo theme
+
+
+NOTES
+=====
+  - The detail view is triggered when a user clicks an order in 2105058's
+    list. Coordinate on the interface: either pass the order ID via URL
+    params or via state/callback.
+  - The edit form can reuse the same form component that 2105057 builds
+    for creation. Consider extracting a shared OrderForm component.
+  - Status simulation is KEY for the demo — make it visually impressive.
+    Smooth animations when the timeline updates will leave a good impression.
+  - For the status timeline, use icons from Lucide:
+    Clock (pending), UserCheck (assigned), Package (picked_up),
+    Truck (in_transit), CheckCircle (delivered), XCircle (cancelled)

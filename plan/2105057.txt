@@ -1,0 +1,169 @@
+================================================================================
+  MEMBER: 2105057 — ORDER CREATION (BACKEND + FRONTEND)
+================================================================================
+  Branch: feature/2105057-order-creation
+  Depends on: 2105056 completing Phase 1 (project setup + auth + DB schema)
+================================================================================
+
+
+OVERVIEW
+========
+Build the full order/parcel creation flow: backend API endpoint + frontend
+form UI. A merchant should be able to create a new delivery order by filling
+out a form with recipient info, parcel details, and selecting a pickup store.
+
+
+BACKEND TASKS
+=============
+
+  [ ] 1. Create order schemas
+      File: backend/app/schemas/orders.py
+
+      OrderCreate:
+        - store_id:          Optional[UUID]
+        - recipient_name:    str (required, min 2 chars)
+        - recipient_phone:   str (required, validated format)
+        - recipient_address: str (required, min 5 chars)
+        - pickup_address:    Optional[str]     (if no store selected)
+        - destination_area:  Optional[str]
+        - parcel_type:       Optional[str]     (document | small_box | medium_parcel | fragile)
+        - item_description:  Optional[str]
+        - item_weight:       Optional[str]     (0-1kg | 1-5kg | 5-10kg | 10+kg)
+        - amount:            Decimal (required, > 0)
+        - payment_method:    str = "cod"       (cod | prepaid | bkash)
+        - cod_amount:        Optional[Decimal]
+        - notes:             Optional[str]
+
+      OrderResponse:
+        - id, order_id, merchant_id, store_id, driver_id
+        - All fields from OrderCreate
+        - status, created_at, updated_at
+        - store_name (joined from stores table)
+
+  [ ] 2. Create order service
+      File: backend/app/services/order_service.py
+
+      async def create_order(db, merchant_id: UUID, data: OrderCreate) -> dict:
+        - If store_id is provided, verify it belongs to the merchant
+        - If store_id is provided but no pickup_address, get address from store
+        - Generate order_id using sequence: PTH-{nextval('order_id_seq')}
+        - INSERT into orders table
+        - INSERT initial status ('pending') into order_status_history
+        - Return the created order with store name
+
+  [ ] 3. Create order creation endpoint
+      File: backend/app/routers/orders.py
+
+      POST /api/orders
+        - Protected: requires get_current_merchant dependency
+        - Validate input via OrderCreate schema
+        - Call order_service.create_order()
+        - Return 201 with { data: order, message: "Order created successfully" }
+
+      Error cases:
+        - 400: store_id doesn't belong to merchant
+        - 400: invalid parcel_type or payment_method
+        - 422: Pydantic validation errors (auto-handled by FastAPI)
+
+
+FRONTEND TASKS
+==============
+
+  [ ] 4. Create order API service
+      File: frontend/src/api/orders.js
+
+      export async function createOrder(data) {
+        return client.post('/orders', data);
+      }
+
+  [ ] 5. Refactor Create Delivery Modal
+      File: frontend/src/pages/Orders.jsx (or extract into components/)
+
+      The existing modal in mock-ui has 3 sections. Refactor it to:
+
+      A. GENERAL INFO SECTION
+        - Store Selector (dropdown)
+          → Fetch stores from GET /api/stores (active only)
+          → Option: "Custom Pickup Address" if no store
+        - Custom Pickup Address (text input, shown only if no store selected)
+        - Destination Area (text input)
+
+      B. RECIPIENT INFO SECTION
+        - Recipient Name (text input, required)
+        - Recipient Phone (text input, required, format validation)
+        - Recipient Address (textarea, required)
+
+      C. PARCEL INFO SECTION
+        - Parcel Type (dropdown: Document, Small Box, Medium Parcel, Fragile)
+        - Item Description (text input)
+        - Item Weight (dropdown: 0-1 kg, 1-5 kg, 5-10 kg, 10+ kg)
+        - Amount (number input, required)
+        - Payment Method (radio: COD, Prepaid, bKash)
+        - COD Amount (number input, shown only if COD selected)
+        - Special Instructions (textarea)
+
+      Form behavior:
+        - Validate on blur (show inline error messages below fields)
+        - Validate all on submit
+        - Show loading state on submit button ("Creating..." + spinner)
+        - On success: close modal, show success toast, refresh order list
+        - On error: show error toast with message from API
+
+  [ ] 6. Style the modal with the new design system
+      - Use CSS variables from variables.css
+      - Modal background: var(--bg-elevated)
+      - Input background: var(--bg-primary) with 1px border var(--border-default)
+      - Input focus: border-color var(--brand-primary)
+      - Sections separated by subtle dividers
+      - Submit button: var(--brand-primary) background
+      - Cancel button: transparent with border
+
+
+VALIDATION RULES (enforce on both frontend + backend)
+=====================================================
+  - recipient_name:    required, 2-100 chars
+  - recipient_phone:   required, valid BD phone (01[3-9]XXXXXXXX)
+  - recipient_address: required, 5-500 chars
+  - amount:            required, > 0, max 100000
+  - cod_amount:        required if payment_method is 'cod', >= 0
+  - parcel_type:       must be one of: document, small_box, medium_parcel, fragile
+  - payment_method:    must be one of: cod, prepaid, bkash
+
+
+TESTING EXPECTATIONS (for 2105039)
+===================================
+  Tests YOU should be aware member 2105039 will write for your code:
+  - POST /api/orders with valid data → 201 + order returned
+  - POST /api/orders with missing required fields → 422
+  - POST /api/orders with invalid store_id → 400
+  - POST /api/orders without auth → 401
+  - Order ID format is PTH-XXXXXX
+  - Status history has initial 'pending' entry after creation
+  - Frontend: form shows validation errors on empty submit
+  - Frontend: successful creation closes modal + refreshes list
+
+
+DELIVERABLES CHECKLIST
+======================
+  [ ] OrderCreate + OrderResponse schemas defined
+  [ ] create_order service function working
+  [ ] POST /api/orders endpoint working + protected
+  [ ] Order ID sequence generating PTH-XXXXXX format
+  [ ] Initial status history entry created on order creation
+  [ ] Frontend Create Delivery modal refactored and wired to API
+  [ ] Form validation working (client + server)
+  [ ] Loading state on submit
+  [ ] Success/error toast notifications
+  [ ] Modal styled with Obsidian & Indigo theme
+
+
+NOTES
+=====
+  - Follow the pattern from _template.py files that 2105056 will create.
+  - Use the shared Axios client (src/api/client.js) for all API calls.
+  - The store list for the dropdown comes from the stores API — coordinate
+    with 2105045 who is building the stores endpoints.
+  - If 2105045 hasn't built stores API yet, hardcode a mock stores list
+    temporarily and switch to the real API later.
+  - Order list display is 2105058's responsibility — you just need to make
+    sure the created order appears in the list after successful creation.
