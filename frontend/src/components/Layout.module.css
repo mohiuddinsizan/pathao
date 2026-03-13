@@ -1,0 +1,185 @@
+.container {
+  display: flex;
+  height: 100vh;
+  background: #0a0a0a;
+}
+
+.sidebar {
+  width: 260px;
+  background: #0f0f0f;
+  border-right: 1px solid #222;
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  position: fixed;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  z-index: 1000;
+}
+
+.logo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 16px;
+  font-size: 16px;
+  font-weight: 700;
+  color: #EF4444;
+  cursor: pointer;
+  border-bottom: 1px solid #222;
+}
+
+.logoIcon {
+  width: 32px;
+  height: 32px;
+  background: #EF4444;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.nav {
+  flex: 1;
+  padding: 12px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.navItem {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  color: #888;
+  cursor: pointer;
+  transition: all 0.2s;
+  font-size: 14px;
+  font-weight: 500;
+  position: relative;
+}
+
+.navItem:hover {
+  background: #1a1a1a;
+  color: #ddd;
+}
+
+.navItem.active {
+  background: #1a1a1a;
+  color: #EF4444;
+  border-right: 3px solid #EF4444;
+}
+
+.navBadge {
+  margin-left: auto;
+  background: #EF4444;
+  color: white;
+  font-size: 10px;
+  padding: 2px 6px;
+  border-radius: 10px;
+  font-weight: 600;
+}
+
+.navDivider {
+  height: 1px;
+  background: #222;
+  margin: 8px 0;
+}
+
+.profile {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  border-top: 1px solid #222;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.profile:hover {
+  background: #1a1a1a;
+}
+
+.avatar {
+  width: 40px;
+  height: 40px;
+  background: #EF4444;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-size: 13px;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.profileInfo {
+  flex: 1;
+  min-width: 0;
+}
+
+.profileName {
+  display: block;
+  font-size: 13px;
+  font-weight: 600;
+  color: #fff;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.profileEmail {
+  display: block;
+  font-size: 11px;
+  color: #888;
+}
+
+.profileArrow {
+  color: #666;
+}
+
+.main {
+  flex: 1;
+  margin-left: 260px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.content {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+.content::-webkit-scrollbar {
+  display: none;
+  width: 0;
+}
+
+.content {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+@media (max-width: 768px) {
+  .sidebar {
+    width: 220px;
+  }
+
+  .main {
+    margin-left: 220px;
+  }
+
+  .header {
+    padding: 0 16px;
+  }
+
+  .searchBar {
+    max-width: 200px;
+  }
+}
