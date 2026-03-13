@@ -1,21 +1,7 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap');
+@import './styles/variables.css';
 
-:root {
-  --primary: #EF4444;
-  --primary-hover: #DC2626;
-  --bg-black: #000000;
-  --bg-surface: #09090b;
-  --bg-card: #1f1f23;
-  --bg-sidebar: #18181b;
-  --bg-input: #262626;
-  --text-primary: #FFFFFF;
-  --text-secondary: #A1A1AA;
-  --text-tertiary: #71717A;
-  --border: rgba(255, 255, 255, 0.08);
-  --success: #22C55E;
-  --warning: #F59E0B;
-  --info: #3B82F6;
-}
+/* Root variables are defined in styles/variables.css */
 
 * {
   margin: 0;
