@@ -12,7 +12,7 @@ STATUS OVERVIEW
   [x] Backend: POST /api/stores — create store
   [x] Backend: PUT /api/stores/{id} — update store
   [x] Frontend: DashboardPage — stat cards, recent orders table, area chart
-  [x] Frontend: StoresPage — read-only cards
+  [ ] Frontend: StoresPage — build complete page from scratch (Placeholder now)
   [x] Frontend: Dark/light mode toggle
   [ ] Backend: DELETE /api/stores/{id} — soft-deactivate (missing)
   [ ] Frontend: deleteStore helper in stores.js (missing)
@@ -55,7 +55,7 @@ FILES TO CHANGE  (4 files total)
 ==================================
   1. backend/app/routers/stores.py          — add 1 endpoint
   2. frontend/src/api/stores.js             — add 1 helper function
-  3. frontend/src/pages/StoresPage.jsx      — add modals + action buttons
+  3. frontend/src/pages/StoresPage.jsx      — build from scratch (replaces Placeholder)
   4. frontend/src/pages/DashboardPage.jsx   — wire Eye button (1-line change)
 
 
@@ -64,9 +64,9 @@ IMPLEMENTATION ORDER  (do tasks in this sequence)
   1. TASK 1: Add the DELETE soft-delete endpoint to stores.py (backend).
      Test it manually with a HTTP client or by clicking deactivate later.
   2. TASK 2: Add deleteStore() to frontend/src/api/stores.js (one function).
-  3. TASK 3: Update StoresPage.jsx — this is the bulk of your work.
-     Follow the step-by-step sequence inside Task 3. Work section by section
-     and test in the browser after each step.
+  3. TASK 3: Build StoresPage.jsx from scratch — replace the Placeholder content
+     entirely with the full stores page. Follow the step-by-step sequence
+     inside Task 3. Build section by section and test in the browser after each step.
   4. TASK 4: Wire the Eye button in DashboardPage.jsx (1-line change).
      Do this AFTER 2105040 has pushed their OrderDetailPage branch.
 
@@ -103,51 +103,53 @@ TASK 2 — Frontend: Add deleteStore to stores.js
     }
 
 
-TASK 3 — Frontend: Update StoresPage.jsx
-=========================================
+TASK 3 — Frontend: Build StoresPage.jsx from scratch
+=====================================================
   File: frontend/src/pages/StoresPage.jsx
 
-  READ THE FILE FIRST before editing. The current file has a functional
-  component that fetches stores and renders cards. You will extend it.
+  The current file is a Placeholder component (just shows "TODO"). Replace
+  its entire content with the full stores management page.
 
   STEP-BY-STEP SEQUENCE:
-    Step 1: Open StoresPage.jsx and read the entire file before making changes.
-    Step 2: Add the new imports at the top (see "NEW IMPORTS TO ADD" below).
-    Step 3: Add the new state variables after existing state declarations
-            (see "NEW STATE TO ADD" below).
-    Step 4: Write the 5 handler functions in the component body above the JSX:
+    Step 1: Import DeliveriesPage at the top of App.jsx, and replace
+            the <Placeholder /> for /stores with <StoresPage /> there.
+            (Note: 2105040 does the same for /deliveries — don’t conflict.)
+    Step 2: Delete all existing content of StoresPage.jsx and start fresh
+            with the imports listed below.
+    Step 3: Add the new state variables (see "STATE TO ADD" below).
+    Step 4: Write the useEffect — calls getStores() on mount and stores
+            the result in the stores state array.
+    Step 5: Write the 5 handler functions in the component body above the JSX:
             openCreateModal → openEditModal → handleCreate → handleEdit → handleDeactivate
             (see "FUNCTIONS TO ADD" below for what each function should do).
-    Step 5: Update the page header JSX — add the "Add Store" button next to the
-            "Stores" title (see "Page header" in UI CHANGES below).
-    Step 6: Update each store card in the JSX — add Edit (Pencil icon) and
-            Deactivate (PowerOff icon) buttons; add opacity and "Inactive" badge
-            for is_active === false (see "Each store card" in UI CHANGES below).
-    Step 7: Add the Create Store Dialog modal at the bottom of the JSX return
-            (see "Create Store modal" in UI CHANGES below).
-    Step 8: Add the Edit Store Dialog modal right next to the Create modal
-            (see "Edit Store modal" in UI CHANGES below).
-    Step 9: Test each interaction in the browser:
-            "Add Store" button opens modal → fill form → store appears in list.
-            Edit icon opens modal with pre-filled data → save → card updates.
-            Deactivate icon → confirm dialog → card shows "Inactive" badge + gray.
+    Step 6: Build the page header JSX — title, subtitle, and "Add Store" button.
+    Step 7: Build the store card grid — loading skeletons, store cards with
+            action buttons (Edit, Deactivate), and empty state.
+    Step 8: Add the Create Store Dialog modal at the bottom of the JSX return.
+    Step 9: Add the Edit Store Dialog modal right next to the Create modal.
+    Step 10: Test each interaction in the browser:
+             "Add Store" button opens modal → fill form → store appears in list.
+             Edit icon opens modal with pre-filled data → save → card updates.
+             Deactivate icon → confirm dialog → card shows "Inactive" badge + gray.
 
-  NEW IMPORTS TO ADD:
-    { useState } from 'react'           (may already be there)
-    { createStore, updateStore, deleteStore } from '@/api/stores'
-    Button, Input, Label, Dialog, DialogContent, DialogHeader, DialogTitle
-      from their respective shadcn paths
-    { Plus, Pencil, PowerOff } from 'lucide-react'
+  IMPORTS:
+    { useEffect, useState } from 'react'
+    { getStores, createStore, updateStore, deleteStore } from '@/api/stores'
+    Card, CardContent, CardHeader, CardTitle, CardDescription from shadcn/ui
+    Badge from shadcn/ui
+    Button from shadcn/ui
+    Input, Label from shadcn/ui
+    Dialog, DialogContent, DialogHeader, DialogTitle from shadcn/ui
+    { MapPin, Phone, Plus, Pencil, PowerOff } from 'lucide-react'
 
-  NEW STATE TO ADD:
+  STATE:
+    stores     — starts as [], holds the fetched stores array
+    loading    — starts true
     createOpen — boolean, controls create modal visibility
     editOpen   — boolean, controls edit modal visibility
     editTarget — the store object being edited (null when not editing)
     form       — object with fields: name, branch, address, city, zone, phone
     saving     — boolean, true while POST/PUT is in flight
-
-  BLANK FORM VALUE (use to reset the form):
-    { name: '', branch: '', address: '', city: '', zone: '', phone: '' }
 
   FUNCTIONS TO ADD:
 
@@ -175,26 +177,43 @@ TASK 3 — Frontend: Update StoresPage.jsx
       Show native confirm dialog: "Deactivate [store name]?"
       If confirmed: call deleteStore(store.id), then re-fetch stores.
 
-  UI CHANGES:
+  BLANK FORM VALUE (use to reset form):
+    { name: '', branch: '', address: '', city: '', zone: '', phone: '' }
 
-    Page header — add an "Add Store" button next to the "Stores" title:
-      <Button onClick={openCreateModal}><Plus /> Add Store</Button>
+  DATA FETCHING (useEffect on mount):
+    Call getStores(). Store result with setStores(Array.isArray(data) ? data : []).
+    Set loading=false in finally.
 
-    Each store card — add two icon buttons in the top-right corner:
-      Edit button (Pencil icon) → calls openEditModal(store)
-      Deactivate button (PowerOff icon, red color) → calls handleDeactivate(store)
-      Only show the deactivate button when store.is_active === true.
+  SKELETON LOADING STATE:
+    Write a SkeletonCard component: a <Card> with 3 animated
+    <div className="h-4 w-?? rounded bg-muted animate-pulse"> placeholders.
+    Show 3 SkeletonCard components while loading=true.
 
-    Deactivated stores — add visual indication:
-      When store.is_active === false, apply reduced opacity (e.g. opacity-50)
-      to the card and add a "Inactive" badge.
+  PAGE HEADER:
+    <h1> "Stores"
+    <p className="text-sm text-muted-foreground"> "Your registered pickup locations"
+    <Button onClick={openCreateModal}><Plus /> Add Store</Button> to the right of title.
+
+  STORE CARD GRID:
+    className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3"
+    Each store card shows:
+      - Branch or store name as CardTitle
+      - zone + city as CardDescription
+      - Address with MapPin icon
+      - Phone with Phone icon
+      - Edit button (Pencil icon) in top-right corner
+      - Deactivate button (PowerOff icon, red) in top-right corner
+        (only when store.is_active === true)
+      - When store.is_active === false: opacity-50 on the card + "Inactive" badge
+
+  MODAL STRUCTURE (add both at the bottom of the JSX return):
 
     Create Store modal:
       <Dialog open={createOpen} onOpenChange={setCreateOpen}>
         <DialogContent>
           <DialogHeader><DialogTitle>Add New Store</DialogTitle></DialogHeader>
           <form onSubmit={handleCreate}>
-            [form fields — see below]
+            [form fields — see FORM FIELDS below]
             <Button type="submit" disabled={saving}>
               {saving ? 'Creating…' : 'Create Store'}
             </Button>
@@ -203,7 +222,7 @@ TASK 3 — Frontend: Update StoresPage.jsx
       </Dialog>
 
     Edit Store modal:
-      Same structure as create but:
+      Same structure as Create but:
         open={editOpen}, onOpenChange={setEditOpen}
         DialogTitle: "Edit Store"
         Button label: "Save Changes"

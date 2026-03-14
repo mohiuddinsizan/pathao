@@ -11,6 +11,7 @@ STATUS OVERVIEW
   [x] Backend: PATCH /api/orders/{order_id}/cancel — already done
   [ ] Backend: PATCH /api/orders/{order_id}/status — simulate status change
   [ ] Backend: PUT /api/orders/{order_id} — edit a pending order
+  [ ] Frontend: DeliveriesPage.jsx — build complete listing page from scratch
   [ ] Frontend: /deliveries/:orderId route in App.jsx
   [ ] Frontend: Two helpers added to frontend/src/api/orders.js
   [ ] Frontend: OrderDetailPage.jsx (new file)
@@ -60,12 +61,13 @@ STATUS TRANSITION RULES
 
   The simulation UI shows buttons ONLY for allowed next states.
 
-FILES TO CHANGE  (4 files total)
+FILES TO CHANGE  (5 files total)
 ==================================
-  1. backend/app/routers/orders.py      — add 2 new endpoints
-  2. frontend/src/api/orders.js         — add 2 helper functions
-  3. frontend/src/App.jsx               — register 1 new route
-  4. frontend/src/pages/OrderDetailPage.jsx  — create this new file
+  1. backend/app/routers/orders.py           — add 2 new endpoints
+  2. frontend/src/api/orders.js              — add 2 helper functions
+  3. frontend/src/App.jsx                    — register 1 new route
+  4. frontend/src/pages/DeliveriesPage.jsx   — replace Placeholder, build listing page
+  5. frontend/src/pages/OrderDetailPage.jsx  — create this new file
 
 
 IMPLEMENTATION ORDER  (do tasks in this sequence)
@@ -74,10 +76,12 @@ IMPLEMENTATION ORDER  (do tasks in this sequence)
   2. TASK 2: Add PUT /{order_id} endpoint in orders.py
   3. TASK 3: Add the two helper functions to frontend/src/api/orders.js
   4. TASK 4: Register the /deliveries/:orderId route in App.jsx (2 lines)
-  5. TASK 5: Build OrderDetailPage.jsx — follow the step-by-step sequence
+  5. TASK 5: Build DeliveriesPage.jsx — replace the Placeholder with the full
+     listing page. Follow the step-by-step sequence inside the task.
+  6. TASK 6: Build OrderDetailPage.jsx — follow the step-by-step sequence
      inside the task. Work through sections A→B→C→D→E→F. Test in the browser
      at each section before moving on.
-  6. TASK 5G (bonus): Add Edit modal only after sections A–F are fully working.
+  7. TASK 6G (bonus): Add Edit modal only after sections A–F are fully working.
 
 
 TASK 1 — Backend: PATCH /api/orders/{order_id}/status
@@ -157,10 +161,119 @@ TASK 4 — Frontend: Register route in App.jsx
   2. Inside the ProtectedRoute/AppShell group, after the `/deliveries` route:
        <Route path="/deliveries/:orderId" element={<OrderDetailPage />} />
 
-  Nothing else needs to change in App.jsx.
+  Nothing else needs to change in App.jsx — the DeliveriesPage import
+  is already there (added by you in Task 5).
 
 
-TASK 5 — Frontend: Create OrderDetailPage.jsx
+TASK 5 — Frontend: Build DeliveriesPage.jsx
+============================================
+  File: frontend/src/pages/DeliveriesPage.jsx
+
+  The current file is a Placeholder component (just shows "TODO"). Replace
+  its entire content with the full delivery listing page.
+
+  STEP-BY-STEP SEQUENCE:
+    Step 1: Add the import at the top of App.jsx:
+              import DeliveriesPage from './pages/DeliveriesPage'
+            Then in the route for /deliveries, replace <Placeholder /> with
+              <DeliveriesPage />
+    Step 2: Open frontend/src/pages/DeliveriesPage.jsx — delete all its content
+            and start fresh with the imports listed below.
+    Step 3: Define the statusColors map and STATUSES array.
+    Step 4: Write a SkeletonRow component (6 animated placeholder cells).
+    Step 5: Write the DeliveriesPage component with state: orders, loading,
+            page, filter, search.
+    Step 6: Write the useEffect — calls getOrders({ page, limit:20, status })
+            on mount and whenever page or filter changes.
+    Step 7: Derive the `filtered` array by client-side filtering the orders
+            array by search text (match against order_id, recipient_name,
+            recipient_phone).
+    Step 8: Build the JSX — one section at a time:
+            A) Page title + subtitle
+            B) Filter row: Search <Input> + status filter <Button> pills
+            C) Orders <Card> with a <table> inside
+            D) Pagination row (Previous / Next buttons)
+    Step 9: Test in browser — confirm orders load, status filter updates
+            the list, search narrows results, clicking a row navigates to
+            /deliveries/${order.order_id}.
+
+  IMPORTS:
+    { useEffect, useState } from 'react'
+    { useNavigate } from 'react-router-dom'
+    { getOrders } from '@/api/orders'
+    Card, CardContent, CardHeader, CardTitle, CardDescription from shadcn/ui
+    Badge from shadcn/ui
+    Button from shadcn/ui
+    Input from shadcn/ui
+    { Search, ChevronLeft, ChevronRight } from 'lucide-react'
+
+  STATUS COLORS MAP:
+    const statusColors = {
+      pending:    'secondary',
+      assigned:   'secondary',
+      picked_up:  'default',
+      in_transit: 'default',
+      delivered:  'success',
+      cancelled:  'destructive',
+    }
+
+  STATUSES ARRAY (for filter pills):
+    const STATUSES = ['all','pending','assigned','picked_up',
+                      'in_transit','delivered','cancelled']
+
+  SKELETON ROW:
+    A <tr> with 6 <td> cells, each containing:
+      <div className="h-4 w-20 rounded bg-muted animate-pulse" />
+
+  STATE:
+    orders  — starts as []
+    loading — starts true
+    page    — starts 1
+    filter  — starts 'all'
+    search  — starts ''
+
+  DATA FETCHING:
+    useEffect runs on [page, filter].
+    Build params = { page, limit: 20 }.
+    If filter !== 'all', add params.status = filter.
+    Call getOrders(params), store result:
+      setOrders(Array.isArray(data) ? data : data.orders || [])
+    On error: setOrders([]). Always setLoading(false) in finally.
+
+  CLIENT-SIDE SEARCH:
+    When search is non-empty, filter orders where order_id, recipient_name,
+    or recipient_phone includes the search string (case-insensitive).
+
+  TABLE COLUMNS (6 columns):
+    Order ID   — font-mono text-xs
+    Recipient  — font-medium
+    Phone      — text-muted-foreground
+    Status     — <Badge variant={statusColors[order.status] || 'secondary'}>
+                 show status with underscores replaced by spaces
+    Amount     — show as ৳{amount}, or '—' if null
+    Created    — new Date(order.created_at).toLocaleDateString(), or '—'
+
+  ROW CLICK:
+    Each <tr> gets:
+      onClick={() => navigate(`/deliveries/${order.order_id}`)}
+      cursor-pointer className
+    Clicking a row opens the OrderDetailPage for that order.
+
+  LOADING STATE:
+    Show 5 <SkeletonRow /> placeholders while loading=true.
+
+  EMPTY STATE:
+    A single row spanning 6 columns: "No orders found"
+
+  PAGINATION:
+    <Button> Previous — disabled when page <= 1, onClick: setPage(p => p-1)
+    <span> Page {page}
+    <Button> Next — disabled when filtered.length < 20 (last page heuristic),
+             onClick: setPage(p => p+1)
+    Use ChevronLeft and ChevronRight icons on the buttons.
+
+
+TASK 6 — Frontend: Create OrderDetailPage.jsx
 ==============================================
   File: frontend/src/pages/OrderDetailPage.jsx  (new file)
 
@@ -276,8 +389,8 @@ WHAT'S ALREADY BUILT
   ✅ getOrder() and cancelOrder() in @/api/orders — ready to use
   ✅ All shadcn/ui components are already installed
   ✅ AppShell, auth, theme — all done
-  ✅ 2105058 adds onClick to DeliveriesPage rows → navigates to
-     /deliveries/${order.order_id} — your route handles those clicks
+  ✅ You will add onClick to DeliveriesPage rows (in your Task 5) →
+     each row navigates to /deliveries/${order.order_id}
 
 
 NOTES
@@ -286,5 +399,7 @@ NOTES
     full lifecycle: pending → assigned → picked_up → in_transit → delivered.
   - Do NOT make any database schema changes. The DB is already set up.
   - The edit form (PUT endpoint) can be simple — it's secondary to simulation.
-  - Design: match the style of DashboardPage and DeliveriesPage (already built).
+  - Design: match the style of DashboardPage (already built).
     Use rounded-xl border-2 border-border bg-card for cards, font-sans for text.
+  - DeliveriesPage (Task 5) must be built before OrderDetailPage (Task 6)
+    because the OrderDetailPage Back button navigates back to /deliveries.
