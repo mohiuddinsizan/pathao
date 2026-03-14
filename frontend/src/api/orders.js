@@ -14,7 +14,3 @@ export function getOrder(orderId) {
 export function createOrder(data) {
   return api.post('/api/orders', data)
 }
-
-export function cancelOrder(orderId) {
-  return api.patch(`/api/orders/${orderId}/cancel`)
-}

@@ -129,28 +129,3 @@ async def create_order(
         row["id"],
     )
     return dict(row)
-
-
-@router.patch("/{order_id}/cancel")
-async def cancel_order(
-    order_id: str,
-    merchant: dict = Depends(get_current_merchant),
-    db=Depends(get_db),
-):
-    """Cancel an order (only if still pending)."""
-    row = await db.fetchrow(
-        "SELECT id, status FROM orders WHERE order_id = $1 AND merchant_id = $2",
-        order_id,
-        merchant["id"],
-    )
-    if row is None:
-        raise HTTPException(status_code=404, detail="Order not found")
-    if row["status"] != "pending":
-        raise HTTPException(status_code=400, detail="Only pending orders can be cancelled")
-
-    await db.execute("UPDATE orders SET status = 'cancelled' WHERE id = $1", row["id"])
-    await db.execute(
-        "INSERT INTO order_status_history (order_id, status, note) VALUES ($1, 'cancelled', 'Cancelled by merchant')",
-        row["id"],
-    )
-    return {"message": "Order cancelled", "order_id": order_id}

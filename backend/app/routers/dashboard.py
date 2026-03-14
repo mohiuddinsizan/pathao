@@ -24,9 +24,6 @@ async def dashboard_stats(
     delivered = await db.fetchval(
         "SELECT COUNT(*) FROM orders WHERE merchant_id = $1 AND status = 'delivered'", mid
     )
-    cancelled = await db.fetchval(
-        "SELECT COUNT(*) FROM orders WHERE merchant_id = $1 AND status = 'cancelled'", mid
-    )
     revenue = await db.fetchval(
         "SELECT COALESCE(SUM(amount), 0) FROM orders WHERE merchant_id = $1 AND status = 'delivered'",
         mid,
@@ -40,7 +37,6 @@ async def dashboard_stats(
         "pending": pending,
         "in_transit": in_transit,
         "delivered": delivered,
-        "cancelled": cancelled,
         "total_revenue": float(revenue),
         "stores": stores_count,
     }
