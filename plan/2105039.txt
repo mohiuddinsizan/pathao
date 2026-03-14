@@ -3,186 +3,376 @@
 ================================================================================
   Branch: 2105039
   Depends on: 2105056 (DONE — project setup, auth, DB schema all ready)
-  Works alongside: ALL other members — write tests as features are built
+  Works alongside: 2105040, 2105045, 2105057, 2105058 — pull their branches
+  as they finish so you can test their code.
 ================================================================================
 
 STATUS OVERVIEW
 ===============
-  [x] Backend test infra: conftest.py with env vars, pytest in requirements.txt
-  [x] Backend unit: test_jwt.py (7 tests) — token create, decode, tamper, empty
-  [x] Backend unit: test_password.py (6 tests) — hash, verify, wrong, empty
-  [x] Backend unit: test_schemas.py (8 tests) — Pydantic validation
+  [x] Backend test infra: conftest.py, pytest in requirements.txt
+  [x] Backend unit: test_jwt.py — 7 tests (create, decode, tamper, empty)
+  [x] Backend unit: test_password.py — 6 tests (hash, verify, wrong, empty)
+  [x] Backend unit: test_schemas.py — 8 tests (Pydantic models)
   [x] Frontend test infra: vitest + @testing-library/react + jsdom
-  [x] Frontend unit: utils.test.js (4 tests) — cn() merge, conflicts
-  [x] Frontend unit: api.test.js (3 tests) — GET auth header, error, POST body
-  [x] CI pipeline: .github/workflows/ci.yml — backend pytest + frontend vitest
-  [ ] Backend integration tests (require live DB) — NOT BUILT
-  [ ] Manual E2E test execution — NOT DONE
+  [x] Frontend unit: utils.test.js — 4 tests (cn utility)
+  [x] Frontend unit: api.test.js — 3 tests (fetch mock, auth header, POST)
+  [x] CI pipeline: .github/workflows/ci.yml — runs pytest + vitest on push
+  [ ] Integration test setup (auth fixture, httpx client helper)
+  [ ] Backend integration: test_auth_integration.py
+  [ ] Backend integration: test_orders_integration.py
+  [ ] Backend integration: test_stores_integration.py
+  [ ] Backend integration: test_analytics_integration.py
+  [ ] Frontend component tests (3 files)
+  [ ] Manual E2E test results documented
 
-  Total tests passing: 28 (21 backend + 7 frontend)
+  Tests passing so far: 28 (21 backend unit + 7 frontend unit)
 
+HOW TO RUN LOCALLY
+===================
+  Backend:  cd backend && uvicorn app.main:app --reload --port 8000
+  Frontend: cd frontend && npm run dev
+  Login:    rahim.ahmed@gmail.com / demo123
+  Env file: provided by 2105056 — put it at backend/.env
+  Tests:    cd backend && python -m pytest tests/ -v
+            cd frontend && npm test
 
-YOUR REMAINING WORK
-====================
+IMPORTANT — HOW THE CODEBASE WORKS
+=====================================
+  Backend is a FastAPI app at backend/app/main.py. The test files live in
+  backend/tests/. The file backend/tests/conftest.py is already set up —
+  it exports env vars before the app imports, so JWT_SECRET and DATABASE_URL
+  are available.
 
-  [ ] 1. Add integration tests for auth endpoints
-      File: backend/tests/test_auth_integration.py
-      Requires: Live DB or test DB fixture
+  For integration tests you need two things:
+    1. An httpx.AsyncClient pointed at the FastAPI app (not a live HTTP port)
+    2. A JWT token for a test merchant (register one in the test, get the token)
 
-      test_register_success — POST /api/auth/register → 200, token returned
-      test_register_duplicate_email — register twice → 400/409
-      test_login_success — register then login → token returned
-      test_login_wrong_password — → 401
-      test_get_me — login, GET /api/auth/me → merchant data
-      test_get_me_no_token — → 401
+  Basic integration test setup pattern:
+    import pytest
+    import httpx
+    from httpx import AsyncTransport, ASGITransport
+    from app.main import app          ← import the FastAPI app
 
-      NOTE: These need an httpx AsyncClient with ASGITransport pointed at
-      the FastAPI app. You need a real or mock DB connection. If using the
-      real Supabase DB, use individual INSERTs (no transactions through
-      pgbouncer). Clean up test data after each test.
+    @pytest.fixture
+    async def client():
+        async with httpx.AsyncClient(
+            transport=ASGITransport(app=app),
+            base_url="http://test"
+        ) as c:
+            yield c
 
-  [ ] 2. Add integration tests for orders
-      File: backend/tests/test_orders_integration.py
-      Requires: Live DB
+    # Authenticate before testing protected endpoints:
+    async def get_auth_headers(client):
+        email = "test_2039@example.com"
+        await client.post("/api/auth/register", json={
+            "email": email, "password": "testpass123",
+            "business_name": "Test Biz", "phone": "01711111111"
+        })
+        r = await client.post("/api/auth/login",
+                              json={"email": email, "password": "testpass123"})
+        token = r.json()["access_token"]
+        return {"Authorization": f"Bearer {token}"}
 
-      test_create_order — POST /api/orders → 201, PTH-XXXXXX format
-      test_list_orders — GET /api/orders → pagination present
-      test_list_orders_filter_status — ?status=pending → correct filter
-      test_list_orders_search — ?search=PTH-100001 → match
-      test_get_order_detail — GET /api/orders/{id} → all fields
-      test_cancel_order — PATCH /api/orders/{id}/cancel → cancelled
-      test_merchant_isolation — Merchant A can't see Merchant B's orders
+  IMPORTANT: Use a unique email per test run (e.g. add a timestamp or UUID)
+  to avoid conflicts with existing DB data. Clean up data you create.
 
-  [ ] 3. Add integration tests for stores
-      File: backend/tests/test_stores_integration.py
+  Because the DB is Supabase (pgbouncer), do NOT use transaction-level rollbacks
+  for cleanup. Instead, DELETE the rows you inserted at the end of each test
+  (or after the entire test module using a fixture with scope="module").
 
-      test_create_store — POST /api/stores → 201
-      test_list_stores — GET /api/stores → stores returned
-      test_update_store — PUT /api/stores/{id} → updated
-      test_store_merchant_isolation — cross-merchant access blocked
-
-  [ ] 4. Add more frontend component tests
-      File: frontend/src/test/components/
-
-      StatusBadge.test.js — renders correct badge color per status
-      ThemeToggle.test.js — toggles dark/light class on document
-      StatCard.test.js — renders icon, label, value
-
-  [ ] 5. Run manual E2E checklist and document results
-      File: backend/tests/MANUAL_E2E_RESULTS.md
-
-      Execute the checklist below on the running app (localhost or deployed)
-      and record PASS/FAIL for each item with screenshots or notes.
-
-
-WHAT'S ALREADY BUILT
-======================
-
-  Files that exist NOW (do not recreate):
-  ├── backend/tests/conftest.py      ← sets env vars before app imports
-  ├── backend/tests/test_jwt.py      ← 7 tests (create, decode, tamper)
-  ├── backend/tests/test_password.py ← 6 tests (hash, verify, wrong, empty)
-  ├── backend/tests/test_schemas.py  ← 8 tests (Register, Login, Token, Merchant)
-  ├── frontend/src/test/setup.js     ← imports @testing-library/jest-dom
-  ├── frontend/src/test/utils.test.js← 4 tests (cn utility)
-  ├── frontend/src/test/api.test.js  ← 3 tests (fetch mock, auth header)
-  └── .github/workflows/ci.yml      ← runs pytest + vitest on push
-
-  Run commands:
-    Backend:  cd backend && pytest tests/ -v
-    Frontend: cd frontend && npm test
+FILES TO CREATE  (7 files)
+============================
+  1. backend/tests/test_auth_integration.py
+  2. backend/tests/test_orders_integration.py
+  3. backend/tests/test_stores_integration.py
+  4. backend/tests/test_analytics_integration.py
+  5. frontend/src/test/components/StatusBadge.test.jsx
+  6. frontend/src/test/components/ThemeToggle.test.jsx
+  7. backend/tests/MANUAL_E2E_RESULTS.md
 
 
-MANUAL E2E TEST CHECKLIST
-=========================
+TASK 1 — Backend Integration: Auth endpoints
+=============================================
+  File: backend/tests/test_auth_integration.py
 
-  Run this on the deployed or local app. Mark PASS/FAIL.
+  Use the client fixture from the setup pattern above. Mark tests as
+  @pytest.mark.asyncio (since FastAPI endpoints are async).
 
-  AUTH FLOW:
-    [ ] Register new account → redirected to dashboard
-    [ ] Logout → redirected to login
-    [ ] Login with valid credentials → see dashboard
-    [ ] Login with wrong password → error message shown
-    [ ] Refresh page while logged in → stays logged in (localStorage)
+  Tests to write:
+
+    test_register_success
+      POST /api/auth/register with valid data → status 200 or 201,
+      response contains "access_token" key.
+
+    test_register_duplicate_email
+      Register the same email twice → second call returns 400 or 409.
+
+    test_login_success
+      Register an account, then POST /api/auth/login → returns access_token.
+
+    test_login_wrong_password
+      POST /api/auth/login with correct email but wrong password → returns 401.
+
+    test_get_me_with_token
+      Register, login, GET /api/auth/me with Authorization header →
+      response contains the merchant's email field.
+
+    test_get_me_no_token
+      GET /api/auth/me with NO Authorization header → returns 401.
+
+  For each test that registers a new account, use a unique email
+  (e.g. f"auto_test_{uuid.uuid4().hex[:8]}@example.com").
+  Delete test merchants from the DB in teardown (or after all tests in module).
+
+
+TASK 2 — Backend Integration: Orders endpoints
+================================================
+  File: backend/tests/test_orders_integration.py
+
+  Helper needed: a function that creates a test merchant + store, returns
+  headers and the store's id. Call it once at the top of the module using a
+  module-scoped fixture.
+
+  Tests to write:
+
+    test_create_order
+      POST /api/orders with all required fields → status 201 (or 200),
+      response contains "order_id" and it matches the format PTH-\d+.
+      Verify: re.match(r'^PTH-\d+$', data["order_id"]) passes.
+
+    test_list_orders_pagination
+      GET /api/orders?page=1&limit=5 → response has "orders" (list) and
+      "total" (int) keys. orders list has length <= 5.
+
+    test_filter_by_status
+      Create an order with status "pending". GET /api/orders?order_status=pending
+      → all returned orders have status == "pending".
+
+    test_get_order_detail
+      Create an order. GET /api/orders/{order_id} → response has "order_id",
+      "status", and "status_history" keys. status_history is a list.
+
+    test_cancel_order
+      Create an order. PATCH /api/orders/{order_id}/cancel →
+      response status is 200, returned order has status == "cancelled".
+
+    test_simulate_status_change  ← tests 2105040's endpoint
+      Create an order. PATCH /api/orders/{order_id}/status with
+      body {"status": "assigned"} → order status becomes "assigned".
+      Then hit it again with {"status": "picked_up"} → "picked_up".
+      Verify each response.
+
+    test_invalid_status_transition
+      Create an order (starts as "pending"). PATCH /api/orders/{order_id}/status
+      with body {"status": "delivered"} (not a valid transition) → returns 400.
+
+    test_merchant_isolation
+      Create two merchants A and B. Merchant A creates an order.
+      Merchant B tries GET /api/orders/{that order_id} → returns 404 (not visible).
+
+  Clean up all created orders and merchants in module teardown.
+
+
+TASK 3 — Backend Integration: Stores endpoints
+================================================
+  File: backend/tests/test_stores_integration.py
+
+  Register one test merchant at module scope, reuse auth headers.
+
+  Tests to write:
+
+    test_create_store
+      POST /api/stores with {name, branch, address, city, zone, phone, is_active}
+      → status 200 or 201, response has "id" and "name" fields.
+
+    test_list_stores
+      Create a store. GET /api/stores → response is a list, contains the
+      created store by id.
+
+    test_update_store
+      Create a store. PUT /api/stores/{id} with updated name →
+      response has updated name.
+
+    test_deactivate_store  ← tests 2105045's DELETE endpoint
+      Create a store. DELETE /api/stores/{id} → status 200,
+      GET /api/stores/{id} response shows is_active == false.
+
+    test_store_merchant_isolation
+      Merchant A creates a store. Merchant B tries
+      DELETE /api/stores/{that store id} → returns 404 (not their store).
+
+  Clean up created stores and merchants in module teardown.
+
+
+TASK 4 — Backend Integration: Analytics endpoint
+==================================================
+  File: backend/tests/test_analytics_integration.py
+
+  This tests 2105058's new endpoint. Write it after 2105058 pushes
+  their analytics.py to their branch.
+
+  Register one test merchant. Create a few orders with varied statuses.
+
+  Tests to write:
+
+    test_analytics_requires_auth
+      GET /api/analytics with no token → returns 401.
+
+    test_analytics_returns_required_keys
+      GET /api/analytics with valid token → response has all three keys:
+      "order_counts", "daily_data", "top_stores".
+
+    test_analytics_order_counts_structure
+      GET /api/analytics → data["order_counts"] is a dict.
+      Keys are status names (strings), values are integers.
+
+    test_analytics_daily_data_structure
+      GET /api/analytics → data["daily_data"] is a list.
+      Each item has "date", "count", "revenue" keys.
+
+    test_analytics_top_stores_structure
+      GET /api/analytics → data["top_stores"] is a list of length <= 5.
+      Each item has "name", "order_count", "revenue" keys.
+
+  Clean up test data in teardown.
+
+
+TASK 5 — Frontend Component Tests
+===================================
+  These test individual UI components in isolation.
+  Location: frontend/src/test/components/
+
+  FILE 1: StatusBadge.test.jsx
+    There may not be a standalone StatusBadge component — check the codebase
+    first. If order rows use inline badge styling, test the color mapping logic
+    instead by exporting the statusColors mapping from a utility and testing it.
+
+    Alternatively, if DeliveriesPage or OrderDetailPage has a getStatusColor(s)
+    or statusConfig helper function, import and test it:
+      test('pending returns amber color class')
+      test('delivered returns emerald color class')
+      test('cancelled returns rose color class')
+      test('unknown status returns a default')
+
+  FILE 2: ThemeToggle.test.jsx
+    Find the dark/light mode toggle component (likely in AppShell or as its own
+    component). Import and render it.
+    test('renders without crashing')
+    test('clicking the toggle calls something — onClick fires')
+    Use @testing-library/react: render, fireEvent from '@testing-library/react'
+
+  FILE 3: StatCard.test.jsx (or similar named card in DashboardPage)
+    If DashboardPage has a StatCard component that's exported separately:
+    test('renders with the given title')
+    test('renders with the given value')
+    test('renders the icon if provided')
+    If it's inline in DashboardPage, just test the DashboardPage itself renders
+    without crashing when the API is mocked to return empty data.
+
+  For all component tests:
+    Mock API calls with vi.mock('@/api/...', () => ({ ... }))
+    Use render() from @testing-library/react
+    Use screen.getByText(), screen.getByRole() for assertions
+
+
+TASK 6 — Manual E2E Test Results
+===================================
+  File: backend/tests/MANUAL_E2E_RESULTS.md
+
+  After all members merge their features, run the full demo flow on the
+  deployed app (or localhost) and document PASS/FAIL for each item below.
+
+  REQUIRED FORMAT IN THE FILE:
+    # Manual E2E Test Results
+    **Date:** YYYY-MM-DD
+    **Tester:** 2105039
+    **Environment:** [deployed URL or localhost]
+
+    | # | Test | Status | Notes |
+    |---|------|--------|-------|
+    ...
+
+  TEST CASES TO RUN:
+
+  AUTH:
+    1. Register a new account → lands on dashboard
+    2. Logout → redirected to /login
+    3. Login with valid creds → dashboard visible
+    4. Login with wrong password → error message shown
+    5. Refresh page while logged in → stays logged in
 
   DASHBOARD:
-    [ ] KPI cards show correct numbers
-    [ ] Recent orders table has data
-    [ ] Chart renders without errors
-    [ ] "Create Parcel" button visible and redirects
+    6. KPI stat cards show numeric values (not empty)
+    7. Recent orders table shows rows
+    8. Area/bar chart renders (no blank rectangle)
 
-  DELIVERIES (ORDERS):
-    [ ] Orders page shows paginated list
-    [ ] Filter by status works
-    [ ] Search by order ID or name works
-    [ ] Pagination controls work
-    [ ] Sort by column works
+  CREATE PARCEL (2105057):
+    9. Click "Create Parcel" button → /deliveries/new loads
+    10. Submit with empty required fields → validation errors shown
+    11. Submit valid form → new order appears in Deliveries list
+    12. Created order has status "pending"
 
-  STORES:
-    [ ] Stores page lists all merchant stores
-    [ ] Store cards show name, branch, address, phone
+  DELIVERIES (2105058):
+    13. Orders page shows paginated list
+    14. Status filter buttons filter the list
+    15. Search by order ID or recipient name narrows results
+    16. Store filter dropdown shows store names
+    17. Selecting a store filter shows only that store's orders
+    18. Clicking a row → navigates to /deliveries/PTH-xxxx
+
+  ORDER DETAIL (2105040):
+    19. Order detail page loads for a valid order ID
+    20. Recipient info and parcel info cards are visible
+    21. Status timeline shows at least one entry
+    22. Simulation buttons show allowed next states
+    23. Click a simulation button → status updates and timeline grows
+    24. Full lifecycle works: pending → assigned → picked_up → in_transit → delivered
+    25. Cancel button visible on pending orders only
+    26. Cancelling a pending order moves status to "cancelled"
+
+  STORES (2105045):
+    27. Stores page shows existing store cards
+    28. "Add Store" button opens a create modal
+    29. Creating a store → it appears in the list
+    30. Edit button opens edit modal with current data
+    31. Saving edit → card shows updated info
+    32. Deactivate button on active store → card shows "Inactive" badge
+    33. Deactivated store is grayed out
+
+  ANALYTICS (2105058):
+    34. /analytics page loads without errors
+    35. "Orders by Status" chart shows bars
+    36. "Last 7 Days" chart shows data
+    37. "Top Stores" table shows store names
 
   DARK / LIGHT MODE:
-    [ ] Toggle switches theme
-    [ ] All pages readable in both modes
-    [ ] Preference persists on refresh
+    38. Theme toggle switches appearance
+    39. All pages readable in dark mode
+    40. Theme preference persists on refresh
 
   CROSS-CUTTING:
-    [ ] Consistent red primary color scheme across pages
-    [ ] Plus Jakarta Sans font everywhere
-    [ ] No hardcoded/placeholder data (all from API)
-    [ ] Error states handled (API down, network error)
-    [ ] Sidebar navigation works for all routes
+    41. Sidebar navigation works for all routes
+    42. Red primary color consistent across pages
+    43. No broken/empty pages (no "undefined" or "NaN" visible)
+    44. Mobile: sidebar collapses correctly (if applicable)
 
 
-BUG REPORTING
-=============
-
-  [ ] 10. Establish bug reporting process
-
-      When you find a bug:
-        1. Note which member's code it's in
-        2. Create a GitHub Issue with:
-           - Title: [BUG] Brief description
-           - Affected feature: Order Creation / Listing / etc.
-           - Steps to reproduce
-           - Expected behavior
-           - Actual behavior
-           - Screenshot (if UI bug)
-           - Assigned to: @member_roll_number
-        3. After the fix, verify and close the issue
-
-
-DELIVERABLES CHECKLIST
-======================
-  [ ] Test infrastructure (conftest.py, fixtures, test DB)
-  [ ] Auth tests (8+ test cases)
-  [ ] Order creation tests (6+ test cases)
-  [ ] Order listing tests (7+ test cases)
-  [ ] Order detail/update/status tests (8+ test cases)
-  [ ] Store tests (5+ test cases)
-  [ ] Dashboard tests (3+ test cases)
-  [ ] ALL tests passing on CI or local
-  [ ] Manual E2E test checklist completed on deployed app
-  [ ] Bug reports filed for any issues found
-  [ ] Verification of bug fixes
-
-
-NOTES
-=====
-  - Start writing tests as SOON as other members push their code.
-    Don't wait for all features to be done.
-  - Work closely with each member — review their code from a testing
-    perspective and suggest edge cases they might have missed.
-  - For the test database, the simplest approach is to:
-    a. Use the same Supabase DB but wrap tests in transactions that
-       rollback, OR
-    b. Ask 2105056 to set up a separate test database
-  - Focus on the BACKEND tests first — they're more important for the
-    demo than frontend unit tests.
-  - The manual E2E checklist should be run at least once on the deployed
-    version before the demo.
-  - Keep a count of tests written — it's impressive for the demo to say
-    "we have X tests, all passing."
-  - Pytest command to run all tests:
-      cd backend && python -m pytest tests/ -v
+NOTES FOR 2105039
+==================
+  - Start with integration test setup (conftest fixture) first before writing
+    individual test files — once that works, the rest are quick to add.
+  - You cannot write test_orders_integration.py fully until 2105040 pushes
+    their /status endpoint. Pull their branch and test incrementally.
+  - Use pytest-asyncio for async tests:
+      pip install pytest-asyncio httpx
+      Add to requirements.txt if not already there.
+      Add to conftest.py or pytest.ini: asyncio_mode = "auto"
+  - A test that FAILS tells the team about a bug — that's valuable. Document
+    it as a bug report GitHub Issue (Title: "[BUG] …") and assign to the
+    relevant member.
+  - Keep counting your tests — by demo day aim for 40+ total (current: 28).
+    It's a good talking point.
+  - pytest command for a single file:
+      cd backend && python -m pytest tests/test_auth_integration.py -v
+  - vitest command for a single component:
+      cd frontend && npm test -- StatusBadge
