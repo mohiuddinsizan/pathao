@@ -27,12 +27,12 @@ cd backend
 python -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
 cp .env.example .env              # fill DATABASE_URL, JWT_SECRET
-uvicorn app.main:app --reload     # → http://localhost:8000
+uvicorn app.main:app --reload --port 8001     # → http://localhost:8001
 
 # 4. Frontend
 cd ../frontend
 npm install
-cp .env.example .env              # VITE_API_URL=http://localhost:8000/api
+cp .env.example .env              # VITE_API_URL=http://localhost:8001
 npm run dev                       # → http://localhost:5173
 ```
 
@@ -76,17 +76,13 @@ All protected endpoints require: `Authorization: Bearer <token>`
 | POST | `/api/auth/register` | — | Register merchant |
 | POST | `/api/auth/login` | — | Login → JWT token |
 | GET | `/api/auth/me` | ✓ | Current merchant info |
-| GET | `/api/orders` | ✓ | List orders (paginated, filterable) |
-| POST | `/api/orders` | ✓ | Create new order |
-| GET | `/api/orders/{id}` | ✓ | Order detail + status timeline |
-| PATCH | `/api/orders/{id}/cancel` | ✓ | Cancel order |
-| GET | `/api/stores` | ✓ | List merchant stores |
-| POST | `/api/stores` | ✓ | Create store |
-| PUT | `/api/stores/{id}` | ✓ | Update store |
 | GET | `/api/dashboard/stats` | ✓ | Dashboard statistics |
 | GET | `/api/dashboard/recent-orders` | ✓ | Recent 10 orders |
 
-Interactive API docs: `http://localhost:8000/docs`
+> **Note:** Orders and Stores API endpoints are planned but not yet registered.
+> Each team member will implement and register their assigned endpoints.
+
+Interactive API docs: `http://localhost:8001/docs`
 
 ## Environment Variables
 
@@ -102,7 +98,7 @@ FRONTEND_URL=http://localhost:5173
 ### Frontend (`frontend/.env`)
 
 ```
-VITE_API_URL=http://localhost:8000/api
+VITE_API_URL=http://localhost:8001
 ```
 
 ## Running Tests
@@ -124,14 +120,14 @@ Password: demo123
 
 ## Team
 
-| Roll    | Responsibility |
-|---------|----------------|
-| 2105056 | Project setup, auth, Supabase, deployment |
-| 2105057 | Order creation (backend + frontend) |
-| 2105058 | Order listing, filtering, pagination |
-| 2105040 | Order detail, edit, cancel |
-| 2105045 | Dashboard, stores, UI components |
-| 2105039 | Testing (unit + integration) |
+| Roll    | Responsibility                                                             |
+| ------- | -------------------------------------------------------------------------- |
+| 2105056 | Project setup, auth (login/JWT), dashboard page, Supabase schema, CI/CD, deployment |
+| 2105057 | Order creation flow (backend API + frontend form), payments page           |
+| 2105058 | Deliveries page (order listing, filtering, search, pagination)             |
+| 2105040 | Order detail view (view detail from dashboard), edit order, analytics page |
+| 2105045 | Stores page (CRUD), shared UI components                                   |
+| 2105039 | Testing (unit + integration), settings page                                |
 
 ## Git Workflow
 

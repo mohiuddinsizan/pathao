@@ -29,7 +29,7 @@ STATUS OVERVIEW
 
 HOW TO RUN LOCALLY
 ===================
-  Backend:  cd backend && uvicorn app.main:app --reload --port 8000
+  Backend:  cd backend && uvicorn app.main:app --reload --port 8001
   Frontend: cd frontend && npm run dev
   Login:    rahim.ahmed@gmail.com / demo123
   Env file: provided by 2105056 — put it at backend/.env
@@ -166,10 +166,6 @@ TASK 2 — Backend Integration: Orders endpoints
       Create an order. GET /api/orders/{order_id} → response has "order_id",
       "status", and "status_history" keys. status_history is a list.
 
-    test_cancel_order
-      Create an order. PATCH /api/orders/{order_id}/cancel →
-      response status is 200, returned order has status == "cancelled".
-
     test_simulate_status_change  ← tests 2105040's endpoint
       Create an order. PATCH /api/orders/{order_id}/status with
       body {"status": "assigned"} → order status becomes "assigned".
@@ -265,7 +261,6 @@ TASK 5 — Frontend Component Tests
     or statusConfig helper function, import and test it:
       test('pending returns amber color class')
       test('delivered returns emerald color class')
-      test('cancelled returns rose color class')
       test('unknown status returns a default')
 
   FILE 2: ThemeToggle.test.jsx
@@ -341,8 +336,6 @@ TASK 6 — Manual E2E Test Results
     22. Simulation buttons show allowed next states
     23. Click a simulation button → status updates and timeline grows
     24. Full lifecycle works: pending → assigned → picked_up → in_transit → delivered
-    25. Cancel button visible on pending orders only
-    26. Cancelling a pending order moves status to "cancelled"
 
   STORES (2105045):
     27. Stores page shows existing store cards
