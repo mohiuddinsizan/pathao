@@ -1,0 +1,141 @@
+================================================================================
+  FRONTEND STYLE RULES — PATHAO MERCHANT DASHBOARD
+================================================================================
+  Owner: 2105056
+  All team members MUST follow these rules when building frontend pages.
+================================================================================
+
+
+1. DESIGN SYSTEM
+================
+
+  Framework:  React 19 + Vite 7 + Tailwind CSS v4
+  Components: shadcn/ui (Radix primitives) — already installed in components/ui/
+  Icons:      lucide-react (import from "lucide-react")
+  Theme:      Dark mode = GitHub Black (#0d1117 base), Light mode = soft gray
+  Font:       System font stack (no custom fonts)
+
+
+2. COLOR PALETTE
+================
+
+  Primary (brand):     Pathao Red — hsl(0 72% 51%) light, hsl(0 72% 55%) dark
+  Background:          hsl(220 14% 92%) light, hsl(216 28% 7%) dark
+  Card:                hsl(220 14% 97%) light, hsl(215 21% 11%) dark
+  Border:              2px solid border color (use `border-2 border-border`)
+  Muted text:          text-muted-foreground
+
+  Status badge colors (already configured in badge.jsx):
+    - success:     emerald-500 (delivered)
+    - warning:     amber-500 (pending)
+    - info:        blue-500 (assigned, picked_up, in_transit)
+    - destructive: red (cancelled — legacy data only)
+
+
+3. TYPOGRAPHY RULES
+===================
+
+  Page titles:         text-2xl font-bold tracking-tight
+  Section headings:    text-lg font-semibold tracking-tight
+  Table headers:       text-xs font-extrabold uppercase tracking-widest
+  Card stat labels:    text-xs font-medium text-muted-foreground
+  Card stat values:    text-xl font-bold
+  Table cell (ID):     font-mono text-xs font-semibold
+  Table cell (name):   text-sm font-medium
+  Table cell (date):   text-sm text-muted-foreground
+  Status badges:       text-xs font-semibold (auto from badge component)
+  Action buttons:      text-xs text-primary hover:underline
+
+  RULE: Use bold/semibold for data the user scans quickly (IDs, names, status).
+        Use font-medium for labels and secondary data.
+        Never leave important text without weight — minimum font-medium.
+
+
+4. LAYOUT RULES
+===============
+
+  • Full-height layout: pages fill the viewport, no page-level scroll
+  • Use CSS Grid for tables (grid-cols-[...]) — NOT <table> elements
+  • Cards: rounded-xl border-2 border-border bg-card px-4 py-3
+  • Stat cards: 4-column grid on desktop, 2 on tablet, 1 on mobile
+    → grid gap-4 sm:grid-cols-2 lg:grid-cols-4
+  • Spacing: p-4 lg:p-6 for page padding
+  • Sidebar: collapsible, shows nav links + icons
+
+
+5. INTERACTION PATTERNS
+=======================
+
+  • Clickable cards:    cursor-pointer hover:bg-muted/50 transition-colors
+  • Table rows:         hover:bg-muted/40 transition-colors cursor-default
+  • Buttons:            cursor-pointer (always explicit)
+  • Links:              hover:underline
+  • Transitions:        duration-200 for colors, duration-300 for width/opacity
+
+
+6. STATUS BADGES
+================
+
+  Use the <Badge> component from @/components/ui/badge.
+  Map status strings to variants:
+
+    pending     → variant="warning"   (amber bg, amber text, bold)
+    assigned    → variant="info"      (blue bg, blue text, bold)
+    picked_up   → variant="info"
+    in_transit  → variant="info"
+    delivered   → variant="success"   (emerald bg, emerald text, bold)
+    cancelled   → variant="destructive" (red bg, white text, bold)
+
+  Format status text: replace underscores with spaces
+    → (status).replace(/_/g, " ")
+
+
+7. SKELETON LOADING
+====================
+
+  Every page that fetches data MUST show skeleton placeholders while loading.
+  Use animate-pulse with bg-muted rounded shapes matching the final content.
+
+  Example pattern:
+    {loading ? <SkeletonRow /> : <ActualContent />}
+
+
+8. DARK MODE
+=============
+
+  • MUST look good in both light and dark mode
+  • Use theme CSS variables (bg-background, bg-card, text-foreground, etc.)
+  • Never hardcode colors — always use Tailwind theme classes
+  • Test in dark mode before committing
+
+
+9. RESPONSIVE
+==============
+
+  • Mobile-first: default styles for mobile, then sm: md: lg: breakpoints
+  • Minimum supported width: 360px (mobile)
+  • Sidebar collapses on mobile
+  • Tables may horizontally scroll on very narrow screens
+
+
+10. COMPONENT CONVENTIONS
+==========================
+
+  • Page components live in src/pages/
+  • Reusable UI components: src/components/ui/ (shadcn/ui)
+  • API calls: src/api/ (one file per resource: orders.js, dashboard.js, etc.)
+  • Auth context: src/context/AuthContext.jsx
+  • Route protection: ProtectedRoute in App.jsx wraps authenticated pages
+  • All API calls go through the client at src/api/client.js
+
+
+11. THINGS TO AVOID
+=====================
+
+  ✗ Do NOT use <table> HTML elements — use CSS Grid
+  ✗ Do NOT use opacity < 0.2 for status badge backgrounds
+  ✗ Do NOT use colored text for badge text — use text-foreground (black/white)
+  ✗ Do NOT leave important text at default weight — minimum font-medium
+  ✗ Do NOT use hardcoded pixel values for spacing — use Tailwind spacing scale
+  ✗ Do NOT create new color variables — use the existing palette
+  ✗ Do NOT skip skeleton loading states

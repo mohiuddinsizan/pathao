@@ -1,7 +1,8 @@
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useRef } from "react";
 import { getDashboardStats, getRecentOrders } from "@/api/dashboard";
+import { useCachedQuery } from "@/hooks/use-cached-query";
 import { Badge } from "@/components/ui/badge";
-import { Package, Store, Truck, Clock, Eye } from "lucide-react";
+import { Package, Store, TrendingUp, Banknote, Eye, CheckCircle2 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
 const statusColors = {
@@ -13,23 +14,36 @@ const statusColors = {
   cancelled: "destructive",
 };
 
-function StatCard({ title, value, icon: Icon, href }) {
+function StatCard({ title, value, icon: Icon, href, actionLabel }) {
   const navigate = useNavigate();
+  const isClickable = href && !actionLabel;
   return (
     <div
-      className="flex items-center gap-3 rounded-xl border-2 border-border bg-card px-4 py-3 cursor-pointer hover:bg-muted/50 transition-colors duration-200"
-      onClick={() => href && navigate(href)}
-      role="link"
-      tabIndex={0}
-      onKeyDown={(e) => e.key === "Enter" && href && navigate(href)}
+      className={`flex flex-col gap-2 rounded-xl border-2 border-border bg-card px-4 py-3 ${
+        isClickable ? 'cursor-pointer hover:bg-muted/50 transition-colors duration-200' : ''
+      }`}
+      onClick={() => isClickable && navigate(href)}
+      role={isClickable ? 'link' : undefined}
+      tabIndex={isClickable ? 0 : undefined}
+      onKeyDown={(e) => e.key === 'Enter' && isClickable && navigate(href)}
     >
-      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
-        <Icon className="h-5 w-5" />
+      <div className="flex items-center gap-3">
+        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+          <Icon className="h-5 w-5" />
+        </div>
+        <div className="min-w-0 flex-1">
+          <p className="text-xs font-medium text-muted-foreground truncate">{title}</p>
+          <p className="text-xl font-bold leading-tight">{value}</p>
+        </div>
       </div>
-      <div className="min-w-0 flex-1">
-        <p className="text-xs text-muted-foreground truncate">{title}</p>
-        <p className="text-xl font-bold leading-tight">{value}</p>
-      </div>
+      {actionLabel && href && (
+        <button
+          onClick={() => navigate(href)}
+          className="text-xs text-primary hover:underline text-right cursor-pointer"
+        >
+          {actionLabel} →
+        </button>
+      )}
     </div>
   );
 }
@@ -58,19 +72,9 @@ function SkeletonRow() {
 }
 
 export default function DashboardPage() {
-  const [stats, setStats] = useState(null);
-  const [orders, setOrders] = useState(null);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    Promise.all([getDashboardStats(), getRecentOrders()])
-      .then(([s, o]) => {
-        setStats(s);
-        setOrders(o);
-      })
-      .catch(() => {})
-      .finally(() => setLoading(false));
-  }, []);
+  const { data: stats, loading: statsLoading } = useCachedQuery('dashboard-stats', getDashboardStats);
+  const { data: orders, loading: ordersLoading } = useCachedQuery('dashboard-recent-orders', getRecentOrders);
+  const loading = statsLoading || ordersLoading;
 
   return (
     <div className="flex flex-col h-full p-4 lg:p-6 overflow-hidden">
@@ -90,36 +94,37 @@ export default function DashboardPage() {
         ) : stats ? (
           <>
             <StatCard
-              title="Total Orders"
+              title="Total Parcels"
               value={stats.total_orders ?? 0}
               icon={Package}
               href="/deliveries"
             />
             <StatCard
-              title="Active Deliveries"
-              value={stats.in_transit ?? 0}
-              icon={Truck}
-              href="/deliveries"
+              title="Total Income"
+              value={`৳${(stats.total_revenue ?? 0).toLocaleString()}`}
+              icon={Banknote}
+              href="/payments"
             />
             <StatCard
-              title="Stores"
+              title="Active Stores"
               value={stats.stores ?? 0}
               icon={Store}
               href="/stores"
             />
             <StatCard
-              title="Pending"
-              value={stats.pending ?? 0}
-              icon={Clock}
-              href="/deliveries"
+              title="Completed Deliveries"
+              value={stats.delivered ?? 0}
+              icon={CheckCircle2}
+              href="/analytics"
+              actionLabel="View Analytics"
             />
           </>
         ) : (
           <>
-            <StatCard title="Total Orders" value="—" icon={Package} />
-            <StatCard title="Active Deliveries" value="—" icon={Truck} />
-            <StatCard title="Stores" value="—" icon={Store} />
-            <StatCard title="Pending" value="—" icon={Clock} />
+            <StatCard title="Total Parcels" value="—" icon={Package} />
+            <StatCard title="Total Income" value="—" icon={Banknote} />
+            <StatCard title="Active Stores" value="—" icon={Store} />
+            <StatCard title="Completed Deliveries" value="—" icon={CheckCircle2} />
           </>
         )}
       </div>
@@ -203,8 +208,8 @@ function RecentOrdersTable({ loading, orders }) {
                   key={order.order_id}
                   className="grid grid-cols-[1fr_1.5fr_1fr_1fr_auto] items-center px-6 py-3.5 hover:bg-muted/40 transition-colors duration-200 cursor-default group"
                 >
-                  <span className="font-mono text-xs font-medium">{order.order_id}</span>
-                  <span className="text-sm">{order.recipient_name || "—"}</span>
+                  <span className="font-mono text-xs font-semibold">{order.order_id}</span>
+                  <span className="text-sm font-medium">{order.recipient_name || "—"}</span>
                   <span className="flex justify-center">
                     <Badge variant={statusColors[order.status] || "secondary"}>
                       {(order.status || "unknown").replace(/_/g, " ")}

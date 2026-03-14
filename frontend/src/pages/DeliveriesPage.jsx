@@ -21,7 +21,7 @@ const statusColors = {
   cancelled: "destructive",
 };
 
-const STATUSES = ["all", "pending", "assigned", "picked_up", "in_transit", "delivered", "cancelled"];
+const STATUSES = ["all", "pending", "assigned", "picked_up", "in_transit", "delivered"];
 
 function SkeletonRow() {
   return (
