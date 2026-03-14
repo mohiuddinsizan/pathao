@@ -212,6 +212,19 @@ TASK 5 — Frontend: Create OrderDetailPage.jsx
        On click: confirm("Cancel this order?") — native browser dialog is fine
        If confirmed: call cancelOrder(orderId), then re-fetch the order
 
+    G. Edit Order [BONUS — do this after A–F are working]
+       Only render when order.status === 'pending'
+       Add an "Edit Order" button that opens a shadcn Dialog modal.
+       The modal has a form with editable fields:
+         recipient_name, recipient_phone, recipient_address,
+         destination_area, item_description, item_weight
+       Pre-fill form from the current order values.
+       On submit: call updateOrder(orderId, formData) (the helper you added
+       in Task 3), then close the modal and re-fetch the order.
+       Disable submit while the PUT request is in flight.
+       Use Dialog, DialogContent, DialogHeader, DialogTitle, Input, Label
+       — all already installed.
+
   STATUS ICON + COLOR MAPPING (for timeline and simulation buttons):
     pending    → Clock icon,        text-amber-500
     assigned   → UserCheck icon,    text-violet-500

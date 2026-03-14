@@ -1,8 +1,8 @@
 ================================================================================
-  MEMBER: 2105057 — CREATE PARCEL FORM PAGE
+  MEMBER: 2105057 — CREATE PARCEL FORM + PAYMENTS PAGE
 ================================================================================
   Branch: 2105057
-  Depends on: 2105056 (DONE — all backend APIs ready, no DB access needed)
+  Depends on: 2105056 (DONE — project setup, auth, DB schema all ready)
 ================================================================================
 
 STATUS OVERVIEW
@@ -10,399 +10,298 @@ STATUS OVERVIEW
   [x] Backend: POST /api/orders — DONE, no changes needed
   [x] Backend: GET /api/stores — DONE, provides store dropdown data
   [x] Frontend scaffold (AppShell, auth, routing) — DONE
-  [ ] Frontend: Create Parcel form page — YOUR TASK
+  [ ] Backend: GET /api/payments — new endpoint (your task)
+  [ ] Backend: payments router registered in main.py
+  [ ] Frontend: /deliveries/new route registered in App.jsx
+  [ ] Frontend: CreateParcelPage.jsx — create parcel form page
+  [ ] Frontend: /payments route updated in App.jsx (replace Placeholder)
+  [ ] Frontend: PaymentsPage.jsx — payments / transaction history page
 
-ONLY ONE TASK: Build the Create Parcel form page.
-No database. No backend changes. Just one React page.
+HOW TO RUN LOCALLY
+===================
+  Backend:  cd backend && uvicorn app.main:app --reload --port 8000
+  Frontend: cd frontend && npm run dev
+  Login:    rahim.ahmed@gmail.com / demo123
+  Env file: provided by 2105056 — put it at backend/.env
+
+IMPORTANT — HOW THE CODEBASE WORKS
+=====================================
+  API client: frontend/src/api/client.js
+    api.get(path), api.post(path, body), api.put(path, body), api.delete(path)
+  JWT is auto-injected from localStorage. On 401 → auto-redirects to /login.
+
+  Your frontend pages CALL the API using the helper at frontend/src/api/client.js.
+  For your forms you can use api.post('/api/orders', payload) directly.
+
+  AppShell.jsx already has a "Create Parcel" button at line ~207 using
+  <Link to="/deliveries/new">. After you register the route, clicking it
+  will load your page automatically — no change to AppShell needed.
+
+  Available shadcn/ui components (already installed):
+    Button, Card (CardHeader/CardTitle/CardContent), Badge, Input, Label,
+    Dialog, Textarea
+    Select: run `npx shadcn@latest add select` in frontend/ if needed
+    Textarea: run `npx shadcn@latest add textarea` in frontend/ if needed
+
+  Design system:
+    Font:    Plus Jakarta Sans — use font-sans
+    Primary: text-primary / bg-primary (red)
+    Cards:   rounded-xl border-2 border-border bg-card p-6
+    Inputs:  <Input> from shadcn, <Label> from shadcn
+    Text:    text-foreground (dark), text-muted-foreground (gray hints)
+    Spacing: gap-4, gap-6, space-y-4
+
+FILES TO CHANGE / CREATE  (5 items total)
+==========================================
+  1. backend/app/routers/payments.py    — new file (Task 1)
+  2. backend/app/main.py                — Task 1 (register payments router)
+  3. frontend/src/App.jsx               — Task 2 (register 2 routes)
+  4. frontend/src/pages/CreateParcelPage.jsx  — Task 3 (new file)
+  5. frontend/src/pages/PaymentsPage.jsx      — Task 4 (new file)
 
 
-DESIGN SYSTEM (READ FIRST)
-============================
-  Font:     Plus Jakarta Sans (already loaded — just use font-sans)
-  Primary:  bg-primary / text-primary  (red)
-  Cards:    className="rounded-xl border-2 border-border bg-card p-6"
-  Inputs:   Use <Input> from '@/components/ui/input'
-  Buttons:  Use <Button> from '@/components/ui/button'
-  Labels:   Use <Label> from '@/components/ui/label'
-  Text:     text-foreground (dark), text-muted-foreground (gray hints)
-  Spacing:  gap-4, gap-6, space-y-4. Be generous — don't crowd fields.
-  Icons:    lucide-react. Already installed. Import what you need.
+TASK 1 — Backend: GET /api/payments
+======================================
+  NEW FILE: backend/app/routers/payments.py
 
-  Status badge colors (use these in other components too):
-    pending:    className="bg-amber-500/10 text-amber-600"
-    delivered:  className="bg-emerald-500/10 text-emerald-600"
-    cancelled:  className="bg-rose-500/10 text-rose-600"
-    in_transit: className="bg-blue-500/10 text-blue-600"
+  Create this file. Look at stores.py or dashboard.py in the same folder
+  for the import pattern (APIRouter, Depends, HTTPException, get_current_merchant,
+  get_db are all the same imports).
+
+  What the endpoint does:
+    GET /api/payments — protected by JWT (requires get_current_merchant)
+    Optional query params:
+      page  (int, default 1)
+      limit (int, default 20)
+
+    Returns a list of orders that have payment info, plus a summary:
+      {
+        "payments": [ ... ],
+        "total": <total count>,
+        "total_revenue": <sum of all amounts for this merchant>,
+        "page": <current page>,
+        "limit": <current limit>
+      }
+
+    Each payment item is an order row with these fields:
+      order_id, recipient_name, amount, payment_method, cod_amount,
+      status, created_at
+
+    SQL for the list (paginated):
+      SELECT order_id, recipient_name, amount, payment_method,
+             cod_amount, status, created_at
+      FROM orders
+      WHERE merchant_id = $1
+      ORDER BY created_at DESC
+      LIMIT $2 OFFSET $3
+
+    SQL for the totals:
+      SELECT COUNT(*) AS total, COALESCE(SUM(amount), 0) AS total_revenue
+      FROM orders
+      WHERE merchant_id = $1
+
+    Use parameterized placeholders ($1, $2, …) — NEVER concatenate values
+    directly into SQL strings.
+
+  REGISTER IN main.py:
+    File: backend/app/main.py
+    Line 8 currently: from app.routers import auth, orders, stores, dashboard
+    Add "payments" to that import:
+      from app.routers import auth, orders, stores, dashboard, payments
+    After the other include_router lines, add:
+      app.include_router(payments.router, prefix="/api/payments", tags=["Payments"])
+
+  NOTE: 2105058 also adds "analytics" to this same import line, so when
+  merging your PRs, coordinate with 2105056 to avoid a conflict in main.py.
+  In your PR description, note: "adds `payments` to main.py routers import."
 
 
-WHAT TO INSTALL FIRST (run in frontend/ folder)
-=================================================
-  npx shadcn@latest add select
-  npx shadcn@latest add textarea
-
-
-STEP 1 — Register the route
-==============================
+TASK 2 — Frontend: Register routes in App.jsx
+===============================================
   File: frontend/src/App.jsx
 
-  Add import at top:
+  Add these two imports at the top (with the other page imports):
     import CreateParcelPage from './pages/CreateParcelPage'
+    import PaymentsPage from './pages/PaymentsPage'
 
-  Add inside the AppShell route group (after /stores):
+  Inside the ProtectedRoute/AppShell route group, find the existing routes.
+  Add your two routes:
     <Route path="/deliveries/new" element={<CreateParcelPage />} />
+    <Route path="/payments" element={<PaymentsPage />} />
 
-  Update the "Create Parcel" button in AppShell.jsx (line ~207):
-    import { useNavigate } from 'react-router-dom'
-    const navigate = useNavigate()
-    // Change the onClick to:
-    onClick={() => navigate('/deliveries/new')}
+  For the /payments route, you are REPLACING the existing:
+    <Route path="/payments" element={<Placeholder />} />
+  Remove the old /payments Placeholder line and add your new PaymentsPage line.
+
+  Leave the Placeholder import and the other Placeholder routes (/settings)
+  untouched.
+
+  IMPORTANT: 2105040 also adds /deliveries/:orderId and 2105058 also changes
+  /analytics route in App.jsx. Each person adds/changes different lines.
+  When you open your PR, let 2105056 know so they can resolve any merge
+  conflicts when merging all branches.
 
 
-STEP 2 — Build CreateParcelPage.jsx
+TASK 3 — Frontend: CreateParcelPage.jsx
+==========================================
+  NEW FILE: frontend/src/pages/CreateParcelPage.jsx
+
+  This is a multi-section form page for creating a new parcel delivery.
+  Build it using React hooks + the design system described above.
+  The form submits to the existing POST /api/orders backend endpoint.
+
+  IMPORTS YOU WILL NEED:
+    useState, useEffect from 'react'
+    useNavigate from 'react-router-dom'
+    { api } from '@/api/client'
+    Button, Input, Label from their shadcn paths
+    Select, SelectContent, SelectItem, SelectTrigger, SelectValue from shadcn
+    ArrowLeft, Package from 'lucide-react'
+
+  STATE TO MANAGE:
+    stores      — list of stores for dropdown (fetched on mount)
+    loading     — boolean, true while form is submitting
+    errors      — object; keys match field names, values are error strings
+    form        — object with ALL form fields:
+      store_id, pickup_address (shown only when no store selected),
+      recipient_name (required), recipient_phone (required, BD format 01x-xxxxxxxx),
+      recipient_address (required), destination_area,
+      parcel_type (default 'small_box'), item_description,
+      item_weight, amount (required, must be > 0),
+      payment_method (default 'cod'),
+      cod_amount (required when payment_method === 'cod'), notes
+
+  ON MOUNT:
+    Call api.cachedGet('/api/stores') to populate the stores dropdown.
+    Store result in stores state. On error, leave stores as [].
+
+  FORM SECTIONS (3 cards):
+
+    Card 1 — "Pickup Info":
+      Store dropdown (optional):
+        A <Select> listing all store names; default value is "" (no store).
+        When a store is selected, hide the pickup address field.
+      Pickup Address (shown only when store is empty):
+        A text <Input> for the custom pickup address.
+
+    Card 2 — "Recipient Info":
+      Recipient Name (required)
+      Recipient Phone (required — validate BD mobile format: starts with 01[3-9],
+        followed by 8 digits)
+      Recipient Address (required)
+      Destination Area (optional)
+
+    Card 3 — "Parcel & Payment" (full width):
+      Parcel Type: dropdown with options: small_box, medium_box, large_box,
+        envelope, fragile
+      Item Description: a <Textarea> (optional)
+      Item Weight: number input
+      Amount: number input (required, > 0). Label: "Order Amount (BDT)"
+      Payment Method: dropdown with options: cod, prepaid, online
+      COD Amount: number input — only show this field when payment_method === 'cod'
+      Notes: <Textarea> optional
+
+  VALIDATION (run on submit, BEFORE calling the API):
+    - recipient_name must not be empty
+    - recipient_phone must match /^01[3-9]\d{8}$/ (BD mobile format)
+    - recipient_address must not be empty
+    - amount must be > 0
+    - cod_amount must be provided when payment_method === 'cod'
+    If validation fails: set errors state, do NOT call the API.
+    Show each error message below the relevant field in text-destructive color.
+
+  SUBMIT:
+    Call api.post('/api/orders', payload) where payload is the form object
+    with amount and cod_amount converted to numbers (use Number()).
+    If store_id is empty, omit it from the payload (undefined fields are safe).
+    On success: navigate('/deliveries') to return to the orders list.
+    On error: set errors.submit = error.message and show it in a red banner
+    at the top of the form.
+
+  LAYOUT:
+    Back button (ArrowLeft icon) → navigate('/deliveries')
+    Page title: "Create New Parcel" with a Package icon
+    Below: the three cards (first two side by side on wide screens)
+    Footer: Cancel button (goes back) + Submit button (disabled while loading)
+
+
+TASK 4 — Frontend: PaymentsPage.jsx
 =====================================
-  File: frontend/src/pages/CreateParcelPage.jsx
+  NEW FILE: frontend/src/pages/PaymentsPage.jsx
 
-  FULL LAYOUT:
+  This page shows payment/transaction history. It calls GET /api/payments
+  (the endpoint you built in Task 1).
 
-  ┌────────────────────────────────────────────────────────────┐
-  │  ← Back to Deliveries           Create New Parcel          │
-  ├──────────────────────┬─────────────────────────────────────┤
-  │  1. PICKUP INFO      │  2. RECIPIENT INFO                  │
-  │  [card]              │  [card]                             │
-  │  Store dropdown      │  Recipient Name (required)          │
-  │  (or custom address) │  Recipient Phone (required)         │
-  │                      │  Recipient Address (required)       │
-  │                      │  Destination Area (optional)        │
-  ├──────────────────────┴─────────────────────────────────────┤
-  │  3. PARCEL & PAYMENT                                       │
-  │  [card — full width]                                       │
-  │  Parcel Type | Item Description | Item Weight              │
-  │  Amount | Payment Method | COD Amount (conditional)       │
-  │  Notes                                                     │
-  ├────────────────────────────────────────────────────────────┤
-  │  [Cancel button]                  [Submit: Create Parcel ▶]│
-  └────────────────────────────────────────────────────────────┘
+  IMPORTS YOU WILL NEED:
+    useState, useEffect from 'react'
+    { api } from '@/api/client'
+    Card, CardContent, CardHeader, CardTitle from shadcn/ui
+    Badge from '@/components/ui/badge'
+    { DollarSign, Package, CreditCard } from 'lucide-react'
 
-  COMPONENT SKELETON:
+  STATE:
+    data    — starts null, filled after fetch
+    loading — starts true
+    page    — int, starts 1
+    (optional) use data.total and page state for pagination
 
-    import { useState, useEffect } from 'react'
-    import { useNavigate } from 'react-router-dom'
-    import { api } from '@/api/client'
-    import { Button } from '@/components/ui/button'
-    import { Input } from '@/components/ui/input'
-    import { Label } from '@/components/ui/label'
-    import {
-      Select, SelectContent, SelectItem,
-      SelectTrigger, SelectValue
-    } from '@/components/ui/select'
-    import { ArrowLeft, Package } from 'lucide-react'
+  ON MOUNT (and when page changes):
+    Call api.get('/api/payments?page=' + page + '&limit=20')
+    Store response in data state. Set loading = false in finally.
 
-    export default function CreateParcelPage() {
-      const navigate = useNavigate()
-      const [stores, setStores]   = useState([])
-      const [loading, setLoading] = useState(false)
-      const [errors, setErrors]   = useState({})
-      const [form, setForm]       = useState({
-        store_id:         '',
-        pickup_address:   '',
-        recipient_name:   '',
-        recipient_phone:  '',
-        recipient_address:'',
-        destination_area: '',
-        parcel_type:      'small_box',
-        item_description: '',
-        item_weight:      '',
-        amount:           '',
-        payment_method:   'cod',
-        cod_amount:       '',
-        notes:            '',
-      })
+  PAGE LAYOUT:
 
-      useEffect(() => {
-        api.cachedGet('/api/stores')
-          .then(res => setStores(res.data || []))
-          .catch(() => {})
-      }, [])
+    A. Page title: "Payments" + subtitle "Transaction history for all your orders"
 
-      function setValue(field, value) {
-        setForm(f => ({ ...f, [field]: value }))
-        setErrors(e => ({ ...e, [field]: '' }))
-      }
+    B. Summary row — 2 stat cards side by side:
+       Card 1: Total Orders — data.total (number)
+       Card 2: Total Revenue — ৳{data.total_revenue.toLocaleString()}
+       Use Card/CardContent with a DollarSign or CreditCard lucide icon.
 
-      function validate() {
-        const e = {}
-        if (!form.recipient_name.trim())    e.recipient_name   = 'Name is required'
-        if (!form.recipient_phone.trim())   e.recipient_phone  = 'Phone is required'
-        if (!/^01[3-9]\d{8}$/.test(form.recipient_phone.trim()))
-          e.recipient_phone = 'Enter a valid BD phone (e.g. 01712345678)'
-        if (!form.recipient_address.trim()) e.recipient_address= 'Address is required'
-        if (!form.amount || Number(form.amount) <= 0)
-          e.amount = 'Amount must be > 0'
-        if (form.payment_method === 'cod' && form.cod_amount === '')
-          e.cod_amount = 'COD amount is required'
-        return e
-      }
+    C. Payments table:
+       Columns: Order ID | Recipient | Amount | Payment Method | Status | Date
+       For each item in data.payments:
+         order_id — monospace font (font-mono)
+         recipient_name
+         ৳{Number(item.amount).toLocaleString()}
+         payment_method — use a Badge: "COD" (amber), "Prepaid" (blue), "Online" (green)
+         status — use a Badge with the same color mapping as the rest of the app
+         date — format with new Date(item.created_at).toLocaleDateString()
+       If data.payments is empty, show "No payment records found."
 
-      async function handleSubmit(e) {
-        e.preventDefault()
-        const e2 = validate()
-        if (Object.keys(e2).length) { setErrors(e2); return }
-        setLoading(true)
-        try {
-          const payload = {
-            ...form,
-            amount:    Number(form.amount),
-            cod_amount:form.payment_method === 'cod' ? Number(form.cod_amount) : 0,
-          }
-          if (!payload.store_id)      delete payload.store_id
-          if (!payload.pickup_address)delete payload.pickup_address
-          await api.post('/api/orders', payload)
-          navigate('/deliveries')
-        } catch (err) {
-          setErrors({ submit: err.message })
-        } finally {
-          setLoading(false)
-        }
-      }
+    D. Pagination:
+       Previous / Next buttons that update page state.
+       Disable "Previous" when page == 1.
+       Disable "Next" when you've reached the last page
+         (page * limit >= data.total).
 
-      return (
-        <div className="max-w-4xl mx-auto p-6 space-y-6">
-          {/* Header */}
-          <div className="flex items-center gap-3">
-            <Button variant="ghost" size="icon" onClick={() => navigate('/deliveries')}>
-              <ArrowLeft className="h-4 w-4" />
-            </Button>
-            <div>
-              <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
-                <Package className="h-6 w-6 text-primary" />
-                Create New Parcel
-              </h1>
-              <p className="text-sm text-muted-foreground">
-                Fill in the details below to create a new delivery
-              </p>
-            </div>
-          </div>
+    E. Loading state:
+       While loading is true, show "Loading payments…" or skeleton rows.
 
-          <form onSubmit={handleSubmit} className="space-y-6">
-            {/* Error banner */}
-            {errors.submit && (
-              <div className="rounded-lg bg-destructive/10 border border-destructive/20
-                              text-destructive text-sm px-4 py-3">
-                {errors.submit}
-              </div>
-            )}
 
-            {/* Row 1: two cards side by side */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+WHAT'S ALREADY BUILT
+======================
+  ✅ POST /api/orders — creates a new order (your form submits to this)
+  ✅ GET /api/stores — returns store list for the dropdown
+  ✅ api.post(), api.get(), api.cachedGet() — ready in @/api/client
+  ✅ AppShell "Create Parcel" button already links to /deliveries/new
+  ✅ /payments route in App.jsx — currently shows Placeholder (you replace it)
+  ✅ All shadcn/ui components installed (Button, Card, Badge, Input, etc.)
+  ✅ Select, Textarea: install with `npx shadcn@latest add select textarea`
 
-              {/* Card 1: Pickup Info */}
-              <div className="rounded-xl border-2 border-border bg-card p-6 space-y-4">
-                <h2 className="font-semibold text-foreground">Pickup Info</h2>
-
-                <div className="space-y-2">
-                  <Label>Store (optional)</Label>
-                  <Select
-                    value={form.store_id}
-                    onValueChange={v => setValue('store_id', v)}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select a store" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="">No store (custom address)</SelectItem>
-                      {stores.map(s => (
-                        <SelectItem key={s.id} value={s.id}>
-                          {s.name}{s.branch ? ` — ${s.branch}` : ''}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                {!form.store_id && (
-                  <div className="space-y-2">
-                    <Label>Pickup Address</Label>
-                    <Input
-                      placeholder="Enter pickup address"
-                      value={form.pickup_address}
-                      onChange={e => setValue('pickup_address', e.target.value)}
-                    />
-                  </div>
-                )}
-              </div>
-
-              {/* Card 2: Recipient Info */}
-              <div className="rounded-xl border-2 border-border bg-card p-6 space-y-4">
-                <h2 className="font-semibold text-foreground">Recipient Info</h2>
-
-                <div className="space-y-2">
-                  <Label>Name <span className="text-destructive">*</span></Label>
-                  <Input
-                    placeholder="Recipient full name"
-                    value={form.recipient_name}
-                    onChange={e => setValue('recipient_name', e.target.value)}
-                    className={errors.recipient_name ? 'border-destructive' : ''}
-                  />
-                  {errors.recipient_name &&
-                    <p className="text-xs text-destructive">{errors.recipient_name}</p>}
-                </div>
-
-                <div className="space-y-2">
-                  <Label>Phone <span className="text-destructive">*</span></Label>
-                  <Input
-                    placeholder="01712345678"
-                    value={form.recipient_phone}
-                    onChange={e => setValue('recipient_phone', e.target.value)}
-                    className={errors.recipient_phone ? 'border-destructive' : ''}
-                  />
-                  {errors.recipient_phone &&
-                    <p className="text-xs text-destructive">{errors.recipient_phone}</p>}
-                </div>
-
-                <div className="space-y-2">
-                  <Label>Delivery Address <span className="text-destructive">*</span></Label>
-                  <Input
-                    placeholder="House, road, area..."
-                    value={form.recipient_address}
-                    onChange={e => setValue('recipient_address', e.target.value)}
-                    className={errors.recipient_address ? 'border-destructive' : ''}
-                  />
-                  {errors.recipient_address &&
-                    <p className="text-xs text-destructive">{errors.recipient_address}</p>}
-                </div>
-
-                <div className="space-y-2">
-                  <Label>Destination Area</Label>
-                  <Input
-                    placeholder="e.g. Mirpur, Uttara"
-                    value={form.destination_area}
-                    onChange={e => setValue('destination_area', e.target.value)}
-                  />
-                </div>
-              </div>
-            </div>
-
-            {/* Card 3: Parcel & Payment — full width */}
-            <div className="rounded-xl border-2 border-border bg-card p-6 space-y-4">
-              <h2 className="font-semibold text-foreground">Parcel & Payment</h2>
-
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                <div className="space-y-2">
-                  <Label>Parcel Type</Label>
-                  <Select value={form.parcel_type}
-                          onValueChange={v => setValue('parcel_type', v)}>
-                    <SelectTrigger><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="document">Document</SelectItem>
-                      <SelectItem value="small_box">Small Box</SelectItem>
-                      <SelectItem value="medium_parcel">Medium Parcel</SelectItem>
-                      <SelectItem value="fragile">Fragile</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="space-y-2">
-                  <Label>Item Weight</Label>
-                  <Select value={form.item_weight}
-                          onValueChange={v => setValue('item_weight', v)}>
-                    <SelectTrigger><SelectValue placeholder="Select weight" /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="0-1kg">0 – 1 kg</SelectItem>
-                      <SelectItem value="1-5kg">1 – 5 kg</SelectItem>
-                      <SelectItem value="5-10kg">5 – 10 kg</SelectItem>
-                      <SelectItem value="10+kg">10+ kg</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="space-y-2">
-                  <Label>Amount (৳) <span className="text-destructive">*</span></Label>
-                  <Input
-                    type="number"
-                    min="1"
-                    placeholder="0.00"
-                    value={form.amount}
-                    onChange={e => setValue('amount', e.target.value)}
-                    className={errors.amount ? 'border-destructive' : ''}
-                  />
-                  {errors.amount &&
-                    <p className="text-xs text-destructive">{errors.amount}</p>}
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label>Item Description</Label>
-                  {/* Use a Textarea if installed, else Input */}
-                  <Input
-                    placeholder="Optional item description"
-                    value={form.item_description}
-                    onChange={e => setValue('item_description', e.target.value)}
-                  />
-                </div>
-
-                <div className="space-y-2">
-                  <Label>Payment Method</Label>
-                  <Select value={form.payment_method}
-                          onValueChange={v => setValue('payment_method', v)}>
-                    <SelectTrigger><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="cod">Cash on Delivery (COD)</SelectItem>
-                      <SelectItem value="prepaid">Prepaid</SelectItem>
-                      <SelectItem value="bkash">bKash</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-
-              {form.payment_method === 'cod' && (
-                <div className="space-y-2 max-w-xs">
-                  <Label>COD Amount (৳) <span className="text-destructive">*</span></Label>
-                  <Input
-                    type="number"
-                    min="0"
-                    placeholder="Amount to collect on delivery"
-                    value={form.cod_amount}
-                    onChange={e => setValue('cod_amount', e.target.value)}
-                    className={errors.cod_amount ? 'border-destructive' : ''}
-                  />
-                  {errors.cod_amount &&
-                    <p className="text-xs text-destructive">{errors.cod_amount}</p>}
-                </div>
-              )}
-
-              <div className="space-y-2">
-                <Label>Special Notes</Label>
-                <Input
-                  placeholder="Any special handling instructions..."
-                  value={form.notes}
-                  onChange={e => setValue('notes', e.target.value)}
-                />
-              </div>
-            </div>
-
-            {/* Footer actions */}
-            <div className="flex items-center justify-between pt-2">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => navigate('/deliveries')}
-              >
-                Cancel
-              </Button>
-              <Button type="submit" disabled={loading} className="min-w-36">
-                {loading ? 'Creating…' : 'Create Parcel →'}
-              </Button>
-            </div>
-          </form>
-        </div>
-      )
-    }
 
 NOTES
 =====
-  - Do NOT use raw fetch — always use api.post() from @/api/client
-  - Do NOT do any direct database work — the backend handles everything
-  - The api.post() call automatically adds the JWT Bearer token
-  - On a 401 response the client auto-redirects to /login
-  - Test with: npm run dev, login as rahim.ahmed@gmail.com / demo123
+  - NEVER concatenate user input into SQL strings. Use parameterized queries
+    ($1, $2, …) in payments.py, the same pattern as all other routes.
+  - The recipient_phone validation regex is: /^01[3-9]\d{8}$/
+    It checks for valid Bangladeshi mobile numbers.
+  - main.py coordination: 2105058 also adds "analytics" to the same router
+    import line. Let 2105056 know your PR adds "payments" to that line so
+    they can merge properly.
+  - App.jsx coordination: 2105040 adds /deliveries/:orderId, 2105058 swaps
+    /analytics. You add /deliveries/new and replace /payments. Each touches
+    different lines — merge carefully.
+  - All data for PaymentsPage comes from the orders table — no schema changes.
+  - Keep CREATE PARCEL as the primary demo feature. Payments page is secondary
+    but shows off backend + frontend work across the board.

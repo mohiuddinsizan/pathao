@@ -17,16 +17,30 @@ PHASE 4: DEPLOYMENT  ⬜ REMAINING
 
   [ ] 1. Merge all feature branches
       Once each member pushes their branch (2105057, 2105058, 2105040, 2105045),
-      open a PR for each branch into main. Review and merge them.
+      open a PR for each branch into main. Review and merge them one at a time.
 
-      Routes are handled by each member in their own branch:
-        /deliveries/new      → added by 2105057 with CreateParcelPage
-        /deliveries/:orderId → added by 2105040 with OrderDetailPage
-        The AppShell "Create Parcel" button already uses <Link to="/deliveries/new">.
-        The /analytics, /payments, /settings routes already exist (Placeholder).
-        No App.jsx changes needed from you.
+      HOW EACH MEMBER MODIFIES SHARED FILES (read before merging):
 
-      Resolve merge conflicts (most likely in App.jsx and orders.py).
+      frontend/src/App.jsx (3 members touch this file):
+        2105057 → adds CreateParcelPage import + /deliveries/new route
+                  replaces /payments Placeholder with PaymentsPage
+        2105040 → adds OrderDetailPage import + /deliveries/:orderId route
+        2105058 → adds AnalyticsPage import, replaces /analytics Placeholder
+        MERGE STRATEGY: Each person adds different lines. When conflicts appear,
+        keep ALL changes — do not discard anyone's route or import. Merge the
+        three import lines and three route lines together.
+
+      backend/app/main.py (2 members touch the router import line):
+        2105057 → adds "payments" to the from app.routers import ... line
+        2105058 → adds "analytics" to the same line
+        MERGE STRATEGY: after merging, the import line should read:
+          from app.routers import auth, orders, stores, dashboard, analytics, payments
+        And both include_router lines for analytics and payments must be present.
+
+      backend/app/routers/orders.py (1 member touches this):
+        2105040 → adds PATCH /status and PUT /{order_id} routes at the bottom
+        No conflict — only 2105040 modifies this file.
+
       CI must pass before merging each PR.
 
   [ ] 2. Deploy backend to Render
