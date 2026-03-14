@@ -1,102 +1,43 @@
 ================================================================================
   MEMBER: 2105058 — ORDER LISTING, FILTERING, SEARCH & PAGINATION
 ================================================================================
-  Branch: feature/2105058-order-listing
-  Depends on: 2105056 completing Phase 1 (project setup + auth + DB schema)
+  Branch: 2105058
+  Depends on: 2105056 (DONE — project setup, auth, DB schema all ready)
 ================================================================================
 
+STATUS OVERVIEW
+===============
+  [x] Backend: GET /api/orders — with pagination, status filter, search, sort
+  [x] Frontend: DeliveriesPage — table, status filter buttons, search, pagination
+  [ ] Frontend: Store-based filter dropdown — API supports it, UI missing
+  [ ] Frontend: Date range filter — not implemented
 
-OVERVIEW
-========
-Build the order list view: backend API with filtering, searching, sorting, and
-pagination + frontend table/list with interactive filters. This is the main
-page where merchants see all their deliveries.
+YOUR REMAINING WORK
+====================
 
+  [ ] 1. Add store filter dropdown to DeliveriesPage
+      File: frontend/src/pages/DeliveriesPage.jsx
+      - Fetch stores from GET /api/stores
+      - Add a dropdown/select above the table: "All Stores" | store names
+      - When selected, pass store_id to GET /api/orders?store_id=...
 
-BACKEND TASKS
-=============
+  [ ] 2. Add date range filter (optional, nice-to-have)
+      - Date pickers for "from" and "to"
+      - Pass date_from, date_to to GET /api/orders
 
-  [ ] 1. Create list schemas
-      File: backend/app/schemas/orders.py (add to existing)
-
-      OrderListResponse:
-        - orders:  list[OrderResponse]
-        - total:   int        (total matching records)
-        - page:    int        (current page)
-        - limit:   int        (items per page)
-        - pages:   int        (total pages = ceil(total/limit))
-
-      OrderFilters (query params):
-        - store_id:    Optional[UUID]
-        - status:      Optional[str]    (pending|assigned|picked_up|in_transit|delivered|cancelled)
-        - date_from:   Optional[date]
-        - date_to:     Optional[date]
-        - search:      Optional[str]    (search in order_id, recipient_name, recipient_phone)
-        - sort_by:     Optional[str]    (created_at_desc | created_at_asc |
-                                         amount_desc | amount_asc)
-        - page:        int = 1          (min 1)
-        - limit:       int = 20         (min 1, max 100)
-
-  [ ] 2. Create list service
-      File: backend/app/services/order_service.py (add to existing)
-
-      async def get_orders(db, merchant_id, filters) -> dict:
-        Build dynamic SQL query:
-        - Base: SELECT o.*, s.name as store_name
-                FROM orders o
-                LEFT JOIN stores s ON o.store_id = s.id
-                WHERE o.merchant_id = $merchant_id
-        - If store_id:   AND o.store_id = $store_id
-        - If status:     AND o.status = $status
-        - If date_from:  AND o.created_at >= $date_from
-        - If date_to:    AND o.created_at <= $date_to + 1 day
-        - If search:     AND (o.order_id ILIKE $search
-                              OR o.recipient_name ILIKE $search
-                              OR o.recipient_phone ILIKE $search)
-        - Count total matching rows (separate COUNT query or CTE)
-        - Apply ORDER BY based on sort_by
-        - Apply LIMIT and OFFSET for pagination
-        - Return { orders, total, page, limit, pages }
-
-      IMPORTANT:
-        - Use parameterized queries ($1, $2, ...) — NEVER string format SQL
-        - ILIKE search should wrap with %search% for partial matching
-        - Default sort: created_at DESC (newest first)
-
-  [ ] 3. Create list endpoint
-      File: backend/app/routers/orders.py (add to existing)
-
-      GET /api/orders
-        - Protected: requires get_current_merchant
-        - Accept all filter params as query parameters
-        - Call order_service.get_orders()
-        - Return { data: { orders, total, page, limit, pages } }
+  [ ] 3. Make table rows clickable → open order detail
+      - When clicking a row, navigate to /deliveries/{order_id}
+      - Or open a side panel with order details (coordinate with 2105040)
 
 
-FRONTEND TASKS
-==============
-
-  [ ] 4. Create orders API service
-      File: frontend/src/api/orders.js (add to existing)
-
-      export async function getOrders(params) {
-        // params: { store_id, status, date_from, date_to, search, sort_by, page, limit }
-        return client.get('/orders', { params });
-      }
-
-  [ ] 5. Create useOrders hook
-      File: frontend/src/hooks/useOrders.js
-
-      function useOrders(initialFilters) {
-        - State: orders, loading, error, pagination, filters
-        - fetchOrders(filters): calls getOrders API, updates state
-        - Automatically refetch when filters change
-        - Return: { orders, loading, error, pagination, filters,
-                    setFilters, refetch }
-      }
-
-  [ ] 6. Refactor Orders page — Filter Bar
-      File: frontend/src/pages/Orders.jsx
+WHAT'S ALREADY BUILT
+======================
+  ✅ GET /api/orders with query params: status, store_id, search, sort_by, page, limit
+  ✅ DeliveriesPage.jsx — status filter buttons, search box, pagination
+  ✅ Table with columns: Order ID, Recipient, Store, Status, Amount, Date
+  ✅ api/orders.js getOrders(params) — calls the API
+  ✅ Pagination (prev/next buttons, page numbers)
+  ✅ Search by recipient name, phone, order ID
 
       Top filter section with:
         a. Store Filter (dropdown)
@@ -205,7 +146,7 @@ DELIVERABLES CHECKLIST
   [ ] Empty state for no results
   [ ] Pagination component
   [ ] Active filter chips with clear functionality
-  [ ] Styled with Obsidian & Indigo theme
+  [ ] Styled with red primary + Plus Jakarta Sans design system
 
 
 NOTES

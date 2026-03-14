@@ -2,7 +2,7 @@ name: CI
 
 on:
   push:
-    branches: [main]
+    branches: [main, 2105056, 2105057, 2105058, 2105040, 2105045, 2105039]
   pull_request:
     branches: [main]
 
@@ -26,10 +26,13 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
+      - name: Lint
+        run: python -m py_compile app/main.py
+
       - name: Run tests
         run: python -m pytest tests/ -v
         env:
-          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          DATABASE_URL: postgresql://test:test@localhost:5432/test
           JWT_SECRET: test-secret-key
           JWT_EXPIRY_HOURS: 24
           FRONTEND_URL: http://localhost:5173
@@ -49,7 +52,10 @@ jobs:
           node-version: "18"
 
       - name: Install dependencies
-        run: npm install
+        run: npm ci
+
+      - name: Run tests
+        run: npm test
 
       - name: Build
         run: npm run build

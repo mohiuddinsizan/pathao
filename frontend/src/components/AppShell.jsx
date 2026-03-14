@@ -21,10 +21,10 @@ import {
 import {
   LogOut,
   User,
-  ChevronDown,
   ChevronLeft,
   ChevronRight,
   Menu,
+  Plus,
   LayoutDashboard,
   Package,
   Store,
@@ -101,7 +101,7 @@ export default function AppShell() {
                     <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-primary">
                       <Package className="h-4 w-4 text-primary-foreground" />
                     </div>
-                    <span className="text-base font-bold">Pathao Parcel</span>
+                    <span className="text-base font-bold">Pathao Merchant</span>
                   </SheetTitle>
                   <SheetDescription className="sr-only">
                     Navigation menu
@@ -120,7 +120,7 @@ export default function AppShell() {
               <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-primary">
                 <Package className="h-4 w-4 text-primary-foreground" />
               </div>
-              <span className="text-sm font-bold">Pathao Parcel</span>
+              <span className="text-sm font-bold">Pathao Merchant</span>
             </Link>
           </div>
 
@@ -131,12 +131,12 @@ export default function AppShell() {
                 <DropdownMenuTrigger asChild>
                   <Button
                     variant="ghost"
-                    className="h-8 gap-1.5 px-2 text-sm cursor-pointer"
+                    size="icon"
+                    className="h-8 w-8 cursor-pointer"
                   >
                     <div className="flex h-6 w-6 items-center justify-center rounded-full bg-primary/10 text-primary">
                       <User className="h-3.5 w-3.5" />
                     </div>
-                    <ChevronDown className="h-3 w-3 opacity-50" />
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-48">
@@ -179,7 +179,7 @@ export default function AppShell() {
             <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary shrink-0">
               <Package className="h-4.5 w-4.5 text-primary-foreground" />
             </div>
-            {!sidebarCollapsed && <span className="text-sm font-bold truncate">Pathao Parcel</span>}
+            {!sidebarCollapsed && <span className="text-sm font-bold truncate">Pathao Merchant</span>}
           </div>
 
           {/* Nav card */}
@@ -202,7 +202,14 @@ export default function AppShell() {
         {/* Right column: Topbar + Content */}
         <div className="flex flex-col gap-2 flex-1 min-w-0">
           {/* Top bar card */}
-          <div className="flex items-center justify-end rounded-xl border-2 border-border bg-card px-4 py-2.5 shrink-0">
+          <div className="flex items-center justify-between rounded-xl border-2 border-border bg-card px-4 py-2.5 shrink-0">
+            {/* Create Parcel button */}
+            <Link to="/deliveries/new">
+              <Button size="sm" className="gap-1.5 cursor-pointer">
+                <Plus className="h-4 w-4" />
+                Create Parcel
+              </Button>
+            </Link>
             <div className="flex items-center gap-2">
               <ThemeToggle />
 
@@ -211,15 +218,12 @@ export default function AppShell() {
                   <DropdownMenuTrigger asChild>
                     <Button
                       variant="ghost"
-                      className="h-8 gap-1.5 px-2 text-sm cursor-pointer"
+                      size="icon"
+                      className="h-8 w-8 cursor-pointer"
                     >
                       <div className="flex h-6 w-6 items-center justify-center rounded-full bg-primary/10 text-primary">
                         <User className="h-3.5 w-3.5" />
                       </div>
-                      <span className="hidden sm:inline text-foreground">
-                        {user.name || user.email}
-                      </span>
-                      <ChevronDown className="h-3 w-3 opacity-50" />
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end" className="w-48">

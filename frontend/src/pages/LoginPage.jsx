@@ -61,7 +61,7 @@ export default function LoginPage() {
             <Package className="h-6 w-6 text-primary-foreground" />
           </div>
           <CardTitle className="text-2xl font-bold tracking-tight">
-            Pathao Parcel
+            Pathao Merchant
           </CardTitle>
           <CardDescription>
             Merchant Order Management System
@@ -91,7 +91,7 @@ export default function LoginPage() {
                 autoFocus
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder="demo@pathao.com"
+                placeholder="rahim.ahmed@gmail.com"
                 autoComplete="username"
               />
             </div>
@@ -124,7 +124,7 @@ export default function LoginPage() {
 
         <CardFooter className="justify-center pb-6">
           <p className="text-xs text-muted-foreground">
-            Demo: demo@pathao.com / demo123
+            Demo: rahim.ahmed@gmail.com / demo123
           </p>
         </CardFooter>
       </Card>
