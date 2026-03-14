@@ -1,5 +1,6 @@
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useRef } from "react";
 import { getDashboardStats, getRecentOrders } from "@/api/dashboard";
+import { useCachedQuery } from "@/hooks/use-cached-query";
 import { Badge } from "@/components/ui/badge";
 import { Package, Store, TrendingUp, Banknote, Eye, CheckCircle2 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
@@ -71,19 +72,9 @@ function SkeletonRow() {
 }
 
 export default function DashboardPage() {
-  const [stats, setStats] = useState(null);
-  const [orders, setOrders] = useState(null);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    Promise.all([getDashboardStats(), getRecentOrders()])
-      .then(([s, o]) => {
-        setStats(s);
-        setOrders(o);
-      })
-      .catch(() => {})
-      .finally(() => setLoading(false));
-  }, []);
+  const { data: stats, loading: statsLoading } = useCachedQuery('dashboard-stats', getDashboardStats);
+  const { data: orders, loading: ordersLoading } = useCachedQuery('dashboard-recent-orders', getRecentOrders);
+  const loading = statsLoading || ordersLoading;
 
   return (
     <div className="flex flex-col h-full p-4 lg:p-6 overflow-hidden">

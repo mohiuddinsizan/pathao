@@ -552,3 +552,58 @@ Environment Variables:
   2105039 — Testing (All features — unit + integration + E2E)
 
   See individual member files (plan/2105XXX.txt) for detailed task breakdowns.
+
+
+================================================================================
+  FRONTEND OPTIMIZATION — DATA CACHING (IMPORTANT: READ THIS)
+================================================================================
+
+PROBLEM:
+  When a user navigates away from a page and comes back, the component unmounts
+  and remounts. Without caching, this triggers a fresh API call every time,
+  showing loading skeletons and making unnecessary database calls.
+
+SOLUTION — useCachedQuery hook:
+  Location: frontend/src/hooks/use-cached-query.js
+
+  This hook stores fetched data in a global in-memory cache that survives
+  component unmounts. When the user navigates back, data appears instantly
+  (no loading flash, no extra API call). Data refreshes automatically after
+  the TTL expires (default: 5 minutes).
+
+USAGE:
+  import { useCachedQuery } from '@/hooks/use-cached-query'
+
+  function MyPage() {
+    const { data, loading, error, refetch } = useCachedQuery(
+      'unique-cache-key',   // must be unique per data source
+      fetcherFunction       // async function that returns data
+    )
+
+    // 'data' is available instantly on re-visit (no loading flash)
+    // 'loading' is true only on the very first load
+    // 'refetch' can be called to force a fresh fetch
+  }
+
+RULES FOR ALL TEAM MEMBERS:
+  1. ALWAYS use useCachedQuery for page-level data fetching.
+     Do NOT use raw useEffect + useState for API calls.
+
+  2. Use a descriptive, unique cache key for each data source:
+       'dashboard-stats', 'dashboard-recent-orders'
+       'deliveries-list', 'stores-list', 'analytics-data'
+
+  3. The API client also has cachedGet (api/client.js) — this caches at the
+     network level. useCachedQuery caches at the React component level.
+     Use BOTH together for maximum efficiency:
+       // api/mydata.js
+       export function getMyData() { return api.cachedGet('/api/mydata') }
+
+       // pages/MyPage.jsx
+       const { data } = useCachedQuery('my-data', getMyData)
+
+  4. For data that changes frequently (e.g., after a form submit), call
+     refetch() to bypass the cache and get fresh data.
+
+  5. Default TTL is 5 minutes. Override with options:
+       useCachedQuery('key', fetcher, { ttl: 60000 }) // 1 minute
