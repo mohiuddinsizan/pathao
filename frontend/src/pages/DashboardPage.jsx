@@ -99,7 +99,7 @@ export default function DashboardPage() {
               title="Active Deliveries"
               value={stats.in_transit ?? 0}
               icon={Truck}
-              href="/deliveries"
+              href="/analytics"
             />
             <StatCard
               title="Stores"
@@ -111,7 +111,7 @@ export default function DashboardPage() {
               title="Pending"
               value={stats.pending ?? 0}
               icon={Clock}
-              href="/deliveries"
+              href="/payments"
             />
           </>
         ) : (
