@@ -67,24 +67,6 @@ npm run dev                       # → http://localhost:5173
 └── .github/workflows/ CI pipeline
 ```
 
-## User Role
-
-This application serves a single user role: **Merchant** — a business owner who ships parcels through Pathao.
-
-All routes require authentication (JWT). Unauthenticated users are redirected to `/login`.
-
-## Application Pages
-
-| Route | Page | Status | Description |
-|-------|------|--------|-------------|
-| `/dashboard` | Dashboard | ✅ Live | Stats overview: Total Parcels, Total Income, Success Rate, Active Stores. Each card links to its respective page. Recent Activity table with last 10 orders. |
-| `/deliveries` | Deliveries | 🚧 In Progress | Full order list with filters, pagination, status tracking. Create new parcel via top-right button. |
-| `/deliveries/new` | Create Parcel | 🚧 In Progress | Parcel creation form: recipient, pickup store, weight, COD amount. |
-| `/stores` | Stores | 🚧 In Progress | Manage merchant store locations (add, edit, set default). |
-| `/analytics` | Analytics | 🚧 In Progress | Delivery performance charts: success rate trends, status breakdown, revenue over time. |
-| `/payments` | Payments | 🚧 In Progress | Income history, COD collected, pending payouts. |
-| `/settings` | Settings | 🚧 In Progress | Merchant profile and account settings. |
-
 ## API Endpoints
 
 All protected endpoints require: `Authorization: Bearer <token>`
@@ -142,14 +124,14 @@ Password: demo123
 
 ## Team
 
-| Roll    | Responsibility |
-|---------|----------------|
-| 2105056 | Project setup, auth, Supabase, deployment |
-| 2105057 | Order creation (backend + frontend) |
-| 2105058 | Order listing, filtering, pagination |
-| 2105040 | Order detail, edit, cancel |
-| 2105045 | Dashboard, stores, UI components |
-| 2105039 | Testing (unit + integration) |
+| Roll    | Responsibility                                                         |
+| ------- | ---------------------------------------------------------------------- |
+| 2105056 | Project setup, auth (login/JWT), Supabase schema, CI/CD, deployment    |
+| 2105057 | Order creation flow (backend API + frontend form), payments page       |
+| 2105058 | Deliveries page (order listing, filtering, search, pagination)         |
+| 2105040 | Order detail view, edit order, cancel order, analytics page            |
+| 2105045 | Dashboard (stat cards, recent orders), stores page, shared UI components |
+| 2105039 | Testing (unit + integration), settings page                            |
 
 ## Git Workflow
 
