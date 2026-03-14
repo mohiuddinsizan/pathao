@@ -67,6 +67,24 @@ npm run dev                       # → http://localhost:5173
 └── .github/workflows/ CI pipeline
 ```
 
+## User Role
+
+This application serves a single user role: **Merchant** — a business owner who ships parcels through Pathao.
+
+All routes require authentication (JWT). Unauthenticated users are redirected to `/login`.
+
+## Application Pages
+
+| Route | Page | Status | Description |
+|-------|------|--------|-------------|
+| `/dashboard` | Dashboard | ✅ Live | Stats overview: Total Parcels, Total Income, Success Rate, Active Stores. Each card links to its respective page. Recent Activity table with last 10 orders. |
+| `/deliveries` | Deliveries | 🚧 In Progress | Full order list with filters, pagination, status tracking. Create new parcel via top-right button. |
+| `/deliveries/new` | Create Parcel | 🚧 In Progress | Parcel creation form: recipient, pickup store, weight, COD amount. |
+| `/stores` | Stores | 🚧 In Progress | Manage merchant store locations (add, edit, set default). |
+| `/analytics` | Analytics | 🚧 In Progress | Delivery performance charts: success rate trends, status breakdown, revenue over time. |
+| `/payments` | Payments | 🚧 In Progress | Income history, COD collected, pending payouts. |
+| `/settings` | Settings | 🚧 In Progress | Merchant profile and account settings. |
+
 ## API Endpoints
 
 All protected endpoints require: `Authorization: Bearer <token>`
