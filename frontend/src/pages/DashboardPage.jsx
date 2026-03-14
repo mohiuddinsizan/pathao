@@ -99,7 +99,7 @@ export default function DashboardPage() {
               title="Active Deliveries"
               value={stats.in_transit ?? 0}
               icon={Truck}
-              href="/analytics"
+              href="/deliveries"
             />
             <StatCard
               title="Stores"

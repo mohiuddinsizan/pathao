@@ -27,12 +27,12 @@ cd backend
 python -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
 cp .env.example .env              # fill DATABASE_URL, JWT_SECRET
-uvicorn app.main:app --reload     # → http://localhost:8000
+uvicorn app.main:app --reload --port 8001     # → http://localhost:8001
 
 # 4. Frontend
 cd ../frontend
 npm install
-cp .env.example .env              # VITE_API_URL=http://localhost:8000/api
+cp .env.example .env              # VITE_API_URL=http://localhost:8001/api
 npm run dev                       # → http://localhost:5173
 ```
 
@@ -86,7 +86,7 @@ All protected endpoints require: `Authorization: Bearer <token>`
 | GET | `/api/dashboard/stats` | ✓ | Dashboard statistics |
 | GET | `/api/dashboard/recent-orders` | ✓ | Recent 10 orders |
 
-Interactive API docs: `http://localhost:8000/docs`
+Interactive API docs: `http://localhost:8001/docs`
 
 ## Environment Variables
 
@@ -102,7 +102,7 @@ FRONTEND_URL=http://localhost:5173
 ### Frontend (`frontend/.env`)
 
 ```
-VITE_API_URL=http://localhost:8000/api
+VITE_API_URL=http://localhost:8001/api
 ```
 
 ## Running Tests
