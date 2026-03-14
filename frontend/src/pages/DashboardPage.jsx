@@ -1,7 +1,7 @@
 import { useEffect, useState, useRef } from "react";
 import { getDashboardStats, getRecentOrders } from "@/api/dashboard";
 import { Badge } from "@/components/ui/badge";
-import { Package, Store, TrendingUp, Banknote, Eye } from "lucide-react";
+import { Package, Store, TrendingUp, Banknote, Eye, CheckCircle2 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
 const statusColors = {
@@ -31,7 +31,7 @@ function StatCard({ title, value, icon: Icon, href, actionLabel }) {
           <Icon className="h-5 w-5" />
         </div>
         <div className="min-w-0 flex-1">
-          <p className="text-xs text-muted-foreground truncate">{title}</p>
+          <p className="text-xs font-medium text-muted-foreground truncate">{title}</p>
           <p className="text-xl font-bold leading-tight">{value}</p>
         </div>
       </div>
@@ -115,25 +115,25 @@ export default function DashboardPage() {
               href="/payments"
             />
             <StatCard
-              title="Success Rate"
-              value={`${stats.total_orders ? Math.round((stats.delivered / stats.total_orders) * 100) : 0}%`}
-              icon={TrendingUp}
-              href="/analytics"
-              actionLabel="View Detailed Stats"
-            />
-            <StatCard
               title="Active Stores"
               value={stats.stores ?? 0}
               icon={Store}
               href="/stores"
+            />
+            <StatCard
+              title="Completed Deliveries"
+              value={stats.delivered ?? 0}
+              icon={CheckCircle2}
+              href="/analytics"
+              actionLabel="View Analytics"
             />
           </>
         ) : (
           <>
             <StatCard title="Total Parcels" value="—" icon={Package} />
             <StatCard title="Total Income" value="—" icon={Banknote} />
-            <StatCard title="Success Rate" value="—" icon={TrendingUp} />
             <StatCard title="Active Stores" value="—" icon={Store} />
+            <StatCard title="Completed Deliveries" value="—" icon={CheckCircle2} />
           </>
         )}
       </div>
@@ -217,8 +217,8 @@ function RecentOrdersTable({ loading, orders }) {
                   key={order.order_id}
                   className="grid grid-cols-[1fr_1.5fr_1fr_1fr_auto] items-center px-6 py-3.5 hover:bg-muted/40 transition-colors duration-200 cursor-default group"
                 >
-                  <span className="font-mono text-xs font-medium">{order.order_id}</span>
-                  <span className="text-sm">{order.recipient_name || "—"}</span>
+                  <span className="font-mono text-xs font-semibold">{order.order_id}</span>
+                  <span className="text-sm font-medium">{order.recipient_name || "—"}</span>
                   <span className="flex justify-center">
                     <Badge variant={statusColors[order.status] || "secondary"}>
                       {(order.status || "unknown").replace(/_/g, " ")}
