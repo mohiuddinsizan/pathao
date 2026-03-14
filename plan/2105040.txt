@@ -1,5 +1,5 @@
 ================================================================================
-  MEMBER: 2105040 — ORDER DETAIL, EDIT, CANCEL & STATUS SIMULATION
+  MEMBER: 2105040 — ORDER DETAIL PAGE & STATUS SIMULATION
 ================================================================================
   Branch: 2105040
   Depends on: 2105056 (DONE — project setup, auth, DB schema all ready)
@@ -7,372 +7,242 @@
 
 STATUS OVERVIEW
 ===============
-  [x] Backend: GET /api/orders/{id} — returns order + status history timeline
-  [x] Backend: PATCH /api/orders/{id}/cancel — cancels pending orders
-  [ ] Backend: PATCH /api/orders/{id}/status — status simulation endpoint
-  [ ] Backend: PUT /api/orders/{id} — edit pending orders
-  [ ] Frontend: Order detail page/panel — NOT BUILT
-  [ ] Frontend: Edit order form — NOT BUILT
-  [ ] Frontend: Status simulation buttons — NOT BUILT
+  [x] Backend: GET /api/orders/{order_id} — returns order + status_history
+  [x] Backend: PATCH /api/orders/{order_id}/cancel — already done
+  [ ] Backend: PATCH /api/orders/{order_id}/status — simulate status change
+  [ ] Backend: PUT /api/orders/{order_id} — edit a pending order
+  [ ] Frontend: /deliveries/:orderId route in App.jsx
+  [ ] Frontend: Two helpers added to frontend/src/api/orders.js
+  [ ] Frontend: OrderDetailPage.jsx (new file)
 
-DESIGN SYSTEM (READ FIRST)
-============================
-  Font:     Plus Jakarta Sans (already loaded — just use font-sans)
-  Primary:  bg-primary / text-primary  (red)
-  Cards:    className="rounded-xl border-2 border-border bg-card p-6"
-  Inputs:   Use <Input> from '@/components/ui/input'
-  Buttons:  Use <Button> from '@/components/ui/button'
-  Text:     text-foreground (dark), text-muted-foreground (gray hints)
-  Icons:    lucide-react (already installed)
-  Test credentials:  rahim.ahmed@gmail.com / demo123
+HOW TO RUN LOCALLY
+===================
+  Backend:  cd backend && uvicorn app.main:app --reload --port 8000
+  Frontend: cd frontend && npm run dev
+  Login:    rahim.ahmed@gmail.com / demo123
+  Env file: provided by 2105056 — put it at backend/.env
 
+IMPORTANT — HOW THE CODEBASE WORKS
+=====================================
+  Route IDs use PTH-XXXXXX format (e.g. "PTH-1"). This is the `order_id`
+  column in the DB. ALL existing backend routes look up orders using
+  `WHERE order_id = $1` with the PTH string — NOT the UUID `id` column.
+  Your two new endpoints must follow the same pattern.
 
-STEP 1 — Register the route
-==============================
-  File: frontend/src/App.jsx
+  API client is at frontend/src/api/client.js. Available methods:
+    api.get(path)
+    api.post(path, body)
+    api.patch(path, body)
+    api.put(path, body)
+    api.delete(path)
+  JWT is auto-injected. On 401 the client redirects to /login automatically.
 
-  Add import:
-    import OrderDetailPage from './pages/OrderDetailPage'
+  Existing order API helpers are in frontend/src/api/orders.js:
+    getOrders(params)
+    getOrder(orderId)      ← fetches single order by PTH ID
+    createOrder(data)
+    cancelOrder(orderId)   ← calls PATCH /cancel, already works
+  You will ADD two more exports to this file (see Task 3 below).
 
-  Add inside the AppShell route group (after /deliveries):
-    <Route path="/deliveries/:orderId" element={<OrderDetailPage />} />
+  Available shadcn/ui components (already installed):
+    Button, Card (CardHeader/CardTitle/CardContent), Badge,
+    Input, Label, Dialog (DialogContent/DialogHeader/DialogTitle)
 
-  Update DeliveriesPage.jsx — make table rows clickable:
-    import { useNavigate } from 'react-router-dom'
-    const navigate = useNavigate()
-    // On each <tr>:
-    onClick={() => navigate(`/deliveries/${order.id}`)}
-    className="cursor-pointer hover:bg-muted/50"
+STATUS TRANSITION RULES
+========================
+  Each order can only move to certain next states:
+    pending    → assigned, cancelled
+    assigned   → picked_up, cancelled
+    picked_up  → in_transit
+    in_transit → delivered
+    delivered  → (done)
+    cancelled  → (done)
 
+  The simulation UI shows buttons ONLY for allowed next states.
 
-STEP 2 — Add backend: PATCH /api/orders/{id}/status
-=====================================================
-  File: backend/app/routers/orders.py  (add to existing file)
-
-  VALID_TRANSITIONS = {
-      'pending':    ['assigned', 'cancelled'],
-      'assigned':   ['picked_up', 'cancelled'],
-      'picked_up':  ['in_transit'],
-      'in_transit': ['delivered'],
-      'delivered':  [],
-      'cancelled':  [],
-  }
-
-  class StatusUpdateRequest(BaseModel):
-      status: str
-      note: Optional[str] = None
-
-  @router.patch("/{order_id}/status")
-  async def update_order_status(
-      order_id: str,
-      body: StatusUpdateRequest,
-      merchant = Depends(get_current_merchant),
-      db       = Depends(get_db),
-  ):
-      row = await db.fetchrow(
-          "SELECT id, status FROM orders WHERE id=$1 AND merchant_id=$2",
-          order_id, merchant["id"]
-      )
-      if not row:
-          raise HTTPException(404, "Order not found")
-
-      allowed = VALID_TRANSITIONS.get(row["status"], [])
-      if body.status not in allowed:
-          raise HTTPException(
-              400,
-              f"Cannot move from '{row['status']}' to '{body.status}'. "
-              f"Allowed: {allowed}"
-          )
-
-      await db.execute(
-          "UPDATE orders SET status=$1, updated_at=NOW() WHERE id=$2",
-          body.status, order_id
-      )
-      await db.execute(
-          "INSERT INTO order_status_history (order_id, status, note) "
-          "VALUES ($1, $2, $3)",
-          order_id, body.status, body.note
-      )
-      updated = await db.fetchrow(
-          "SELECT * FROM orders WHERE id=$1", order_id
-      )
-      return {"data": dict(updated), "message": "Status updated"}
+FILES TO CHANGE  (4 files total)
+==================================
+  1. backend/app/routers/orders.py      — add 2 new endpoints
+  2. frontend/src/api/orders.js         — add 2 helper functions
+  3. frontend/src/App.jsx               — register 1 new route
+  4. frontend/src/pages/OrderDetailPage.jsx  — create this new file
 
 
-STEP 3 — Add backend: PUT /api/orders/{id}  (edit pending)
-============================================================
+TASK 1 — Backend: PATCH /api/orders/{order_id}/status
+=======================================================
   File: backend/app/routers/orders.py
 
-  class OrderEditRequest(BaseModel):
-      recipient_name:    Optional[str] = None
-      recipient_phone:   Optional[str] = None
-      recipient_address: Optional[str] = None
-      destination_area:  Optional[str] = None
-      parcel_type:       Optional[str] = None
-      item_description:  Optional[str] = None
-      item_weight:       Optional[str] = None
-      amount:            Optional[float] = None
-      payment_method:    Optional[str] = None
-      cod_amount:        Optional[float] = None
-      notes:             Optional[str] = None
+  Add a new route at the bottom of this file.
 
-  @router.put("/{order_id}")
-  async def edit_order(
-      order_id: str,
-      body: OrderEditRequest,
-      merchant = Depends(get_current_merchant),
-      db       = Depends(get_db),
-  ):
-      row = await db.fetchrow(
-          "SELECT id, status FROM orders WHERE id=$1 AND merchant_id=$2",
-          order_id, merchant["id"]
-      )
-      if not row:
-          raise HTTPException(404, "Order not found")
-      if row["status"] != "pending":
-          raise HTTPException(400, "Only pending orders can be edited")
+  What it should do:
+    1. Accept request body with "status" (string) and optional "note" (string).
+       You can use `data: dict` like existing endpoints, or create a Pydantic
+       model — either is fine.
+    2. Fetch the order: WHERE order_id = $1 AND merchant_id = $2
+       (use PTH string for order_id, like all other routes in this file)
+       Return 404 if not found.
+    3. Check if data["status"] is in the allowed next-states list (see table
+       above). Return HTTP 400 with a helpful message if it is not allowed.
+    4. Run two SQL statements:
+         UPDATE orders SET status = $new_status, updated_at = NOW()
+           WHERE order_id = $1
+         INSERT INTO order_status_history (order_id, status, note)
+           VALUES ($uuid_id, $status, $note)
+       Note: order_status_history.order_id is the UUID id, not the PTH string.
+       Fetch row["id"] first, then use that for the INSERT.
+    5. Return the updated order row.
 
-      updates = {k: v for k, v in body.dict().items() if v is not None}
-      if not updates:
-          raise HTTPException(400, "No fields to update")
-
-      set_clause = ", ".join(
-          f"{col}=${i+2}" for i, col in enumerate(updates)
-      )
-      values = list(updates.values())
-      await db.execute(
-          f"UPDATE orders SET {set_clause}, updated_at=NOW() WHERE id=$1",
-          order_id, *values
-      )
-      updated = await db.fetchrow("SELECT * FROM orders WHERE id=$1", order_id)
-      return {"data": dict(updated), "message": "Order updated"}
+  Imports you may need:
+    from typing import Optional  (if you use typed Pydantic model)
+    The router, Depends, HTTPException, get_current_merchant, get_db are all
+    already imported at the top of this file.
 
 
-STEP 4 — Build OrderDetailPage.jsx
-=====================================
-  File: frontend/src/pages/OrderDetailPage.jsx
+TASK 2 — Backend: PUT /api/orders/{order_id}
+==============================================
+  File: backend/app/routers/orders.py
 
-  import { useState, useEffect, useCallback } from 'react'
-  import { useParams, useNavigate } from 'react-router-dom'
-  import { api } from '@/api/client'
-  import { Button } from '@/components/ui/button'
-  import {
-    ArrowLeft, Clock, UserCheck, Package,
-    Truck, CheckCircle, XCircle
-  } from 'lucide-react'
+  Add another new route.
 
-  const STATUS_META = {
-    pending:    { label: 'Pending',    icon: Clock,        color: 'text-amber-500',   next: ['assigned', 'cancelled'] },
-    assigned:   { label: 'Assigned',   icon: UserCheck,    color: 'text-violet-500',  next: ['picked_up', 'cancelled'] },
-    picked_up:  { label: 'Picked Up',  icon: Package,      color: 'text-blue-400',    next: ['in_transit'] },
-    in_transit: { label: 'In Transit', icon: Truck,        color: 'text-blue-500',    next: ['delivered'] },
-    delivered:  { label: 'Delivered',  icon: CheckCircle,  color: 'text-emerald-500', next: [] },
-    cancelled:  { label: 'Cancelled',  icon: XCircle,      color: 'text-rose-500',    next: [] },
-  }
+  What it should do:
+    1. Accept request body with any of: recipient_name, recipient_phone,
+       recipient_address, destination_area, parcel_type, item_description,
+       item_weight, amount, payment_method, cod_amount. Only provided fields
+       need to be updated (skip None values).
+    2. Fetch the order: WHERE order_id = $1 AND merchant_id = $2. Return 404
+       if not found.
+    3. If the order's current status is NOT 'pending', return HTTP 400:
+       "Only pending orders can be edited."
+    4. Build a dynamic UPDATE statement from non-None fields. Use parameterized
+       placeholders ($1, $2, …) to avoid SQL injection — never concatenate
+       user values into the SQL string directly.
+    5. Return the updated order row.
 
-  export default function OrderDetailPage() {
-    const { orderId } = useParams()
-    const navigate    = useNavigate()
-    const [order, setOrder]       = useState(null)
-    const [loading, setLoading]   = useState(true)
-    const [advancing, setAdvancing] = useState(false)
 
-    const fetchOrder = useCallback(async () => {
-      try {
-        const res = await api.get(`/api/orders/${orderId}`)
-        setOrder(res.data)
-      } catch {
-        navigate('/deliveries')
-      } finally {
-        setLoading(false)
-      }
-    }, [orderId, navigate])
+TASK 3 — Frontend: Add helpers to orders.js
+=============================================
+  File: frontend/src/api/orders.js
 
-    useEffect(() => { fetchOrder() }, [fetchOrder])
+  Add these two exports at the bottom of the existing file.
+  `api` is already imported at the top of this file.
 
-    async function advanceStatus(newStatus) {
-      setAdvancing(true)
-      try {
-        await api.post(`/api/orders/${orderId}/status`, { status: newStatus })
-        await fetchOrder()
-      } catch (err) {
-        alert(err.message)
-      } finally {
-        setAdvancing(false)
-      }
+    export function updateOrderStatus(orderId, status, note) {
+      return api.patch(`/api/orders/${orderId}/status`, { status, note })
     }
 
-    async function cancelOrder() {
-      if (!confirm(`Cancel order ${order.order_id}?`)) return
-      try {
-        await api.post(`/api/orders/${orderId}/cancel`)
-        await fetchOrder()
-      } catch (err) {
-        alert(err.message)
-      }
+    export function updateOrder(orderId, data) {
+      return api.put(`/api/orders/${orderId}`, data)
     }
 
-    if (loading) return <div className="p-8 text-muted-foreground">Loading…</div>
-    if (!order)  return null
 
-    const meta = STATUS_META[order.status] || STATUS_META.pending
-    const StatusIcon = meta.icon
+TASK 4 — Frontend: Register route in App.jsx
+=============================================
+  File: frontend/src/App.jsx
 
-    return (
-      <div className="max-w-3xl mx-auto p-6 space-y-6">
+  1. Add import at the top:
+       import OrderDetailPage from './pages/OrderDetailPage'
 
-        {/* Header */}
-        <div className="flex items-center gap-3">
-          <Button variant="ghost" size="icon" onClick={() => navigate('/deliveries')}>
-            <ArrowLeft className="h-4 w-4" />
-          </Button>
-          <div className="flex-1">
-            <div className="flex items-center gap-3">
-              <h1 className="text-2xl font-bold font-mono">{order.order_id}</h1>
-              <span className={`text-sm font-medium px-2 py-0.5 rounded-full
-                               bg-current/10 ${meta.color}`}>
-                {meta.label}
-              </span>
-            </div>
-            <p className="text-sm text-muted-foreground">
-              Created {new Date(order.created_at).toLocaleString()}
-            </p>
-          </div>
-        </div>
+  2. Inside the ProtectedRoute/AppShell group, after the `/deliveries` route:
+       <Route path="/deliveries/:orderId" element={<OrderDetailPage />} />
 
-        {/* Info cards - 2 column grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+  Nothing else needs to change in App.jsx.
 
-          {/* Recipient */}
-          <div className="rounded-xl border-2 border-border bg-card p-5 space-y-2">
-            <h3 className="font-semibold text-sm text-muted-foreground uppercase tracking-wide">
-              Recipient
-            </h3>
-            <p className="font-semibold">{order.recipient_name}</p>
-            <p className="text-sm">{order.recipient_phone}</p>
-            <p className="text-sm text-muted-foreground">{order.recipient_address}</p>
-            {order.destination_area && (
-              <p className="text-sm text-muted-foreground">{order.destination_area}</p>
-            )}
-          </div>
 
-          {/* Parcel */}
-          <div className="rounded-xl border-2 border-border bg-card p-5 space-y-2">
-            <h3 className="font-semibold text-sm text-muted-foreground uppercase tracking-wide">
-              Parcel
-            </h3>
-            <p className="text-sm">
-              <span className="text-muted-foreground">Type: </span>
-              {order.parcel_type || '—'}
-            </p>
-            <p className="text-sm">
-              <span className="text-muted-foreground">Weight: </span>
-              {order.item_weight || '—'}
-            </p>
-            <p className="text-sm">
-              <span className="text-muted-foreground">Amount: </span>
-              <span className="font-semibold">৳{order.amount}</span>
-            </p>
-            <p className="text-sm">
-              <span className="text-muted-foreground">Payment: </span>
-              {order.payment_method?.toUpperCase()}
-            </p>
-          </div>
-        </div>
+TASK 5 — Frontend: Create OrderDetailPage.jsx
+==============================================
+  File: frontend/src/pages/OrderDetailPage.jsx  (new file)
 
-        {/* Status Timeline */}
-        <div className="rounded-xl border-2 border-border bg-card p-5">
-          <h3 className="font-semibold text-sm text-muted-foreground uppercase
-                         tracking-wide mb-4">
-            Status Timeline
-          </h3>
-          <div className="space-y-3">
-            {(order.status_history || []).map((h, i) => {
-              const m = STATUS_META[h.status] || STATUS_META.pending
-              const Icon = m.icon
-              return (
-                <div key={i} className="flex items-start gap-3">
-                  <Icon className={`h-4 w-4 mt-0.5 shrink-0 ${m.color}`} />
-                  <div>
-                    <p className="text-sm font-medium">{m.label}</p>
-                    <p className="text-xs text-muted-foreground">
-                      {new Date(h.changed_at).toLocaleString()}
-                      {h.note && ` — ${h.note}`}
-                    </p>
-                  </div>
-                </div>
-              )
-            })}
-          </div>
-        </div>
+  WHAT TO IMPORT:
+    useParams, useNavigate from 'react-router-dom'
+    useState, useEffect from 'react'
+    { getOrder, cancelOrder, updateOrderStatus } from '@/api/orders'
+    Button, Card, CardContent, CardHeader, CardTitle, Badge from shadcn/ui
+    Lucide icons: ArrowLeft, Clock, UserCheck, Package, Truck,
+                  CheckCircle2, XCircle (for the status timeline)
 
-        {/* Demo: Simulate Status Changes */}
-        {meta.next.length > 0 && (
-          <div className="rounded-xl border-2 border-dashed border-border bg-muted/30 p-5">
-            <h3 className="font-semibold text-sm text-muted-foreground uppercase
-                           tracking-wide mb-3">
-              Demo — Simulate Status Change
-            </h3>
-            <div className="flex gap-2 flex-wrap">
-              {meta.next.filter(s => s !== 'cancelled').map(s => {
-                const sm = STATUS_META[s]
-                const SIcon = sm.icon
-                return (
-                  <Button
-                    key={s}
-                    variant="outline"
-                    size="sm"
-                    disabled={advancing}
-                    onClick={() => advanceStatus(s)}
-                  >
-                    <SIcon className="h-3.5 w-3.5 mr-1.5" />
-                    {sm.label}
-                  </Button>
-                )
-              })}
-            </div>
-          </div>
-        )}
+  STATE:
+    order — starts as null, filled after fetch
+    loading — starts true
+    simulating — starts false, set true while PATCH /status is in flight
 
-        {/* Cancel */}
-        {order.status === 'pending' && (
-          <div className="flex justify-end">
-            <Button variant="destructive" size="sm" onClick={cancelOrder}>
-              Cancel Order
-            </Button>
-          </div>
-        )}
-      </div>
-    )
-  }
+  START-UP (useEffect on mount):
+    - Get { orderId } from useParams()  ← this is the PTH-XXXXXX string
+    - Call getOrder(orderId), store result in order state
+    - If it throws (404 or network), navigate('/deliveries')
+    - Set loading to false
+
+  PAGE LAYOUT (build top to bottom):
+
+    A. Back button
+       ArrowLeft icon + text "Back to Deliveries"
+       onClick → navigate('/deliveries')
+
+    B. Order header
+       Left: order.order_id in font-mono, a status badge below it
+       Right: "Created" + formatted date (order.created_at)
+
+    C. Two info cards side by side (or stacked on mobile)
+       Left card — "Recipient":
+         order.recipient_name, order.recipient_phone,
+         order.recipient_address, order.destination_area
+       Right card — "Parcel":
+         order.parcel_type, order.item_weight,
+         order.amount formatted as ৳{amount},
+         order.payment_method in uppercase
+
+    D. Status Timeline card
+       Map over order.status_history (array of {status, changed_at, note})
+       For each entry, show:
+         - Icon matching the status (see mapping below)
+         - Status label (replace _ with space)
+         - Formatted date/time
+         - The note text if present
+
+    E. Demo Simulation section
+       Only render this block when there are allowed next states
+       (i.e. VALID_TRANSITIONS[order.status].length > 0)
+       Title: "Demo — Simulate Status Change"
+       One Button per allowed next state
+       On click: set simulating=true, call updateOrderStatus(orderId, nextStatus),
+                 re-fetch the order, set simulating=false
+       Disable all buttons while simulating=true
+
+    F. Cancel button
+       Only render when order.status === 'pending'
+       On click: confirm("Cancel this order?") — native browser dialog is fine
+       If confirmed: call cancelOrder(orderId), then re-fetch the order
+
+  STATUS ICON + COLOR MAPPING (for timeline and simulation buttons):
+    pending    → Clock icon,        text-amber-500
+    assigned   → UserCheck icon,    text-violet-500
+    picked_up  → Package icon,      text-blue-400
+    in_transit → Truck icon,        text-blue-500
+    delivered  → CheckCircle2 icon, text-emerald-500
+    cancelled  → XCircle icon,      text-rose-500
+
+  IMPORTANT: the orderId from useParams() is the PTH string ("PTH-1" etc).
+  Pass it directly to getOrder(), cancelOrder(), and updateOrderStatus().
+  Do NOT use order.id (the UUID) for API calls.
 
 
 WHAT'S ALREADY BUILT
 ======================
-  ✅ GET /api/orders/{id} — returns full order + status_history array
-  ✅ PATCH /api/orders/{id}/cancel — cancels pending orders
-  ✅ api/orders.js getOrder(id) — fetches single order
-  ✅ api/orders.js cancelOrder(id) — calls cancel endpoint
-  ✅ Status history in DB + order_status_history table
-  ✅ All UI components: Card, Badge, Button, Dialog
-  ✅ Design system (red primary, Plus Jakarta Sans, dark/light)
-
-HOW TO USE THE API CLIENT
-===========================
-  Import:   import { api } from '@/api/client'
-  GET:      const res = await api.get('/api/orders/...')   → res.data
-  POST:     await api.post('/api/orders/...', { ...body }) → res.data
-  Auth:     JWT added automatically
-  401:      Auto-redirects to /login
-  Test:     cd frontend && npm run dev
-            Login: rahim.ahmed@gmail.com / demo123
+  ✅ GET /api/orders/{order_id} — returns order dict + status_history array
+       status_history items: { status, changed_at, note }
+  ✅ PATCH /api/orders/{order_id}/cancel — works, don't touch it
+  ✅ order_status_history table exists in the DB with correct schema
+  ✅ getOrder() and cancelOrder() in @/api/orders — ready to use
+  ✅ All shadcn/ui components are already installed
+  ✅ AppShell, auth, theme — all done
+  ✅ 2105058 adds onClick to DeliveriesPage rows → navigates to
+     /deliveries/${order.order_id} — your route handles those clicks
 
 
 NOTES
 =====
-  - Status simulation is KEY for the demo — professor must see the lifecycle
-  - The PATCH /api/orders/{id}/cancel endpoint already exists — use it
-  - The confirm() dialog is sufficient for cancel — no need for a custom modal
-  - Do NOT add the 'Optional' import to Python without also importing it:
-      from typing import Optional
-  - Run backend with: cd backend && uvicorn app.main:app --reload --port 8000
+  - Status simulation is the key demo feature. The professor must see the
+    full lifecycle: pending → assigned → picked_up → in_transit → delivered.
+  - Do NOT make any database schema changes. The DB is already set up.
+  - The edit form (PUT endpoint) can be simple — it's secondary to simulation.
+  - Design: match the style of DashboardPage and DeliveriesPage (already built).
+    Use rounded-xl border-2 border-border bg-card for cards, font-sans for text.

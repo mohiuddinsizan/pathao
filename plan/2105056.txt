@@ -15,29 +15,19 @@ STATUS: Phases 1–3 COMPLETE. Only Phase 4 (deployment) remaining.
 PHASE 4: DEPLOYMENT  ⬜ REMAINING
 ====================================
 
-  [ ] 1. Add /deliveries/new route to App.jsx
-      File: frontend/src/App.jsx
+  [ ] 1. Merge all feature branches
+      Once each member pushes their branch (2105057, 2105058, 2105040, 2105045),
+      open a PR for each branch into main. Review and merge them.
 
-      After other members build their pages, wire up routes:
+      Routes are handled by each member in their own branch:
+        /deliveries/new      → added by 2105057 with CreateParcelPage
+        /deliveries/:orderId → added by 2105040 with OrderDetailPage
+        The AppShell "Create Parcel" button already uses <Link to="/deliveries/new">.
+        The /analytics, /payments, /settings routes already exist (Placeholder).
+        No App.jsx changes needed from you.
 
-        import CreateParcelPage from './pages/CreateParcelPage'
-        import PaymentsPage from './pages/PaymentsPage'
-        import AnalyticsPage from './pages/AnalyticsPage'
-        import SettingsPage from './pages/SettingsPage'
-        import OrderDetailSheet from './components/OrderDetailSheet'
-
-      Add inside the AppShell route group:
-        <Route path="/deliveries/new"  element={<CreateParcelPage />} />
-        <Route path="/payments"        element={<PaymentsPage />} />
-        <Route path="/analytics"       element={<AnalyticsPage />} />
-        <Route path="/settings"        element={<SettingsPage />} />
-
-      Also update the "Create Parcel" button in AppShell to navigate:
-        import { useNavigate } from 'react-router-dom'
-        const navigate = useNavigate()
-        <Button onClick={() => navigate('/deliveries/new')}>
-          <Plus className="h-4 w-4 mr-2" /> Create Parcel
-        </Button>
+      Resolve merge conflicts (most likely in App.jsx and orders.py).
+      CI must pass before merging each PR.
 
   [ ] 2. Deploy backend to Render
       - Create a new Render "Web Service" at https://render.com

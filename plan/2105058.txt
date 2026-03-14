@@ -1,5 +1,5 @@
 ================================================================================
-  MEMBER: 2105058 — ORDER LISTING, FILTERING, SEARCH & PAGINATION
+  MEMBER: 2105058 — ORDER LISTING: STORE FILTER, DATE FILTER & ROW NAVIGATION
 ================================================================================
   Branch: 2105058
   Depends on: 2105056 (DONE — project setup, auth, DB schema all ready)
@@ -7,172 +7,161 @@
 
 STATUS OVERVIEW
 ===============
-  [x] Backend: GET /api/orders — with pagination, status filter, search, sort
+  [x] Backend: GET /api/orders — pagination, status filter, store_id filter
   [x] Frontend: DeliveriesPage — table, status filter buttons, search, pagination
-  [ ] Frontend: Store-based filter dropdown — API supports it, UI missing
-  [ ] Frontend: Date range filter — not implemented
-  [ ] Frontend: Clickable rows → navigate to order detail
+  [ ] Frontend: Store filter dropdown (Select) — API already supports it
+  [ ] Frontend: Clickable rows → navigate to order detail page
+  [ ] Frontend: Date range filter (optional, see note at bottom)
 
-DESIGN SYSTEM (READ FIRST)
-============================
-  Font:     Plus Jakarta Sans (already loaded — just use font-sans)
-  Primary:  bg-primary / text-primary  (red)
-  Cards:    className="rounded-xl border-2 border-border bg-card p-6"
-  Inputs:   Use <Input> from '@/components/ui/input'
-  Select:   Use <Select> from '@/components/ui/select'
-  Test credentials:  rahim.ahmed@gmail.com / demo123
+HOW TO RUN LOCALLY
+===================
+  Backend:  cd backend && uvicorn app.main:app --reload --port 8000
+  Frontend: cd frontend && npm run dev
+  Login:    rahim.ahmed@gmail.com / demo123
+  Env file: provided by 2105056 — put it at backend/.env
 
-
-STEP 1 — Add store filter dropdown
+IMPORTANT — HOW THE CODEBASE WORKS
 =====================================
-  File: frontend/src/pages/DeliveriesPage.jsx
+  API client: frontend/src/api/client.js
+    api.get(path), api.post(path, body), etc.
+  JWT auto-injected. On 401 → auto-redirects to /login.
 
-  === ADD IMPORTS (at top) ===
+  Order API helpers: frontend/src/api/orders.js
+    getOrders({ page, limit, status, store_id })
+    ← This function already handles the store_id parameter.
+       It appends store_id to the query string and sends it to the backend.
+       You just need to pass it.
 
-  import { useNavigate } from 'react-router-dom'
-  import {
-    Select, SelectContent, SelectItem,
-    SelectTrigger, SelectValue
-  } from '@/components/ui/select'
+  Store API helpers: frontend/src/api/stores.js
+    getStores()  ← call this to populate the store dropdown
 
-  === ADD STATE ===
+  DeliveriesPage.jsx currently imports: getOrders from @/api/orders,
+  and several shadcn/ui components. Open the file first to understand
+  the existing state variables and the shape of the orders array before
+  editing.
 
-  const navigate = useNavigate()
-  const [stores, setStores]             = useState([])
-  const [storeFilter, setStoreFilter]   = useState('all')
+  Key data shape of each order object:
+    order.order_id   — "PTH-1" (PTH-XXXXXX string) — USE THIS for navigation
+    order.id         — UUID — do NOT use this for navigation or API calls
+    order.status, order.recipient_name, order.amount, order.created_at, etc.
 
-  === FETCH STORES ON MOUNT (in existing useEffect or a new one) ===
+  Available shadcn/ui: Button, Card, Badge, Input — already imported.
+  Select components are NOT currently imported in DeliveriesPage.
 
-  useEffect(() => {
-    api.get('/api/stores')
-      .then(res => setStores(res.data || []))
-      .catch(() => {})
-  }, [])
-
-  === PASS store_id WHEN FETCHING ORDERS ===
-
-  In the params object for your existing fetch call:
-
-    const params = {
-      page,
-      limit: 20,
-      status:   statusFilter !== 'all' ? statusFilter : undefined,
-      store_id: storeFilter  !== 'all' ? storeFilter  : undefined,
-      search:   searchQuery  || undefined,
-    }
-    // Build query string manually (safe):
-    const qs = new URLSearchParams(
-      Object.fromEntries(Object.entries(params).filter(([, v]) => v != null))
-    ).toString()
-    const res = await api.get(`/api/orders?${qs}`)
-
-  === RESET page to 1 when storeFilter changes ===
-
-  useEffect(() => { setPage(1) }, [storeFilter])
-
-  === JSX — Place Select next to the search box in the filter bar ===
-
-    <Select value={storeFilter} onValueChange={v => { setStoreFilter(v); setPage(1) }}>
-      <SelectTrigger className="w-44">
-        <SelectValue placeholder="All Stores" />
-      </SelectTrigger>
-      <SelectContent>
-        <SelectItem value="all">All Stores</SelectItem>
-        {stores.map(s => (
-          <SelectItem key={s.id} value={s.id}>
-            {s.name}{s.branch ? ` — ${s.branch}` : ''}
-          </SelectItem>
-        ))}
-      </SelectContent>
-    </Select>
+FILES TO CHANGE  (1 file total)
+=================================
+  frontend/src/pages/DeliveriesPage.jsx
 
 
-STEP 2 — Make table rows clickable
+TASK 1 — Add store filter dropdown
 =====================================
-  File: frontend/src/pages/DeliveriesPage.jsx
+  What to add to DeliveriesPage.jsx:
 
-  Find the existing <tr> element for each order row and update it:
+  IMPORTS:
+    { useNavigate } from 'react-router-dom'
+    { getStores } from '@/api/stores'
+    Select, SelectContent, SelectItem, SelectTrigger, SelectValue
+      from '@/components/ui/select'
+    (run `npx shadcn@latest add select` in the frontend/ folder if needed)
 
-  BEFORE:
-    <tr key={order.id} className="border-b border-border ...">
+  NEW STATE:
+    stores      — array, starts empty, filled by getStores() on mount
+    storeFilter — string, starts as 'all'
 
-  AFTER:
-    <tr
-      key={order.id}
-      className="border-b border-border ... cursor-pointer hover:bg-muted/50 transition-colors"
-      onClick={() => navigate(`/deliveries/${order.id}`)}
-    >
+  ON MOUNT (add to existing useEffect or create a new one):
+    Call getStores(), store result in stores state.
+    On error, leave stores as empty array (don't crash).
 
-  That's all — 2105040 builds the detail page at /deliveries/:orderId.
+  PASS store_id TO getOrders:
+    Find your existing getOrders() call. The function signature is:
+      getOrders({ page, limit, status, store_id })
+    Add store_id to the params you already pass:
+      store_id: storeFilter !== 'all' ? storeFilter : undefined
+
+    Also reset page to 1 when storeFilter changes (add to the dependency
+    array of the existing useEffect, or add a separate useEffect).
+
+  UI — ADD SELECT IN THE FILTER BAR:
+    Place a <Select> next to your existing search input.
+    value={storeFilter}
+    onValueChange={v => { setStoreFilter(v); setPage(1) }}
+
+    Contents:
+      <SelectItem value="all">All Stores</SelectItem>
+      {stores.map(s => (
+        <SelectItem key={s.id} value={s.id}>
+          {s.name}{s.branch ? ' — ' + s.branch : ''}
+        </SelectItem>
+      ))}
+
+    Trigger label: "All Stores" (SelectValue placeholder)
 
 
-STEP 3 — Date range filter (nice-to-have)
-==========================================
-  File: frontend/src/pages/DeliveriesPage.jsx
+TASK 2 — Make table rows clickable
+=====================================
+  What to add to DeliveriesPage.jsx:
 
-  === ADD STATE ===
+  IMPORT:
+    useNavigate from 'react-router-dom' (add to Task 1 import if not done yet)
 
-  const [dateFrom, setDateFrom] = useState('')
-  const [dateTo,   setDateTo]   = useState('')
+  HOOK:
+    const navigate = useNavigate()
 
-  === PASS TO PARAMS (add to your existing params object) ===
+  ON EACH <tr> IN THE TABLE BODY:
+    The rows already have cursor-pointer and hover:bg-muted/50 classes.
+    Add only:
+      onClick={() => navigate('/deliveries/' + order.order_id)}
 
-    date_from: dateFrom || undefined,
-    date_to:   dateTo   || undefined,
+    Use order.order_id (the PTH-XXXXXX string), NOT order.id (UUID).
+    The route /deliveries/:orderId is implemented by 2105040.
 
-  === RESET page on date change ===
+  That is the only change needed for clickable rows.
 
-  useEffect(() => { setPage(1) }, [dateFrom, dateTo])
 
-  === JSX — Two date inputs in the filter bar ===
+TASK 3 — Date range filter  [OPTIONAL]
+=========================================
+  This task requires both frontend AND backend changes. Mark it as
+  optional — implement it only after Tasks 1 and 2 are done.
 
-    <div className="flex items-center gap-2">
-      <Input
-        type="date"
-        value={dateFrom}
-        onChange={e => setDateFrom(e.target.value)}
-        className="w-36"
-      />
-      <span className="text-muted-foreground text-sm">—</span>
-      <Input
-        type="date"
-        value={dateTo}
-        onChange={e => setDateTo(e.target.value)}
-        className="w-36"
-      />
-      {(dateFrom || dateTo) && (
-        <Button
-          variant="ghost" size="sm"
-          onClick={() => { setDateFrom(''); setDateTo('') }}
-        >
-          Clear
-        </Button>
-      )}
-    </div>
+  BACKEND change needed first (in backend/app/routers/orders.py):
+    Add date_from and date_to as optional Query params.
+    When provided, add:
+      AND o.created_at >= $n   (date_from)
+      AND o.created_at < $n    (date_to + 1 day, to include the full day)
+    to the WHERE clause.
+
+  FRONTEND change (in DeliveriesPage.jsx):
+    NEW STATE: dateFrom (string, '' default), dateTo (string, '' default)
+
+    Pass to getOrders — but note: the existing getOrders() helper does NOT
+    support date_from/date_to. You would need to either:
+      a) Update getOrders() in @/api/orders.js to accept and pass them, OR
+      b) Build the API URL manually in this component
+
+    UI: Two <Input type="date"> fields plus a "Clear" button when either
+    is set. Reset page to 1 when dates change.
+
+  Note: Because this requires backend changes, coordinate with 2105040
+  who is also working in orders.py.
 
 
 WHAT'S ALREADY BUILT
 ======================
-  ✅ GET /api/orders with query params: status, store_id, search, sort_by, page, limit
-  ✅ DeliveriesPage.jsx — status filter buttons, search box, pagination
-  ✅ Table with columns: Order ID, Recipient, Store, Status, Amount, Date
-  ✅ api/orders.js getOrders(params) — calls the API
-  ✅ Pagination (prev/next buttons, page numbers)
-  ✅ Search by recipient name, phone, order ID
+  ✅ GET /api/orders — supports: page, limit, order_status, store_id params
+  ✅ DeliveriesPage.jsx — table, status filter, search, pagination all working
+  ✅ getOrders() and getStores() API helpers — ready to use
+  ✅ Rows already styled with cursor-pointer and hover state — just need onClick
+  ✅ shadcn/ui Select is likely installable via `npx shadcn@latest add select`
 
-HOW TO USE THE API CLIENT
-===========================
-  Import:   import { api } from '@/api/client'
-  GET:      const res = await api.get('/api/orders')  → res.data (array)
-  Auth:     JWT added automatically, 401 → redirects to /login
-  Test:     npm run dev in frontend/, login: rahim.ahmed@gmail.com / demo123
 
 NOTES
 =====
-  - NEVER use string formatting/interpolation for SQL — always use
-    parameterized queries to prevent SQL injection (ILIKE '%' || $n || '%').
-  - Changing any filter (status, store, date, search) should reset page to 1.
-  - Coordinate with 2105040: clicking a row navigates to /deliveries/{orderId}
-    which 2105040 implements as OrderDetailPage.
-  - Coordinate with 2105057: after order creation, user is sent back to
-    /deliveries list — your filters should still work.
+  - NEVER put user input directly into SQL strings. The existing backend
+    already uses parameterized queries ($1, $2, …) correctly — follow that
+    pattern if you touch the backend for Task 3.
+  - Any filter change (status, store, date, search) should reset page to 1.
+  - Coordinate with 2105040: your row onClick navigates to
+    /deliveries/${order.order_id} — their OrderDetailPage handles that route.
+  - Coordinate with 2105057: after they create an order, user is redirected
+    back to /deliveries — your page must still work with the current filters.
+  - Do NOT make any database schema changes.

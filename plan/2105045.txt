@@ -1,5 +1,5 @@
 ================================================================================
-  MEMBER: 2105045 — DASHBOARD, STORES & UI COMPONENTS
+  MEMBER: 2105045 — STORES MANAGEMENT (CREATE, EDIT, DEACTIVATE)
 ================================================================================
   Branch: 2105045
   Depends on: 2105056 (DONE — project setup, auth, DB schema all ready)
@@ -7,307 +7,198 @@
 
 STATUS OVERVIEW
 ===============
-  [x] Backend: GET /api/dashboard/stats — returns all metrics
-  [x] Backend: GET /api/dashboard/recent-orders — last 10 orders
-  [x] Backend: GET /api/stores — list merchant stores
+  [x] Backend: GET /api/stores — list stores
   [x] Backend: GET /api/stores/{id} — single store
   [x] Backend: POST /api/stores — create store
   [x] Backend: PUT /api/stores/{id} — update store
-  [x] Frontend: DashboardPage — stat cards, recent orders table, chart
-  [x] Frontend: StoresPage — read-only store cards
-  [x] Frontend: ThemeToggle — dark/light mode (DONE, in AppShell)
-  [ ] Frontend: Store create/edit modals — NOT BUILT
-  [ ] Frontend: Store delete/deactivate — NOT BUILT (backend also missing)
-  [ ] Backend: DELETE /api/stores/{id} — NOT BUILT
+  [x] Frontend: DashboardPage — stat cards, recent orders table, area chart
+  [x] Frontend: StoresPage — read-only cards
+  [x] Frontend: Dark/light mode toggle
+  [ ] Backend: DELETE /api/stores/{id} — soft-deactivate (missing)
+  [ ] Frontend: deleteStore helper in stores.js (missing)
+  [ ] Frontend: "Add Store" button + create modal on StoresPage
+  [ ] Frontend: Edit button + edit modal on each store card
+  [ ] Frontend: Deactivate button on each store card
 
-DESIGN SYSTEM (READ FIRST)
-============================
-  Font:     Plus Jakarta Sans (already loaded — just use font-sans)
-  Primary:  bg-primary / text-primary  (red)
-  Cards:    className="rounded-xl border-2 border-border bg-card p-6"
-  Inputs:   Use <Input> from '@/components/ui/input'
-  Buttons:  Use <Button> from '@/components/ui/button'
-  Dialog:   Use <Dialog><DialogContent>…</DialogContent></Dialog>
-  Test credentials:  rahim.ahmed@gmail.com / demo123
+HOW TO RUN LOCALLY
+===================
+  Backend:  cd backend && uvicorn app.main:app --reload --port 8000
+  Frontend: cd frontend && npm run dev
+  Login:    rahim.ahmed@gmail.com / demo123
+  Env file: provided by 2105056 — put it at backend/.env
+
+IMPORTANT — HOW THE CODEBASE WORKS
+=====================================
+  API client: frontend/src/api/client.js
+    api.get(path), api.post(path, body), api.put(path, body),
+    api.patch(path, body), api.delete(path)
+  JWT auto-injected. On 401 → auto-redirects to /login.
+
+  Existing store API helpers: frontend/src/api/stores.js
+    getStores()                   ← already used in StoresPage
+    getStore(storeId)
+    createStore(data)             ← already exists, calls POST /api/stores
+    updateStore(storeId, data)    ← already exists, calls PUT /api/stores/{id}
+  You will ADD one more export to this file: deleteStore (see Task 1).
+
+  Available shadcn/ui components (already installed):
+    Button, Card (CardHeader/CardTitle/CardDescription/CardContent),
+    Badge, Input, Label,
+    Dialog, DialogContent, DialogHeader, DialogTitle
+
+  StoresPage currently imports getStores, Card, CardContent, CardHeader,
+  CardTitle, CardDescription, MapPin, Phone. Open the file first to see
+  the structure before adding to it.
+
+FILES TO CHANGE  (3 files total)
+==================================
+  1. backend/app/routers/stores.py     — add 1 endpoint
+  2. frontend/src/api/stores.js        — add 1 helper function
+  3. frontend/src/pages/StoresPage.jsx — add modals + action buttons
 
 
-STEP 1 — Add DELETE /api/stores/{id} backend endpoint
-=======================================================
-  File: backend/app/routers/stores.py  (add to existing file)
+TASK 1 — Backend: DELETE /api/stores/{store_id}
+================================================
+  File: backend/app/routers/stores.py
 
-  @router.delete("/{store_id}")
-  async def deactivate_store(
-      store_id: str,
-      merchant = Depends(get_current_merchant),
-      db       = Depends(get_db),
-  ):
-      row = await db.fetchrow(
-          "SELECT id FROM stores WHERE id=$1 AND merchant_id=$2",
-          store_id, merchant["id"]
-      )
-      if not row:
-          raise HTTPException(404, "Store not found")
+  Add a new route at the bottom of the existing file.
 
-      await db.execute(
-          "UPDATE stores SET is_active=false, updated_at=NOW() WHERE id=$1",
-          store_id
-      )
-      return {"message": "Store deactivated"}
+  What it should do:
+    1. Fetch the store: WHERE id = $1 AND merchant_id = $2. Return 404 if
+       not found.
+    2. Do a SOFT DELETE — do not remove the row. Instead:
+         UPDATE stores SET is_active = false, updated_at = NOW() WHERE id = $1
+    3. Return { "message": "Store deactivated" }
+
+  Soft delete means the store row stays in the DB so that existing orders
+  referencing it still work. The frontend will gray it out.
+
+  Imports: router, Depends, HTTPException, get_current_merchant, get_db are
+  already at the top of stores.py.
 
 
-STEP 2 — Add Store Modals to StoresPage
+TASK 2 — Frontend: Add deleteStore to stores.js
+================================================
+  File: frontend/src/api/stores.js
+
+  Add one export to the bottom of the existing file. The `api` import is
+  already there.
+
+    export function deleteStore(storeId) {
+      return api.delete(`/api/stores/${storeId}`)
+    }
+
+
+TASK 3 — Frontend: Update StoresPage.jsx
 =========================================
   File: frontend/src/pages/StoresPage.jsx
 
-  === ADD IMPORTS ===
+  READ THE FILE FIRST before editing. The current file has a functional
+  component that fetches stores and renders cards. You will extend it.
 
-  import { useState } from 'react'
-  import { api } from '@/api/client'
-  import { Button } from '@/components/ui/button'
-  import { Input } from '@/components/ui/input'
-  import { Label } from '@/components/ui/label'
-  import {
-    Dialog, DialogContent, DialogHeader, DialogTitle
-  } from '@/components/ui/dialog'
-  import { Plus, Pencil, PowerOff } from 'lucide-react'
+  NEW IMPORTS TO ADD:
+    { useState } from 'react'           (may already be there)
+    { createStore, updateStore, deleteStore } from '@/api/stores'
+    Button, Input, Label, Dialog, DialogContent, DialogHeader, DialogTitle
+      from their respective shadcn paths
+    { Plus, Pencil, PowerOff } from 'lucide-react'
 
-  === INITIAL FORM STATE ===
+  NEW STATE TO ADD:
+    createOpen — boolean, controls create modal visibility
+    editOpen   — boolean, controls edit modal visibility
+    editTarget — the store object being edited (null when not editing)
+    form       — object with fields: name, branch, address, city, zone, phone
+    saving     — boolean, true while POST/PUT is in flight
 
-  const BLANK_FORM = {
-    name: '', branch: '', address: '',
-    city: '', zone: '', phone: ''
-  }
+  BLANK FORM VALUE (use to reset the form):
+    { name: '', branch: '', address: '', city: '', zone: '', phone: '' }
 
-  === STATE INSIDE COMPONENT ===
+  FUNCTIONS TO ADD:
 
-  const [stores, setStores]         = useState([])   // keep existing fetch
-  const [loading, setLoading]       = useState(true)  // keep existing
-  const [createOpen, setCreateOpen] = useState(false)
-  const [editOpen, setEditOpen]     = useState(false)
-  const [editTarget, setEditTarget] = useState(null)  // store object being edited
-  const [form, setForm]             = useState(BLANK_FORM)
-  const [saving, setSaving]         = useState(false)
+    openCreateModal():
+      Reset form to blank, set createOpen = true.
 
-  === HELPER — field update ===
+    openEditModal(store):
+      Set form fields from the store object (copy name, branch, address,
+      city, zone, phone into the form state).
+      Set editTarget = store.
+      Set editOpen = true.
 
-  function setField(k, v) {
-    setForm(f => ({ ...f, [k]: v }))
-  }
+    handleCreate(e):
+      preventDefault. Validate name is not empty.
+      Set saving = true.
+      Call createStore(form). On success: close modal, reset form,
+      re-fetch stores (call getStores() and update state).
+      On error: show alert. Set saving = false in finally.
 
-  === HELPER — open edit modal ===
+    handleEdit(e):
+      Same as handleCreate but calls updateStore(editTarget.id, form).
+      On success: close edit modal, re-fetch stores.
 
-  function openEdit(store) {
-    setEditTarget(store)
-    setForm({
-      name:    store.name    || '',
-      branch:  store.branch  || '',
-      address: store.address || '',
-      city:    store.city    || '',
-      zone:    store.zone    || '',
-      phone:   store.phone   || '',
-    })
-    setEditOpen(true)
-  }
+    handleDeactivate(store):
+      Show native confirm dialog: "Deactivate [store name]?"
+      If confirmed: call deleteStore(store.id), then re-fetch stores.
 
-  === HANDLER — create store ===
+  UI CHANGES:
 
-  async function handleCreate(e) {
-    e.preventDefault()
-    if (!form.name.trim()) return alert('Store name is required')
-    setSaving(true)
-    try {
-      await api.post('/api/stores', form)
-      setCreateOpen(false)
-      setForm(BLANK_FORM)
-      await fetchStores()  // re-fetch list (your existing fetch function)
-    } catch (err) {
-      alert(err.message || 'Failed to create store')
-    } finally {
-      setSaving(false)
-    }
-  }
+    Page header — add an "Add Store" button next to the "Stores" title:
+      <Button onClick={openCreateModal}><Plus /> Add Store</Button>
 
-  === HANDLER — edit store ===
+    Each store card — add two icon buttons in the top-right corner:
+      Edit button (Pencil icon) → calls openEditModal(store)
+      Deactivate button (PowerOff icon, red color) → calls handleDeactivate(store)
+      Only show the deactivate button when store.is_active === true.
 
-  async function handleEdit(e) {
-    e.preventDefault()
-    if (!form.name.trim()) return alert('Store name is required')
-    setSaving(true)
-    try {
-      await api.put(`/api/stores/${editTarget.id}`, form)
-      setEditOpen(false)
-      await fetchStores()
-    } catch (err) {
-      alert(err.message || 'Failed to update store')
-    } finally {
-      setSaving(false)
-    }
-  }
+    Deactivated stores — add visual indication:
+      When store.is_active === false, apply reduced opacity (e.g. opacity-50)
+      to the card and add a "Inactive" badge.
 
-  === HANDLER — deactivate store ===
-
-  async function handleDeactivate(store) {
-    if (!confirm(`Deactivate "${store.name}"? It will be hidden from new orders.`)) return
-    try {
-      await api.delete(`/api/stores/${store.id}`)
-      await fetchStores()
-    } catch (err) {
-      alert(err.message)
-    }
-  }
-
-  === UI — Add the "Add Store" button in the page header ===
-
-    {/* Page header */}
-    <div className="flex items-center justify-between mb-6">
-      <h1 className="text-2xl font-bold">Stores</h1>
-      <Button onClick={() => { setForm(BLANK_FORM); setCreateOpen(true) }}>
-        <Plus className="h-4 w-4 mr-2" />
-        Add Store
-      </Button>
-    </div>
-
-  === UI — Add action buttons to each store card ===
-
-    Find the existing store card JSX and add to each card's top-right corner:
-    <div className="flex gap-1">
-      <Button
-        variant="ghost" size="icon"
-        onClick={() => openEdit(store)}
-        className="h-7 w-7"
-      >
-        <Pencil className="h-3.5 w-3.5" />
-      </Button>
-      {store.is_active && (
-        <Button
-          variant="ghost" size="icon"
-          onClick={() => handleDeactivate(store)}
-          className="h-7 w-7 text-red-500 hover:text-red-600"
-        >
-          <PowerOff className="h-3.5 w-3.5" />
-        </Button>
-      )}
-    </div>
-
-  === UI — Gray out deactivated stores ===
-
-    Add to the store card wrapper:
-    className={`rounded-xl border-2 border-border bg-card p-6
-                ${!store.is_active ? 'opacity-40 pointer-events-none' : ''}`}
-
-  === JSX — Store form fields (shared between Create and Edit) ===
-
-    {/* Put this in BOTH dialogs */}
-    <div className="space-y-4">
-      <div className="grid grid-cols-2 gap-3">
-        <div className="col-span-2 space-y-1.5">
-          <Label htmlFor="name">Store Name *</Label>
-          <Input id="name" value={form.name}
-                 onChange={e => setField('name', e.target.value)}
-                 placeholder="e.g. Main Branch" />
-        </div>
-        <div className="space-y-1.5">
-          <Label htmlFor="branch">Branch</Label>
-          <Input id="branch" value={form.branch}
-                 onChange={e => setField('branch', e.target.value)}
-                 placeholder="e.g. Mirpur-10" />
-        </div>
-        <div className="space-y-1.5">
-          <Label htmlFor="phone">Phone</Label>
-          <Input id="phone" value={form.phone}
-                 onChange={e => setField('phone', e.target.value)}
-                 placeholder="01XXXXXXXXX" />
-        </div>
-        <div className="space-y-1.5">
-          <Label htmlFor="city">City</Label>
-          <Input id="city" value={form.city}
-                 onChange={e => setField('city', e.target.value)}
-                 placeholder="Dhaka" />
-        </div>
-        <div className="space-y-1.5">
-          <Label htmlFor="zone">Zone</Label>
-          <Input id="zone" value={form.zone}
-                 onChange={e => setField('zone', e.target.value)}
-                 placeholder="e.g. Zone-2" />
-        </div>
-        <div className="col-span-2 space-y-1.5">
-          <Label htmlFor="address">Address</Label>
-          <Input id="address" value={form.address}
-                 onChange={e => setField('address', e.target.value)}
-                 placeholder="Full address" />
-        </div>
-      </div>
-    </div>
-
-  === JSX — Create Store Dialog (add at end of component, before closing tag) ===
-
-    <Dialog open={createOpen} onOpenChange={setCreateOpen}>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle>Add New Store</DialogTitle>
-        </DialogHeader>
-        <form onSubmit={handleCreate} className="space-y-4 mt-2">
-          {/* paste fields JSX from above */}
-          <div className="flex justify-end gap-2 pt-2">
-            <Button type="button" variant="outline"
-                    onClick={() => setCreateOpen(false)}>
-              Cancel
-            </Button>
+    Create Store modal:
+      <Dialog open={createOpen} onOpenChange={setCreateOpen}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>Add New Store</DialogTitle></DialogHeader>
+          <form onSubmit={handleCreate}>
+            [form fields — see below]
             <Button type="submit" disabled={saving}>
               {saving ? 'Creating…' : 'Create Store'}
             </Button>
-          </div>
-        </form>
-      </DialogContent>
-    </Dialog>
+          </form>
+        </DialogContent>
+      </Dialog>
 
-  === JSX — Edit Store Dialog ===
+    Edit Store modal:
+      Same structure as create but:
+        open={editOpen}, onOpenChange={setEditOpen}
+        DialogTitle: "Edit Store"
+        Button label: "Save Changes"
+        onSubmit: handleEdit
 
-    <Dialog open={editOpen} onOpenChange={setEditOpen}>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle>Edit Store</DialogTitle>
-        </DialogHeader>
-        <form onSubmit={handleEdit} className="space-y-4 mt-2">
-          {/* paste fields JSX from above */}
-          <div className="flex justify-end gap-2 pt-2">
-            <Button type="button" variant="outline"
-                    onClick={() => setEditOpen(false)}>
-              Cancel
-            </Button>
-            <Button type="submit" disabled={saving}>
-              {saving ? 'Saving…' : 'Save Changes'}
-            </Button>
-          </div>
-        </form>
-      </DialogContent>
-    </Dialog>
+    FORM FIELDS (use inside both modals):
+      Store Name (required): text input bound to form.name
+      Branch:                text input bound to form.branch
+      Address:               text input bound to form.address
+      City:                  text input bound to form.city
+      Zone:                  text input bound to form.zone
+      Phone:                 text input bound to form.phone
+      Use <Label> + <Input> for each field.
+      On change: update only the relevant key in form state.
 
 
 WHAT'S ALREADY BUILT
 ======================
-  ✅ DashboardPage — stat cards (Total, Pending, In Transit, Delivered, Cancelled, Revenue)
-  ✅ RecentOrdersTable — last 10 orders with status badges
-  ✅ Area chart (Recharts) for order trend
-  ✅ StoresPage — read-only cards with name, branch, zone, address, phone
-  ✅ All CRUD API endpoints except DELETE
-  ✅ Dark/light mode toggle in AppShell
-  ✅ StatusBadge built into DeliveriesPage table
-  ✅ shadcn/ui components: Button, Card, Badge, Input, Select, Dialog, Tooltip
+  ✅ Backend: GET, POST, PUT /api/stores — all working
+  ✅ DashboardPage — stat cards, chart, recent orders table (don't touch)
+  ✅ StoresPage — reads and displays store cards
+  ✅ createStore() and updateStore() in @/api/stores — ready to use
+  ✅ is_active column in stores table — already in the DB schema
+  ✅ All shadcn/ui Dialog, Input, Label components — already installed
 
-HOW TO USE THE API CLIENT
-===========================
-  Import:   import { api } from '@/api/client'
-  GET:      const res = await api.get('/api/stores')     → res.data (array)
-  POST:     await api.post('/api/stores', { ...form })   → res.data
-  PUT:      await api.put('/api/stores/ID', { ...form }) → res.data
-  DELETE:   await api.delete('/api/stores/ID')           → res.message
-  Auth:     JWT added automatically, 401 → redirects to /login
-  Test:     npm run dev in frontend/, login: rahim.ahmed@gmail.com / demo123
 
 NOTES
 =====
-  - The 'is_active' field already exists in the stores table
-  - api.delete() maps to HTTP DELETE method — already implemented in client.js
-  - Dialog with form inside: always call e.preventDefault() in onSubmit
-  - Run backend: cd backend && uvicorn app.main:app --reload --port 8000
+  - Do NOT make any database schema changes. The is_active column is
+    already in the stores table.
+  - Always call e.preventDefault() in form onSubmit handlers inside modals.
+  - Design: follow existing StoresPage card style. Cards use Card/CardHeader/
+    CardContent from shadcn. Spacing uses gap-4, p-5.
+  - The DashboardPage is already working well — do not modify it.
