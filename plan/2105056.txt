@@ -1,93 +1,93 @@
 ================================================================================
-  MEMBER: 2105056 — PROJECT SETUP, AUTH, SUPABASE & DEPLOYMENT
+  MEMBER: 2105056 — PROJECT SETUP, AUTH & DEPLOYMENT
 ================================================================================
   Branch: 2105056
-  Role:   Team lead — foundation, auth, DB, CI/CD, code review
+  Role:   Team lead — foundation, auth, DB, CI/CD, deployment, code review
 ================================================================================
 
-STATUS: Phases 1–3 COMPLETE. Phase 4 (deployment) remaining.
+STATUS: Phases 1–3 COMPLETE. Only Phase 4 (deployment) remaining.
 
-PHASE 1: PROJECT SCAFFOLD  ✅ DONE
+✅ PHASE 1: PROJECT SCAFFOLD — DONE
+✅ PHASE 2: AUTHENTICATION — DONE
+✅ PHASE 3: DESIGN SYSTEM + CI — DONE
+
+
+PHASE 4: DEPLOYMENT  ⬜ REMAINING
 ====================================
 
-  [x] 1. Monorepo structure — frontend/ backend/ database/ plan/
-  [x] 2. Backend boilerplate — FastAPI + asyncpg + pydantic-settings
-  [x] 3. Database on Supabase — schema, seed, realistic data script
+  [ ] 1. Add /deliveries/new route to App.jsx
+      File: frontend/src/App.jsx
+
+      After other members build their pages, wire up routes:
+
+        import CreateParcelPage from './pages/CreateParcelPage'
+        import PaymentsPage from './pages/PaymentsPage'
+        import AnalyticsPage from './pages/AnalyticsPage'
+        import SettingsPage from './pages/SettingsPage'
+        import OrderDetailSheet from './components/OrderDetailSheet'
+
+      Add inside the AppShell route group:
+        <Route path="/deliveries/new"  element={<CreateParcelPage />} />
+        <Route path="/payments"        element={<PaymentsPage />} />
+        <Route path="/analytics"       element={<AnalyticsPage />} />
+        <Route path="/settings"        element={<SettingsPage />} />
+
+      Also update the "Create Parcel" button in AppShell to navigate:
+        import { useNavigate } from 'react-router-dom'
+        const navigate = useNavigate()
+        <Button onClick={() => navigate('/deliveries/new')}>
+          <Plus className="h-4 w-4 mr-2" /> Create Parcel
+        </Button>
+
+  [ ] 2. Deploy backend to Render
+      - Create a new Render "Web Service" at https://render.com
+      - Connect GitHub repo (smammahdi/isd-pathao)
+      - Root directory: backend
+      - Build command:  pip install -r requirements.txt
+      - Start command:  uvicorn app.main:app --host 0.0.0.0 --port $PORT
+      - Environment variables to set in Render dashboard:
+          DATABASE_URL   = postgresql://postgres.defytzcrqdhjjeipnvya:...
+          JWT_SECRET     = <generate a strong random string>
+          JWT_EXPIRY_HOURS = 24
+          FRONTEND_URL   = https://<your-vercel-url>.vercel.app
+      - After deploy: test GET https://<render-url>/health returns 200
+
+  [ ] 3. Deploy frontend to Vercel
+      - Go to https://vercel.com, import the GitHub repo
+      - Framework preset: Vite
+      - Root directory: frontend
+      - Build command: npm run build
+      - Output directory: dist
+      - Environment variable:
+          VITE_API_URL = https://<your-render-url>.onrender.com
+      - After deploy: test login works end-to-end
+
+  [ ] 4. Seed production database
+      - Once deployed, run database/seed_realistic.py once
+      - This creates 2 merchants, 7 stores, 8 drivers, 34 orders
+      - Demo credentials: rahim.ahmed@gmail.com / demo123
+
+  [ ] 5. Final integration check
+      - Merge all feature branches into main via PRs
+      - Resolve any conflicts
+      - CI must pass (21 backend + 7 frontend tests)
+      - Run the demo walkthrough script manually
+
+  [ ] 6. Write demo walkthrough script
+      File: DEMO_SCRIPT.md
+      - Step-by-step: login → dashboard → create parcel → deliveries →
+        order detail → status simulation → stores → analytics → payments
 
 
-PHASE 2: AUTHENTICATION  ✅ DONE
-===================================
-
-  [x] 4. Auth backend — jwt_handler, password, dependencies, auth_service
-  [x] 5. Auth frontend — api/client.js (fetch-based), AuthContext, Login page
-
-
-PHASE 3: DESIGN SYSTEM  ✅ DONE
-=================================
-
-  [x] 6. CSS + theming — Tailwind v4 custom properties, Plus Jakarta Sans,
-         red primary (0 72% 51%), dark/light toggle, matte colors
-  [x] 7. AppShell layout — icon-only sidebar, resizable panels, edge pill
-
-
-PHASE 4: DEPLOYMENT & CI  ⬜ REMAINING
-========================================
-
-  [ ] 8. Deploy backend to Render
-      - Create Render web service pointed to backend/
-      - Set env vars: DATABASE_URL, JWT_SECRET, FRONTEND_URL
-      - CORS allows the Vercel frontend URL
-      - Test all endpoints on deployed URL
-
-  [ ] 9. Deploy frontend to Vercel
-      - Connect repo to Vercel, root = frontend/
-      - Set VITE_API_URL to the Render backend URL
-      - Test deployed frontend against deployed backend
-
-  [x] 10. CI pipeline (GitHub Actions)
-      - .github/workflows/ci.yml
-      - Backend: pytest 21 tests (jwt, password, schemas)
-      - Frontend: vitest 7 tests (utils, api client) + build
-
-
-REFERENCE FILES FOR ALL CONTRIBUTORS
-======================================
-  README.md             — Project overview, setup, API table
-  CONTRIBUTING.md       — Branch rules, commit format, PR checklist
-  database/README.md    — Database schema docs, ER diagram
-  database/001_schema.sql — Source of truth for all tables
-  plan/general.txt      — Architecture, status flow, team assignments
-
-  [ ] 10. Final integration
-      - Merge all feature branches into develop
-      - Resolve conflicts
-      - Run all tests
-      - Deploy final version
-      - Seed production database with demo data
-      - Verify end-to-end flow on deployed app
-      - Create demo script / walkthrough
-
-
-DELIVERABLES CHECKLIST
-======================
-  [ ] Monorepo structure with frontend/ + backend/ + database/
-  [ ] FastAPI running with CORS + environment config
-  [ ] Supabase DB with all tables + seed data
-  [ ] JWT auth working (register + login + protected routes)
-  [ ] Frontend API service layer (Axios + interceptors)
-  [ ] Design system CSS variables applied
-  [ ] Template/guidance code for other members
-  [ ] Backend deployed on Render
-  [ ] Frontend deployed on Vercel
-  [ ] All branches merged + tested
-  [ ] Demo walkthrough script written
-
-
-NOTES
-=====
-  - You are the bottleneck for Phase 1. Get it done ASAP so others can start.
-  - Share the deployed Supabase DATABASE_URL privately (never commit it).
-  - After Phase 1 is pushed, communicate to all members that they can start.
-  - Keep an eye on PRs from other members — review and help resolve issues.
-  - During Phase 4, coordinate with 2105039 (testing) to ensure all tests
-    pass on the deployed version.
+WHAT'S ALREADY BUILT (DO NOT CHANGE)
+=====================================
+  ✅ Frontend + backend monorepo structure
+  ✅ FastAPI with CORS, lifespan, asyncpg pool
+  ✅ Supabase PostgreSQL with schema, seed data
+  ✅ JWT auth (register, login, /me, protected routes)
+  ✅ Tailwind CSS v4 design system (red primary, matte, dark/light)
+  ✅ AppShell with icon sidebar, theme toggle, user dropdown
+  ✅ DashboardPage, DeliveriesPage, StoresPage (read-only)
+  ✅ All 6 backend API routers (auth, orders, stores, dashboard, drivers)
+  ✅ CI pipeline: .github/workflows/ci.yml
+  ✅ CONTRIBUTING.md, database/README.md, root README.md

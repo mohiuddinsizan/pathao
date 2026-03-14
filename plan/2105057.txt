@@ -1,77 +1,408 @@
 ================================================================================
-  MEMBER: 2105057 — ORDER CREATION (BACKEND + FRONTEND)
+  MEMBER: 2105057 — CREATE PARCEL FORM PAGE
 ================================================================================
   Branch: 2105057
-  Depends on: 2105056 (DONE — project setup, auth, DB schema all ready)
+  Depends on: 2105056 (DONE — all backend APIs ready, no DB access needed)
 ================================================================================
 
 STATUS OVERVIEW
 ===============
-  [x] Backend: POST /api/orders endpoint — DONE (in routers/orders.py)
-  [x] Backend: OrderCreate schema — DONE (in schemas/orders.py)
-  [x] Frontend: createOrder() API function — DONE (in api/orders.js)
-  [ ] Frontend: Create Parcel FORM UI — NOT BUILT (button exists, no form)
+  [x] Backend: POST /api/orders — DONE, no changes needed
+  [x] Backend: GET /api/stores — DONE, provides store dropdown data
+  [x] Frontend scaffold (AppShell, auth, routing) — DONE
+  [ ] Frontend: Create Parcel form page — YOUR TASK
 
-YOUR REMAINING WORK
-====================
-
-  [ ] 1. Build the Create Parcel form page
-      Route: /deliveries/new (already linked from AppShell "Create Parcel" button)
-      File:  frontend/src/pages/CreateParcelPage.jsx (create new)
-      
-      Then register the route in App.jsx:
-        <Route path="/deliveries/new" element={<CreateParcelPage />} />
-
-      Form sections (match the existing backend OrderCreate schema):
-
-      A. PICKUP INFO
-        - Store Selector (dropdown) — fetch from GET /api/stores
-        - Custom Pickup Address (shown if no store selected)
-
-      B. RECIPIENT INFO
-        - Recipient Name (required, min 2 chars)
-        - Recipient Phone (required, BD format: 01XXXXXXXXX)
-        - Recipient Address (required, min 5 chars)
-        - Destination Area (optional)
-
-      C. PARCEL INFO
-        - Parcel Type dropdown: document | small_box | medium_parcel | fragile
-        - Item Description (optional)
-        - Item Weight dropdown: 0-1kg | 1-5kg | 5-10kg | 10+kg
-        - Amount (required, number > 0)
-        - Payment Method: cod | prepaid | bkash
-        - COD Amount (shown only if COD)
-        - Special Notes (optional textarea)
-
-      Form behavior:
-        - Validate on blur + on submit
-        - Loading state on submit button
-        - On success: navigate to /deliveries, show success toast
-        - On error: show error message from API
-
-  [ ] 2. Use existing shadcn/ui components
-      - Button, Input, Select, Textarea from frontend/src/components/ui/
-      - Use the cn() utility from lib/utils.js
-      - Use api.post() from api/client.js (NOT raw fetch)
-      - Follow the design: rounded-xl cards, border-2, Plus Jakarta Sans
+ONLY ONE TASK: Build the Create Parcel form page.
+No database. No backend changes. Just one React page.
 
 
-WHAT'S ALREADY BUILT FOR YOU
-=============================
-  ✅ POST /api/orders endpoint — accepts all fields, returns created order
-  ✅ api/orders.js createOrder(data) — calls POST /api/orders
-  ✅ GET /api/stores — dropdown data for store selector
-  ✅ "Create Parcel" button in AppShell top bar → links to /deliveries/new
-  ✅ All UI components: Button, Input, Select, Label, Card
-  ✅ Auth context — user is already authenticated when on this page
+DESIGN SYSTEM (READ FIRST)
+============================
+  Font:     Plus Jakarta Sans (already loaded — just use font-sans)
+  Primary:  bg-primary / text-primary  (red)
+  Cards:    className="rounded-xl border-2 border-border bg-card p-6"
+  Inputs:   Use <Input> from '@/components/ui/input'
+  Buttons:  Use <Button> from '@/components/ui/button'
+  Labels:   Use <Label> from '@/components/ui/label'
+  Text:     text-foreground (dark), text-muted-foreground (gray hints)
+  Spacing:  gap-4, gap-6, space-y-4. Be generous — don't crowd fields.
+  Icons:    lucide-react. Already installed. Import what you need.
+
+  Status badge colors (use these in other components too):
+    pending:    className="bg-amber-500/10 text-amber-600"
+    delivered:  className="bg-emerald-500/10 text-emerald-600"
+    cancelled:  className="bg-rose-500/10 text-rose-600"
+    in_transit: className="bg-blue-500/10 text-blue-600"
 
 
-VALIDATION RULES (must match backend)
-======================================
-  - recipient_name:    required, 2-100 chars
-  - recipient_phone:   required, valid BD phone (01[3-9]XXXXXXXX)
-  - recipient_address: required, 5-500 chars
-  - amount:            required, > 0, max 100000
-  - cod_amount:        required if payment_method is 'cod', >= 0
-  - parcel_type:       document | small_box | medium_parcel | fragile
-  - payment_method:    cod | prepaid | bkash
+WHAT TO INSTALL FIRST (run in frontend/ folder)
+=================================================
+  npx shadcn@latest add select
+  npx shadcn@latest add textarea
+
+
+STEP 1 — Register the route
+==============================
+  File: frontend/src/App.jsx
+
+  Add import at top:
+    import CreateParcelPage from './pages/CreateParcelPage'
+
+  Add inside the AppShell route group (after /stores):
+    <Route path="/deliveries/new" element={<CreateParcelPage />} />
+
+  Update the "Create Parcel" button in AppShell.jsx (line ~207):
+    import { useNavigate } from 'react-router-dom'
+    const navigate = useNavigate()
+    // Change the onClick to:
+    onClick={() => navigate('/deliveries/new')}
+
+
+STEP 2 — Build CreateParcelPage.jsx
+=====================================
+  File: frontend/src/pages/CreateParcelPage.jsx
+
+  FULL LAYOUT:
+
+  ┌────────────────────────────────────────────────────────────┐
+  │  ← Back to Deliveries           Create New Parcel          │
+  ├──────────────────────┬─────────────────────────────────────┤
+  │  1. PICKUP INFO      │  2. RECIPIENT INFO                  │
+  │  [card]              │  [card]                             │
+  │  Store dropdown      │  Recipient Name (required)          │
+  │  (or custom address) │  Recipient Phone (required)         │
+  │                      │  Recipient Address (required)       │
+  │                      │  Destination Area (optional)        │
+  ├──────────────────────┴─────────────────────────────────────┤
+  │  3. PARCEL & PAYMENT                                       │
+  │  [card — full width]                                       │
+  │  Parcel Type | Item Description | Item Weight              │
+  │  Amount | Payment Method | COD Amount (conditional)       │
+  │  Notes                                                     │
+  ├────────────────────────────────────────────────────────────┤
+  │  [Cancel button]                  [Submit: Create Parcel ▶]│
+  └────────────────────────────────────────────────────────────┘
+
+  COMPONENT SKELETON:
+
+    import { useState, useEffect } from 'react'
+    import { useNavigate } from 'react-router-dom'
+    import { api } from '@/api/client'
+    import { Button } from '@/components/ui/button'
+    import { Input } from '@/components/ui/input'
+    import { Label } from '@/components/ui/label'
+    import {
+      Select, SelectContent, SelectItem,
+      SelectTrigger, SelectValue
+    } from '@/components/ui/select'
+    import { ArrowLeft, Package } from 'lucide-react'
+
+    export default function CreateParcelPage() {
+      const navigate = useNavigate()
+      const [stores, setStores]   = useState([])
+      const [loading, setLoading] = useState(false)
+      const [errors, setErrors]   = useState({})
+      const [form, setForm]       = useState({
+        store_id:         '',
+        pickup_address:   '',
+        recipient_name:   '',
+        recipient_phone:  '',
+        recipient_address:'',
+        destination_area: '',
+        parcel_type:      'small_box',
+        item_description: '',
+        item_weight:      '',
+        amount:           '',
+        payment_method:   'cod',
+        cod_amount:       '',
+        notes:            '',
+      })
+
+      useEffect(() => {
+        api.cachedGet('/api/stores')
+          .then(res => setStores(res.data || []))
+          .catch(() => {})
+      }, [])
+
+      function setValue(field, value) {
+        setForm(f => ({ ...f, [field]: value }))
+        setErrors(e => ({ ...e, [field]: '' }))
+      }
+
+      function validate() {
+        const e = {}
+        if (!form.recipient_name.trim())    e.recipient_name   = 'Name is required'
+        if (!form.recipient_phone.trim())   e.recipient_phone  = 'Phone is required'
+        if (!/^01[3-9]\d{8}$/.test(form.recipient_phone.trim()))
+          e.recipient_phone = 'Enter a valid BD phone (e.g. 01712345678)'
+        if (!form.recipient_address.trim()) e.recipient_address= 'Address is required'
+        if (!form.amount || Number(form.amount) <= 0)
+          e.amount = 'Amount must be > 0'
+        if (form.payment_method === 'cod' && form.cod_amount === '')
+          e.cod_amount = 'COD amount is required'
+        return e
+      }
+
+      async function handleSubmit(e) {
+        e.preventDefault()
+        const e2 = validate()
+        if (Object.keys(e2).length) { setErrors(e2); return }
+        setLoading(true)
+        try {
+          const payload = {
+            ...form,
+            amount:    Number(form.amount),
+            cod_amount:form.payment_method === 'cod' ? Number(form.cod_amount) : 0,
+          }
+          if (!payload.store_id)      delete payload.store_id
+          if (!payload.pickup_address)delete payload.pickup_address
+          await api.post('/api/orders', payload)
+          navigate('/deliveries')
+        } catch (err) {
+          setErrors({ submit: err.message })
+        } finally {
+          setLoading(false)
+        }
+      }
+
+      return (
+        <div className="max-w-4xl mx-auto p-6 space-y-6">
+          {/* Header */}
+          <div className="flex items-center gap-3">
+            <Button variant="ghost" size="icon" onClick={() => navigate('/deliveries')}>
+              <ArrowLeft className="h-4 w-4" />
+            </Button>
+            <div>
+              <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
+                <Package className="h-6 w-6 text-primary" />
+                Create New Parcel
+              </h1>
+              <p className="text-sm text-muted-foreground">
+                Fill in the details below to create a new delivery
+              </p>
+            </div>
+          </div>
+
+          <form onSubmit={handleSubmit} className="space-y-6">
+            {/* Error banner */}
+            {errors.submit && (
+              <div className="rounded-lg bg-destructive/10 border border-destructive/20
+                              text-destructive text-sm px-4 py-3">
+                {errors.submit}
+              </div>
+            )}
+
+            {/* Row 1: two cards side by side */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+
+              {/* Card 1: Pickup Info */}
+              <div className="rounded-xl border-2 border-border bg-card p-6 space-y-4">
+                <h2 className="font-semibold text-foreground">Pickup Info</h2>
+
+                <div className="space-y-2">
+                  <Label>Store (optional)</Label>
+                  <Select
+                    value={form.store_id}
+                    onValueChange={v => setValue('store_id', v)}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select a store" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="">No store (custom address)</SelectItem>
+                      {stores.map(s => (
+                        <SelectItem key={s.id} value={s.id}>
+                          {s.name}{s.branch ? ` — ${s.branch}` : ''}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {!form.store_id && (
+                  <div className="space-y-2">
+                    <Label>Pickup Address</Label>
+                    <Input
+                      placeholder="Enter pickup address"
+                      value={form.pickup_address}
+                      onChange={e => setValue('pickup_address', e.target.value)}
+                    />
+                  </div>
+                )}
+              </div>
+
+              {/* Card 2: Recipient Info */}
+              <div className="rounded-xl border-2 border-border bg-card p-6 space-y-4">
+                <h2 className="font-semibold text-foreground">Recipient Info</h2>
+
+                <div className="space-y-2">
+                  <Label>Name <span className="text-destructive">*</span></Label>
+                  <Input
+                    placeholder="Recipient full name"
+                    value={form.recipient_name}
+                    onChange={e => setValue('recipient_name', e.target.value)}
+                    className={errors.recipient_name ? 'border-destructive' : ''}
+                  />
+                  {errors.recipient_name &&
+                    <p className="text-xs text-destructive">{errors.recipient_name}</p>}
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Phone <span className="text-destructive">*</span></Label>
+                  <Input
+                    placeholder="01712345678"
+                    value={form.recipient_phone}
+                    onChange={e => setValue('recipient_phone', e.target.value)}
+                    className={errors.recipient_phone ? 'border-destructive' : ''}
+                  />
+                  {errors.recipient_phone &&
+                    <p className="text-xs text-destructive">{errors.recipient_phone}</p>}
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Delivery Address <span className="text-destructive">*</span></Label>
+                  <Input
+                    placeholder="House, road, area..."
+                    value={form.recipient_address}
+                    onChange={e => setValue('recipient_address', e.target.value)}
+                    className={errors.recipient_address ? 'border-destructive' : ''}
+                  />
+                  {errors.recipient_address &&
+                    <p className="text-xs text-destructive">{errors.recipient_address}</p>}
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Destination Area</Label>
+                  <Input
+                    placeholder="e.g. Mirpur, Uttara"
+                    value={form.destination_area}
+                    onChange={e => setValue('destination_area', e.target.value)}
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* Card 3: Parcel & Payment — full width */}
+            <div className="rounded-xl border-2 border-border bg-card p-6 space-y-4">
+              <h2 className="font-semibold text-foreground">Parcel & Payment</h2>
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div className="space-y-2">
+                  <Label>Parcel Type</Label>
+                  <Select value={form.parcel_type}
+                          onValueChange={v => setValue('parcel_type', v)}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="document">Document</SelectItem>
+                      <SelectItem value="small_box">Small Box</SelectItem>
+                      <SelectItem value="medium_parcel">Medium Parcel</SelectItem>
+                      <SelectItem value="fragile">Fragile</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Item Weight</Label>
+                  <Select value={form.item_weight}
+                          onValueChange={v => setValue('item_weight', v)}>
+                    <SelectTrigger><SelectValue placeholder="Select weight" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="0-1kg">0 – 1 kg</SelectItem>
+                      <SelectItem value="1-5kg">1 – 5 kg</SelectItem>
+                      <SelectItem value="5-10kg">5 – 10 kg</SelectItem>
+                      <SelectItem value="10+kg">10+ kg</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Amount (৳) <span className="text-destructive">*</span></Label>
+                  <Input
+                    type="number"
+                    min="1"
+                    placeholder="0.00"
+                    value={form.amount}
+                    onChange={e => setValue('amount', e.target.value)}
+                    className={errors.amount ? 'border-destructive' : ''}
+                  />
+                  {errors.amount &&
+                    <p className="text-xs text-destructive">{errors.amount}</p>}
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>Item Description</Label>
+                  {/* Use a Textarea if installed, else Input */}
+                  <Input
+                    placeholder="Optional item description"
+                    value={form.item_description}
+                    onChange={e => setValue('item_description', e.target.value)}
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label>Payment Method</Label>
+                  <Select value={form.payment_method}
+                          onValueChange={v => setValue('payment_method', v)}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="cod">Cash on Delivery (COD)</SelectItem>
+                      <SelectItem value="prepaid">Prepaid</SelectItem>
+                      <SelectItem value="bkash">bKash</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+
+              {form.payment_method === 'cod' && (
+                <div className="space-y-2 max-w-xs">
+                  <Label>COD Amount (৳) <span className="text-destructive">*</span></Label>
+                  <Input
+                    type="number"
+                    min="0"
+                    placeholder="Amount to collect on delivery"
+                    value={form.cod_amount}
+                    onChange={e => setValue('cod_amount', e.target.value)}
+                    className={errors.cod_amount ? 'border-destructive' : ''}
+                  />
+                  {errors.cod_amount &&
+                    <p className="text-xs text-destructive">{errors.cod_amount}</p>}
+                </div>
+              )}
+
+              <div className="space-y-2">
+                <Label>Special Notes</Label>
+                <Input
+                  placeholder="Any special handling instructions..."
+                  value={form.notes}
+                  onChange={e => setValue('notes', e.target.value)}
+                />
+              </div>
+            </div>
+
+            {/* Footer actions */}
+            <div className="flex items-center justify-between pt-2">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => navigate('/deliveries')}
+              >
+                Cancel
+              </Button>
+              <Button type="submit" disabled={loading} className="min-w-36">
+                {loading ? 'Creating…' : 'Create Parcel →'}
+              </Button>
+            </div>
+          </form>
+        </div>
+      )
+    }
+
+NOTES
+=====
+  - Do NOT use raw fetch — always use api.post() from @/api/client
+  - Do NOT do any direct database work — the backend handles everything
+  - The api.post() call automatically adds the JWT Bearer token
+  - On a 401 response the client auto-redirects to /login
+  - Test with: npm run dev, login as rahim.ahmed@gmail.com / demo123
