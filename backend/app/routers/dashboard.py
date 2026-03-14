@@ -11,33 +11,33 @@ async def dashboard_stats(
     merchant: dict = Depends(get_current_merchant),
     db=Depends(get_db),
 ):
-    """Return aggregate stats for the merchant dashboard."""
+    """Return aggregate stats for the merchant dashboard (single query)."""
     mid = merchant["id"]
 
-    total = await db.fetchval("SELECT COUNT(*) FROM orders WHERE merchant_id = $1", mid)
-    pending = await db.fetchval(
-        "SELECT COUNT(*) FROM orders WHERE merchant_id = $1 AND status = 'pending'", mid
-    )
-    in_transit = await db.fetchval(
-        "SELECT COUNT(*) FROM orders WHERE merchant_id = $1 AND status = 'in_transit'", mid
-    )
-    delivered = await db.fetchval(
-        "SELECT COUNT(*) FROM orders WHERE merchant_id = $1 AND status = 'delivered'", mid
-    )
-    revenue = await db.fetchval(
-        "SELECT COALESCE(SUM(amount), 0) FROM orders WHERE merchant_id = $1 AND status = 'delivered'",
+    row = await db.fetchrow(
+        """
+        SELECT
+            COUNT(*)                                              AS total_orders,
+            COUNT(*) FILTER (WHERE status = 'pending')            AS pending,
+            COUNT(*) FILTER (WHERE status = 'in_transit')         AS in_transit,
+            COUNT(*) FILTER (WHERE status = 'delivered')          AS delivered,
+            COALESCE(SUM(amount) FILTER (WHERE status = 'delivered'), 0) AS total_revenue
+        FROM orders
+        WHERE merchant_id = $1
+        """,
         mid,
     )
+
     stores_count = await db.fetchval(
         "SELECT COUNT(*) FROM stores WHERE merchant_id = $1", mid
     )
 
     return {
-        "total_orders": total,
-        "pending": pending,
-        "in_transit": in_transit,
-        "delivered": delivered,
-        "total_revenue": float(revenue),
+        "total_orders": row["total_orders"],
+        "pending": row["pending"],
+        "in_transit": row["in_transit"],
+        "delivered": row["delivered"],
+        "total_revenue": float(row["total_revenue"]),
         "stores": stores_count,
     }
 
