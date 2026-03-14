@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { getOrders } from "@/api/orders";
 import {
   Card,
@@ -36,6 +37,7 @@ function SkeletonRow() {
 }
 
 export default function DeliveriesPage() {
+  const navigate = useNavigate();
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
@@ -154,6 +156,7 @@ export default function DeliveriesPage() {
                     <tr
                       key={order.order_id}
                       className="border-b border-border last:border-0 hover:bg-muted/50 transition-colors duration-150 cursor-pointer"
+                      onClick={() => navigate(`/deliveries/${order.order_id}`)}
                     >
                       <td className="py-3 px-4 font-mono text-xs">
                         {order.order_id}

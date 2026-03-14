@@ -14,3 +14,12 @@ export function getOrder(orderId) {
 export function createOrder(data) {
   return api.post('/api/orders', data)
 }
+
+export function updateOrderStatus(orderId, status, note) {
+  return api.patch(`/api/orders/${orderId}/status`, { status, note })
+}
+
+export function updateOrder(orderId, data) {
+  return api.put(`/api/orders/${orderId}`, data)
+}
+

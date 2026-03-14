@@ -129,3 +129,117 @@ async def create_order(
         row["id"],
     )
     return dict(row)
+
+
+# ── Valid status transitions ──
+VALID_TRANSITIONS = {
+    "pending": ["assigned"],
+    "assigned": ["picked_up"],
+    "picked_up": ["in_transit"],
+    "in_transit": ["delivered"],
+    "delivered": [],
+}
+
+
+@router.patch("/{order_id}/status")
+async def update_order_status(
+    order_id: str,
+    data: dict,
+    merchant: dict = Depends(get_current_merchant),
+    db=Depends(get_db),
+):
+    """Simulate a status change for an order."""
+    new_status = data.get("status")
+    note = data.get("note", "")
+
+    # Fetch the order
+    row = await db.fetchrow(
+        "SELECT * FROM orders WHERE order_id = $1 AND merchant_id = $2",
+        order_id,
+        merchant["id"],
+    )
+    if row is None:
+        raise HTTPException(status_code=404, detail="Order not found")
+
+    # Validate transition
+    allowed = VALID_TRANSITIONS.get(row["status"], [])
+    if new_status not in allowed:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Cannot transition from '{row['status']}' to '{new_status}'. Allowed: {allowed}",
+        )
+
+    # Update order status
+    await db.execute(
+        "UPDATE orders SET status = $1, updated_at = NOW() WHERE order_id = $2",
+        new_status,
+        order_id,
+    )
+
+    # Record in status history (uses UUID id, not PTH string)
+    await db.execute(
+        "INSERT INTO order_status_history (order_id, status, note) VALUES ($1, $2, $3)",
+        row["id"],
+        new_status,
+        note or f"Status changed to {new_status}",
+    )
+
+    # Return updated order with status history
+    updated = await db.fetchrow(
+        "SELECT * FROM orders WHERE order_id = $1",
+        order_id,
+    )
+    history = await db.fetch(
+        "SELECT status, changed_at, note FROM order_status_history WHERE order_id = $1 ORDER BY changed_at",
+        updated["id"],
+    )
+    result = dict(updated)
+    result["status_history"] = [dict(h) for h in history]
+    return result
+
+
+@router.put("/{order_id}")
+async def edit_order(
+    order_id: str,
+    data: dict,
+    merchant: dict = Depends(get_current_merchant),
+    db=Depends(get_db),
+):
+    """Edit a pending order's details."""
+    # Fetch the order
+    row = await db.fetchrow(
+        "SELECT * FROM orders WHERE order_id = $1 AND merchant_id = $2",
+        order_id,
+        merchant["id"],
+    )
+    if row is None:
+        raise HTTPException(status_code=404, detail="Order not found")
+
+    if row["status"] != "pending":
+        raise HTTPException(status_code=400, detail="Only pending orders can be edited.")
+
+    # Allowed editable fields
+    editable = [
+        "recipient_name", "recipient_phone", "recipient_address",
+        "destination_area", "parcel_type", "item_description",
+        "item_weight", "amount", "payment_method", "cod_amount",
+    ]
+
+    # Build dynamic UPDATE from provided non-None fields
+    updates = []
+    params = []
+    idx = 1
+    for field in editable:
+        if field in data and data[field] is not None:
+            updates.append(f"{field} = ${idx}")
+            params.append(data[field])
+            idx += 1
+
+    if not updates:
+        return dict(row)
+
+    params.append(order_id)
+    sql = f"UPDATE orders SET {', '.join(updates)}, updated_at = NOW() WHERE order_id = ${idx} RETURNING *"
+    updated = await db.fetchrow(sql, *params)
+    return dict(updated)
+
