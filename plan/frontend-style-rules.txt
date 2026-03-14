@@ -134,7 +134,7 @@
 
   ✗ Do NOT use <table> HTML elements — use CSS Grid
   ✗ Do NOT use opacity < 0.2 for status badge backgrounds
-  ✗ Do NOT use text-foreground for badge text — use colored text (emerald, amber, blue)
+  ✗ Do NOT use colored text for badge text — use text-foreground (black/white)
   ✗ Do NOT leave important text at default weight — minimum font-medium
   ✗ Do NOT use hardcoded pixel values for spacing — use Tailwind spacing scale
   ✗ Do NOT create new color variables — use the existing palette
