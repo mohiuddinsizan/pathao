@@ -32,7 +32,7 @@ uvicorn app.main:app --reload --port 8001     # → http://localhost:8001
 # 4. Frontend
 cd ../frontend
 npm install
-cp .env.example .env              # VITE_API_URL=http://localhost:8001/api
+cp .env.example .env              # VITE_API_URL=http://localhost:8001
 npm run dev                       # → http://localhost:5173
 ```
 
@@ -102,7 +102,7 @@ FRONTEND_URL=http://localhost:5173
 ### Frontend (`frontend/.env`)
 
 ```
-VITE_API_URL=http://localhost:8001/api
+VITE_API_URL=http://localhost:8001
 ```
 
 ## Running Tests
