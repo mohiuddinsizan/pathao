@@ -343,84 +343,71 @@ GET    /api/drivers
 
 
 ================================================================================
-  DESIGN SYSTEM — "OBSIDIAN & INDIGO" THEME
+  DESIGN SYSTEM — RED PRIMARY + MATTE (CURRENT)
 ================================================================================
 
-Replacing the current pure-black + crimson-red with a premium, warm dark theme.
+IMPLEMENTED using Tailwind CSS v4 with CSS custom properties in index.css.
+Dark/light mode via .dark class on <html>. shadcn/ui components use CVA.
 
-COLORS:
+COLORS (HSL values in index.css @theme inline):
+  Primary (brand):
+    Light:  0 72% 51%   (red)
+    Dark:   0 72% 55%   (slightly brighter red)
+
   Background:
-    --bg-primary:      #0B0E14     Deep Obsidian
-    --bg-secondary:    #0F1219     Sidebar / slightly shifted BG
-    --bg-surface:      #161B26     Card / surface default
-    --bg-elevated:     #1E2533     Modals / popovers / active widgets
-    --bg-hover:        #252D3D     Interactive surface hover
+    Light:  0 0% 100%
+    Dark:   222 47% 11%
 
-  Brand:
-    --brand-primary:   #6366F1     Electric Indigo
-    --brand-light:     #818CF8     Active tab backgrounds, subtle highlights
-    --brand-dark:      #4F46E5     Pressed / active state
-    --brand-accent:    #06B6D4     Cyan — secondary data, sparklines
+  Card/Surface:
+    Light:  0 0% 100%
+    Dark:   217 33% 17%
 
-  Text:
-    --text-primary:    #F8FAFC     Soft off-white (NOT pure white)
-    --text-secondary:  #94A3B8     Descriptions, helper text
-    --text-muted:      #64748B     Metadata, timestamps
+  Foreground:
+    Light:  220 25% 10%
+    Dark:   210 40% 98%
 
-  Status / Semantic:
-    --status-pending:  #F59E0B     Amber
-    --status-assigned: #8B5CF6     Violet
-    --status-transit:  #3B82F6     Blue
-    --status-delivered:#10B981     Emerald
-    --status-cancelled:#F43F5E     Rose (softer than pure red)
+  Muted text:
+    Light:  215 20% 37%
+    Dark:   215 20% 72%
 
-  Borders:
-    --border-default:  #1E293B     Card outlines
-    --border-subtle:   #161B26     Internal dividers
+  Border:
+    Light:  214 32% 91%
+    Dark:   217 33% 17%
+
+  Status:
+    Pending:    amber/yellow
+    Assigned:   violet
+    Picked up:  blue
+    In transit: blue
+    Delivered:  emerald/green
+    Cancelled:  rose/red
 
 TYPOGRAPHY:
-  --font-primary:    'Inter', system-ui, -apple-system, sans-serif
-  --font-mono:       'JetBrains Mono', 'Fira Code', monospace
-
-  Scale:
-    --text-xs:   12px    Labels, metadata
-    --text-sm:   14px    Body text, table cells
-    --text-base: 16px    Default body
-    --text-lg:   18px    Section headers
-    --text-xl:   20px    Page subtitles
-    --text-2xl:  24px    Page titles
-    --text-3xl:  30px    Dashboard stat numbers
-    --text-4xl:  36px    Hero numbers
-
-  Weights:
-    Regular: 400     Body text
-    Medium:  500     Labels, nav items
-    Semibold: 600    Headings, buttons
-    Bold:    700     Dashboard stat values
-
-SPACING (8px base grid):
-  4px, 8px, 12px, 16px, 20px, 24px, 32px, 40px, 48px, 64px
+  Font: 'Plus Jakarta Sans', system-ui, sans-serif (Google Fonts)
+  Base weight: 500 (medium) — set in index.css
+  Bolder text across UI: headings 600-700, stat values 700-800
 
 BORDER RADIUS:
-  --radius-sm:  6px      Buttons, inputs, badges
-  --radius-md:  8px      Cards
-  --radius-lg:  12px     Large cards, modals
-  --radius-xl:  16px     Container elements
-
-SHADOWS (use 1px borders instead of heavy shadows in dark mode):
-  Cards: 1px solid var(--border-default)
-  Elevated: 1px solid var(--border-default) + subtle shadow for depth
-  Shadow: 0 4px 16px rgba(0, 0, 0, 0.3)
+  Defined via Tailwind CSS v4 --radius variable (0.625rem base)
+  Cards: rounded-xl
+  Buttons/badges: rounded-md
 
 DESIGN PRINCIPLES:
-  1. Surgical color use — brand color ONLY for primary CTA + active nav
-  2. 1px borders to define cards (not heavy shadows)
-  3. Off-white text (#F8FAFC) — never pure #FFFFFF
-  4. Generous whitespace — let content breathe
-  5. Status colors at ~12% opacity as backgrounds with solid text
-  6. Monospace font for order IDs and tracking numbers
-  7. Hover states: bg shifts to --bg-hover, border slightly brightens
-  8. Smooth transitions: all 150ms ease-in-out
+  1. Red primary for CTAs + active nav + brand accents
+  2. Bold 2px borders on cards (border-2, not border)
+  3. Matte/muted background colors — no glossy or neon
+  4. Plus Jakarta Sans everywhere — no Inter, no monospace for IDs
+  5. Dark mode default, light mode toggle in AppShell header
+  6. Icon-only sidebar (collapsed by default), resizable panel
+  7. Notion-style edge pill button for sidebar toggle
+  8. Status badges: colored dot + text, matte background tint
+  9. shadcn/ui component primitives (Dialog, Select, Input, etc.)
+
+DO NOT USE:
+  - #6366F1 (old Electric Indigo — REMOVED)
+  - #0B0E14 (old Deep Obsidian — REMOVED)
+  - Inter font (replaced by Plus Jakarta Sans)
+  - Heavy box-shadows (use borders instead)
 
 
 ================================================================================
@@ -445,16 +432,15 @@ Valid status transitions:
 
 Branches:
   main          Protected — only merge via PR
-  develop       Integration branch — all features merge here
-  feature/*     Per-member feature branches
+  <roll-number> Per-member branches (e.g. 2105056, 2105057)
 
-Naming:
-  feature/2105056-project-setup-auth
-  feature/2105057-order-creation
-  feature/2105058-order-listing
-  feature/2105040-order-detail-edit
-  feature/2105045-dashboard-analytics
-  feature/2105039-testing
+Naming (actual branches in repo):
+  2105056    Project setup, auth, design system, deployment
+  2105057    Order creation
+  2105058    Order listing & filtering
+  2105040    Order detail, edit, cancel, status simulation
+  2105045    Dashboard, stores, UI components
+  2105039    Testing
 
 Commit Messages (conventional):
   feat: add order creation API endpoint

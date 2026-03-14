@@ -1,334 +1,270 @@
 ================================================================================
-  MEMBER: 2105045 — DASHBOARD, STORES, ANALYTICS & UI COMPONENTS
+  MEMBER: 2105045 — STORES MANAGEMENT (CREATE, EDIT, DEACTIVATE)
 ================================================================================
-  Branch: feature/2105045-dashboard-stores
-  Depends on: 2105056 completing Phase 1 (project setup + auth + DB schema)
+  Branch: 2105045
+  Depends on: 2105056 (DONE — project setup, auth, DB schema all ready)
 ================================================================================
 
-
-OVERVIEW
-========
-Build the dashboard (landing page with key stats), stores CRUD, and shared
-UI components. The dashboard should be minimal — a quick overview, NOT a
-full analytics page. The stores page lets merchants manage their pickup
-locations.
-
-
-BACKEND TASKS
-=============
-
---- DASHBOARD ---
-
-  [ ] 1. Dashboard schemas
-      File: backend/app/schemas/dashboard.py
-
-      DashboardStats:
-        - total_orders:         int
-        - pending_count:        int
-        - in_transit_count:     int
-        - delivered_count:      int
-        - cancelled_count:      int
-        - total_revenue:        Decimal
-        - today_orders:         int
-        - today_revenue:        Decimal
-        - success_rate:         float     (delivered / total * 100)
-        - total_stores:         int
-        - active_stores:        int
-        - weekly_trend:         list[DayTrend]
-        - status_distribution:  dict[str, int]
-
-      DayTrend:
-        - day:      str      (Mon, Tue, etc. or date string)
-        - count:    int
-        - revenue:  Decimal
-
-  [ ] 2. Dashboard service
-      File: backend/app/services/dashboard_service.py
-
-      async def get_dashboard_stats(db, merchant_id) -> dict:
-        Run a single query (or 2-3 efficient queries):
-        
-        Query 1 — Order stats:
-          SELECT
-            COUNT(*) as total_orders,
-            COUNT(*) FILTER (WHERE status = 'pending') as pending_count,
-            COUNT(*) FILTER (WHERE status IN ('assigned','picked_up','in_transit'))
-              as in_transit_count,
-            COUNT(*) FILTER (WHERE status = 'delivered') as delivered_count,
-            COUNT(*) FILTER (WHERE status = 'cancelled') as cancelled_count,
-            COALESCE(SUM(amount) FILTER (WHERE status = 'delivered'), 0)
-              as total_revenue,
-            COUNT(*) FILTER (WHERE created_at >= CURRENT_DATE) as today_orders,
-            COALESCE(SUM(amount) FILTER (WHERE status = 'delivered'
-              AND created_at >= CURRENT_DATE), 0) as today_revenue
-          FROM orders
-          WHERE merchant_id = $1
-
-        Query 2 — Weekly trend (last 7 days):
-          SELECT
-            TO_CHAR(created_at, 'Dy') as day,
-            DATE(created_at) as date,
-            COUNT(*) as count,
-            COALESCE(SUM(amount), 0) as revenue
-          FROM orders
-          WHERE merchant_id = $1
-            AND created_at >= CURRENT_DATE - INTERVAL '6 days'
-          GROUP BY DATE(created_at), TO_CHAR(created_at, 'Dy')
-          ORDER BY date
-
-        Query 3 — Store counts:
-          SELECT
-            COUNT(*) as total_stores,
-            COUNT(*) FILTER (WHERE is_active) as active_stores
-          FROM stores
-          WHERE merchant_id = $1
-
-        Compute success_rate = delivered / total * 100 (handle division by 0)
-
-  [ ] 3. Dashboard endpoint
-      File: backend/app/routers/dashboard.py
-
-      GET /api/dashboard/stats
-        - Protected
-        - Call get_dashboard_stats()
-        - Return { data: DashboardStats }
-
-
---- STORES ---
-
-  [ ] 4. Store schemas
-      File: backend/app/schemas/stores.py
-
-      StoreCreate:
-        - name:     str (required, 2-100 chars)
-        - branch:   Optional[str]
-        - address:  Optional[str]
-        - city:     Optional[str]
-        - zone:     Optional[str]
-        - phone:    Optional[str]
-        - email:    Optional[str] (validated email format)
-
-      StoreUpdate:
-        - Same fields as StoreCreate, all Optional
-
-      StoreResponse:
-        - id, merchant_id, name, branch, address, city, zone,
-          phone, email, is_active, created_at, updated_at
-        - order_count: int   (number of orders from this store)
-
-  [ ] 5. Store service
-      File: backend/app/services/store_service.py
-
-      async def get_stores(db, merchant_id) -> list:
-        - SELECT s.*, COUNT(o.id) as order_count
-          FROM stores s
-          LEFT JOIN orders o ON s.id = o.store_id
-          WHERE s.merchant_id = $1
-          GROUP BY s.id
-          ORDER BY s.created_at DESC
-
-      async def get_store(db, merchant_id, store_id) -> dict:
-        - Fetch single store, verify belongs to merchant
-        - Include order_count
-
-      async def create_store(db, merchant_id, data) -> dict:
-        - INSERT into stores
-        - Return created store
-
-      async def update_store(db, merchant_id, store_id, data) -> dict:
-        - Verify belongs to merchant
-        - Dynamic UPDATE with only provided fields
-        - Return updated store
-
-      async def deactivate_store(db, merchant_id, store_id) -> None:
-        - Verify belongs to merchant
-        - SET is_active = false (soft delete)
-        - Existing orders keep their store reference
-
-  [ ] 6. Store endpoints
-      File: backend/app/routers/stores.py
-
-      GET    /api/stores             → get_stores() → list
-      POST   /api/stores             → create_store() → 201
-      GET    /api/stores/{store_id}  → get_store() → detail
-      PUT    /api/stores/{store_id}  → update_store() → updated
-      DELETE /api/stores/{store_id}  → deactivate_store() → soft delete
-
-      All protected with get_current_merchant
-
-
---- DRIVERS (reference) ---
-
-  [ ] 7. Drivers endpoint (simple, reference only)
-      File: backend/app/routers/drivers.py
-
-      GET /api/drivers
-        - No auth required (or protected, your choice)
-        - SELECT * FROM drivers WHERE is_available = true
-        - Return { data: [...drivers] }
-        - Used by status simulation in 2105040's detail view
-
-
-FRONTEND TASKS
-==============
-
---- DASHBOARD PAGE ---
-
-  [ ] 8. Dashboard API + hook
-      File: frontend/src/api/dashboard.js
-      File: frontend/src/hooks/useDashboard.js
-
-      getDashboardStats() → client.get('/dashboard/stats')
-      useDashboard hook: fetch stats on mount, return { stats, loading }
-
-  [ ] 9. Dashboard page
-      File: frontend/src/pages/Dashboard.jsx
-
-      KEEP IT MINIMAL — this is an overview, not an analytics deep-dive.
-
-      Layout:
-
-      A. WELCOME SECTION
-        - "Welcome back, {merchant.name}" greeting
-        - Today's date
-        - Quick action button: "Create New Order" → opens create modal
-
-      B. KPI CARDS ROW (4 cards max)
-        - Total Orders (all-time count)
-        - In Transit (active count, pulsing dot indicator)
-        - Delivered (with success rate %)
-        - Revenue (formatted ৳ amount)
-        Each card: icon + label + big number
-
-      C. MINI CHART (optional, 1 chart only)
-        - Weekly order trend (bar or area chart using Recharts)
-        - Simple, small, no axis labels — just the visual trend
-        - Or skip the chart entirely if too complex — a simple
-          "recent activity" list works too
-
-      D. RECENT ORDERS (5 most recent)
-        - Mini table: Order ID, Recipient, Status, Amount, Time
-        - "View All Orders →" link to Orders page
-
-      Design notes:
-        - Cards have subtle border (--border-default), NOT heavy shadows
-        - Use brand color sparingly — only on the "Create Order" CTA
-        - Big numbers in font-weight 700, --text-3xl size
-        - Status dots use semantic colors
-        - Generous padding and whitespace
-
---- STORES PAGE ---
-
-  [ ] 10. Stores API + hook
-      File: frontend/src/api/stores.js
-      File: frontend/src/hooks/useStores.js
-
-      getStores(), createStore(data), updateStore(id, data), deleteStore(id)
-      useStores hook: fetch on mount, CRUD operations, return state
-
-  [ ] 11. Stores page
-      File: frontend/src/pages/Stores.jsx (new, or refactor if exists)
-
-      A. HEADER
-        - Page title: "Stores"
-        - "Add Store" button
-
-      B. STORES LIST / GRID
-        - Card for each store:
-          - Store name (bold)
-          - Branch name (if any)
-          - Address
-          - Phone, email
-          - Order count badge
-          - Active/Inactive status toggle
-          - Edit button, Deactivate/Delete button
-        - Empty state if no stores
-
-      C. ADD/EDIT STORE MODAL
-        - Fields: name, branch, address, city, zone, phone, email
-        - Validation: name required, email format if provided
-        - Loading state on submit
-
-      D. DEACTIVATE CONFIRMATION
-        - "Deactivate {store name}? It won't appear in the order creation
-           dropdown. Existing orders won't be affected."
-
---- SHARED UI COMPONENTS ---
-
-  [ ] 12. Reusable components
-      These components are used across all pages. Build them so other
-      members can import and use them.
-
-      File: frontend/src/components/
-
-      Toast.jsx:
-        - Position: top-right, stacked
-        - Types: success (emerald), error (rose), info (blue), warning (amber)
-        - Auto-dismiss after 4 seconds
-        - Manual close button
-        - Slide-in animation
-        - Export: useToast() hook + ToastProvider
-
-      LoadingSkeleton.jsx:
-        - Reusable skeleton loader shapes: text line, card, table row
-        - Pulsing animation
-        - Export: <Skeleton type="card|row|text" />
-
-      EmptyState.jsx:
-        - Icon + title + description + optional CTA button
-        - Export: <EmptyState icon={} title="" description="" action={} />
-
-      StatusBadge.jsx:
-        - Status text + colored dot + background
-        - Colors from design system
-        - Export: <StatusBadge status="pending" />
-
-      ConfirmDialog.jsx:
-        - Modal with title, description, confirm + cancel buttons
-        - Destructive variant (red confirm button) for delete/cancel actions
-        - Export: <ConfirmDialog onConfirm={} onCancel={} />
-
-
-TESTING EXPECTATIONS (for 2105039)
-===================================
-  - GET /api/dashboard/stats returns all stat fields
-  - Stats are scoped to the authenticated merchant
-  - GET /api/stores returns merchant's stores
-  - POST /api/stores creates a store
-  - PUT /api/stores/{id} updates store
-  - DELETE /api/stores/{id} soft-deletes (is_active = false)
-  - Merchant A cannot access Merchant B's stores
-  - Dashboard KPI numbers match actual order counts
-  - Frontend: dashboard renders without errors
-  - Frontend: stores CRUD operations work end-to-end
-  - Frontend: toast notifications appear correctly
-  - Frontend: skeleton loaders display during data fetch
-
-
-DELIVERABLES CHECKLIST
+STATUS OVERVIEW
+===============
+  [x] Backend: GET /api/stores — list stores
+  [x] Backend: GET /api/stores/{id} — single store
+  [x] Backend: POST /api/stores — create store
+  [x] Backend: PUT /api/stores/{id} — update store
+  [x] Frontend: DashboardPage — stat cards, recent orders table, area chart
+  [x] Frontend: StoresPage — read-only cards
+  [x] Frontend: Dark/light mode toggle
+  [ ] Backend: DELETE /api/stores/{id} — soft-deactivate (missing)
+  [ ] Frontend: deleteStore helper in stores.js (missing)
+  [ ] Frontend: "Add Store" button + create modal on StoresPage
+  [ ] Frontend: Edit button + edit modal on each store card
+  [ ] Frontend: Deactivate button on each store card
+  [ ] Frontend: Dashboard "View details" Eye button → navigate to order detail page
+
+HOW TO RUN LOCALLY
+===================
+  Backend:  cd backend && uvicorn app.main:app --reload --port 8000
+  Frontend: cd frontend && npm run dev
+  Login:    rahim.ahmed@gmail.com / demo123
+  Env file: provided by 2105056 — put it at backend/.env
+
+IMPORTANT — HOW THE CODEBASE WORKS
+=====================================
+  API client: frontend/src/api/client.js
+    api.get(path), api.post(path, body), api.put(path, body),
+    api.patch(path, body), api.delete(path)
+  JWT auto-injected. On 401 → auto-redirects to /login.
+
+  Existing store API helpers: frontend/src/api/stores.js
+    getStores()                   ← already used in StoresPage
+    getStore(storeId)
+    createStore(data)             ← already exists, calls POST /api/stores
+    updateStore(storeId, data)    ← already exists, calls PUT /api/stores/{id}
+  You will ADD one more export to this file: deleteStore (see Task 1).
+
+  Available shadcn/ui components (already installed):
+    Button, Card (CardHeader/CardTitle/CardDescription/CardContent),
+    Badge, Input, Label,
+    Dialog, DialogContent, DialogHeader, DialogTitle
+
+  StoresPage currently imports getStores, Card, CardContent, CardHeader,
+  CardTitle, CardDescription, MapPin, Phone. Open the file first to see
+  the structure before adding to it.
+
+FILES TO CHANGE  (4 files total)
+==================================
+  1. backend/app/routers/stores.py          — add 1 endpoint
+  2. frontend/src/api/stores.js             — add 1 helper function
+  3. frontend/src/pages/StoresPage.jsx      — add modals + action buttons
+  4. frontend/src/pages/DashboardPage.jsx   — wire Eye button (1-line change)
+
+
+IMPLEMENTATION ORDER  (do tasks in this sequence)
+==================================================
+  1. TASK 1: Add the DELETE soft-delete endpoint to stores.py (backend).
+     Test it manually with a HTTP client or by clicking deactivate later.
+  2. TASK 2: Add deleteStore() to frontend/src/api/stores.js (one function).
+  3. TASK 3: Update StoresPage.jsx — this is the bulk of your work.
+     Follow the step-by-step sequence inside Task 3. Work section by section
+     and test in the browser after each step.
+  4. TASK 4: Wire the Eye button in DashboardPage.jsx (1-line change).
+     Do this AFTER 2105040 has pushed their OrderDetailPage branch.
+
+
+TASK 1 — Backend: DELETE /api/stores/{store_id}
+================================================
+  File: backend/app/routers/stores.py
+
+  Add a new route at the bottom of the existing file.
+
+  What it should do:
+    1. Fetch the store: WHERE id = $1 AND merchant_id = $2. Return 404 if
+       not found.
+    2. Do a SOFT DELETE — do not remove the row. Instead:
+         UPDATE stores SET is_active = false, updated_at = NOW() WHERE id = $1
+    3. Return { "message": "Store deactivated" }
+
+  Soft delete means the store row stays in the DB so that existing orders
+  referencing it still work. The frontend will gray it out.
+
+  Imports: router, Depends, HTTPException, get_current_merchant, get_db are
+  already at the top of stores.py.
+
+
+TASK 2 — Frontend: Add deleteStore to stores.js
+================================================
+  File: frontend/src/api/stores.js
+
+  Add one export to the bottom of the existing file. The `api` import is
+  already there.
+
+    export function deleteStore(storeId) {
+      return api.delete(`/api/stores/${storeId}`)
+    }
+
+
+TASK 3 — Frontend: Update StoresPage.jsx
+=========================================
+  File: frontend/src/pages/StoresPage.jsx
+
+  READ THE FILE FIRST before editing. The current file has a functional
+  component that fetches stores and renders cards. You will extend it.
+
+  STEP-BY-STEP SEQUENCE:
+    Step 1: Open StoresPage.jsx and read the entire file before making changes.
+    Step 2: Add the new imports at the top (see "NEW IMPORTS TO ADD" below).
+    Step 3: Add the new state variables after existing state declarations
+            (see "NEW STATE TO ADD" below).
+    Step 4: Write the 5 handler functions in the component body above the JSX:
+            openCreateModal → openEditModal → handleCreate → handleEdit → handleDeactivate
+            (see "FUNCTIONS TO ADD" below for what each function should do).
+    Step 5: Update the page header JSX — add the "Add Store" button next to the
+            "Stores" title (see "Page header" in UI CHANGES below).
+    Step 6: Update each store card in the JSX — add Edit (Pencil icon) and
+            Deactivate (PowerOff icon) buttons; add opacity and "Inactive" badge
+            for is_active === false (see "Each store card" in UI CHANGES below).
+    Step 7: Add the Create Store Dialog modal at the bottom of the JSX return
+            (see "Create Store modal" in UI CHANGES below).
+    Step 8: Add the Edit Store Dialog modal right next to the Create modal
+            (see "Edit Store modal" in UI CHANGES below).
+    Step 9: Test each interaction in the browser:
+            "Add Store" button opens modal → fill form → store appears in list.
+            Edit icon opens modal with pre-filled data → save → card updates.
+            Deactivate icon → confirm dialog → card shows "Inactive" badge + gray.
+
+  NEW IMPORTS TO ADD:
+    { useState } from 'react'           (may already be there)
+    { createStore, updateStore, deleteStore } from '@/api/stores'
+    Button, Input, Label, Dialog, DialogContent, DialogHeader, DialogTitle
+      from their respective shadcn paths
+    { Plus, Pencil, PowerOff } from 'lucide-react'
+
+  NEW STATE TO ADD:
+    createOpen — boolean, controls create modal visibility
+    editOpen   — boolean, controls edit modal visibility
+    editTarget — the store object being edited (null when not editing)
+    form       — object with fields: name, branch, address, city, zone, phone
+    saving     — boolean, true while POST/PUT is in flight
+
+  BLANK FORM VALUE (use to reset the form):
+    { name: '', branch: '', address: '', city: '', zone: '', phone: '' }
+
+  FUNCTIONS TO ADD:
+
+    openCreateModal():
+      Reset form to blank, set createOpen = true.
+
+    openEditModal(store):
+      Set form fields from the store object (copy name, branch, address,
+      city, zone, phone into the form state).
+      Set editTarget = store.
+      Set editOpen = true.
+
+    handleCreate(e):
+      preventDefault. Validate name is not empty.
+      Set saving = true.
+      Call createStore(form). On success: close modal, reset form,
+      re-fetch stores (call getStores() and update state).
+      On error: show alert. Set saving = false in finally.
+
+    handleEdit(e):
+      Same as handleCreate but calls updateStore(editTarget.id, form).
+      On success: close edit modal, re-fetch stores.
+
+    handleDeactivate(store):
+      Show native confirm dialog: "Deactivate [store name]?"
+      If confirmed: call deleteStore(store.id), then re-fetch stores.
+
+  UI CHANGES:
+
+    Page header — add an "Add Store" button next to the "Stores" title:
+      <Button onClick={openCreateModal}><Plus /> Add Store</Button>
+
+    Each store card — add two icon buttons in the top-right corner:
+      Edit button (Pencil icon) → calls openEditModal(store)
+      Deactivate button (PowerOff icon, red color) → calls handleDeactivate(store)
+      Only show the deactivate button when store.is_active === true.
+
+    Deactivated stores — add visual indication:
+      When store.is_active === false, apply reduced opacity (e.g. opacity-50)
+      to the card and add a "Inactive" badge.
+
+    Create Store modal:
+      <Dialog open={createOpen} onOpenChange={setCreateOpen}>
+        <DialogContent>
+          <DialogHeader><DialogTitle>Add New Store</DialogTitle></DialogHeader>
+          <form onSubmit={handleCreate}>
+            [form fields — see below]
+            <Button type="submit" disabled={saving}>
+              {saving ? 'Creating…' : 'Create Store'}
+            </Button>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+    Edit Store modal:
+      Same structure as create but:
+        open={editOpen}, onOpenChange={setEditOpen}
+        DialogTitle: "Edit Store"
+        Button label: "Save Changes"
+        onSubmit: handleEdit
+
+    FORM FIELDS (use inside both modals):
+      Store Name (required): text input bound to form.name
+      Branch:                text input bound to form.branch
+      Address:               text input bound to form.address
+      City:                  text input bound to form.city
+      Zone:                  text input bound to form.zone
+      Phone:                 text input bound to form.phone
+      Use <Label> + <Input> for each field.
+      On change: update only the relevant key in form state.
+
+
+TASK 4 — Frontend: Wire "View details" Eye button in DashboardPage
+==================================================================
+  File: frontend/src/pages/DashboardPage.jsx
+
+  The dashboard's recent orders table already has an Eye icon button in
+  each row but its onClick is missing. You need to add the navigation.
+
+  Step 1: Open DashboardPage.jsx and find the RecentOrdersTable function.
+          Look for the <button> tag with title="View details" and the
+          <Eye> icon inside it — it currently has no onClick.
+
+  Step 2: Add useNavigate to the imports at the top of the file.
+          It is likely already imported (the StatCard component uses it).
+          If so, skip this step.
+
+  Step 3: Pass navigate as a prop (or use it directly in RecentOrdersTable).
+          The simplest approach: add `const navigate = useNavigate()` inside
+          the RecentOrdersTable function body.
+
+  Step 4: Add onClick to the Eye button:
+            onClick={() => navigate(`/deliveries/${order.order_id}`)}
+
+  That is the only change needed. Do not modify any other part of DashboardPage.
+
+  NOTE: /deliveries/:orderId is built by 2105040. You can do this step after
+  their branch is merged, OR do it now and the click will show a blank page
+  until they finish — either is fine.
+
+
+WHAT'S ALREADY BUILT
 ======================
-  [ ] GET /api/dashboard/stats endpoint with all metrics
-  [ ] All 5 store CRUD endpoints working
-  [ ] GET /api/drivers reference endpoint
-  [ ] Dashboard page — minimal, 4 KPI cards + recent orders
-  [ ] Stores page — list/grid + add/edit modal + deactivate
-  [ ] Toast notification system (ToastProvider + useToast)
-  [ ] LoadingSkeleton component
-  [ ] EmptyState component
-  [ ] StatusBadge component
-  [ ] ConfirmDialog component
-  [ ] Everything styled with Obsidian & Indigo theme
+  ✅ Backend: GET, POST, PUT /api/stores — all working
+  ✅ DashboardPage — stat cards, chart, recent orders table (Eye button needs wiring — see Task 4)
+  ✅ StoresPage — reads and displays store cards
+  ✅ createStore() and updateStore() in @/api/stores — ready to use
+  ✅ is_active column in stores table — already in the DB schema
+  ✅ All shadcn/ui Dialog, Input, Label components — already installed
 
 
 NOTES
 =====
-  - Dashboard should load FAST — minimize API calls. One call to
-    /api/dashboard/stats should return everything needed.
-  - Toast and StatusBadge will be used by ALL other members. Push these
-    components early or even before your full features are done.
-  - The stores dropdown in 2105057's order creation form depends on your
-    GET /api/stores endpoint. Coordinate to make sure it's available.
-  - For the weekly trend chart, Recharts is already a dependency in the
-    project. Use AreaChart or BarChart with the brand color (#6366F1).
-  - Inactive stores should appear grayed out in the stores list but NOT
-    appear in the order creation store dropdown.
+  - Do NOT make any database schema changes. The is_active column is
+    already in the stores table.
+  - Always call e.preventDefault() in form onSubmit handlers inside modals.
+  - Design: follow existing StoresPage card style. Cards use Card/CardHeader/
+    CardContent from shadcn. Spacing uses gap-4, p-5.
+  - The ONLY change to DashboardPage is adding onClick to the Eye button (Task 4).
+    Do not touch anything else in that file.
