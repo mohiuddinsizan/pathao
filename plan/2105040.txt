@@ -8,7 +8,6 @@
 STATUS OVERVIEW
 ===============
   [x] Backend: GET /api/orders/{order_id} — returns order + status_history
-  [x] Backend: PATCH /api/orders/{order_id}/cancel — already done
   [ ] Backend: PATCH /api/orders/{order_id}/status — simulate status change
   [ ] Backend: PUT /api/orders/{order_id} — edit a pending order
   [ ] Frontend: DeliveriesPage.jsx — build complete listing page from scratch
@@ -18,7 +17,7 @@ STATUS OVERVIEW
 
 HOW TO RUN LOCALLY
 ===================
-  Backend:  cd backend && uvicorn app.main:app --reload --port 8000
+  Backend:  cd backend && uvicorn app.main:app --reload --port 8001
   Frontend: cd frontend && npm run dev
   Login:    rahim.ahmed@gmail.com / demo123
   Env file: provided by 2105056 — put it at backend/.env
@@ -42,7 +41,6 @@ IMPORTANT — HOW THE CODEBASE WORKS
     getOrders(params)
     getOrder(orderId)      ← fetches single order by PTH ID
     createOrder(data)
-    cancelOrder(orderId)   ← calls PATCH /cancel, already works
   You will ADD two more exports to this file (see Task 3 below).
 
   Available shadcn/ui components (already installed):
@@ -52,12 +50,11 @@ IMPORTANT — HOW THE CODEBASE WORKS
 STATUS TRANSITION RULES
 ========================
   Each order can only move to certain next states:
-    pending    → assigned, cancelled
-    assigned   → picked_up, cancelled
+    pending    → assigned
+    assigned   → picked_up
     picked_up  → in_transit
     in_transit → delivered
     delivered  → (done)
-    cancelled  → (done)
 
   The simulation UI shows buttons ONLY for allowed next states.
 
@@ -214,12 +211,12 @@ TASK 5 — Frontend: Build DeliveriesPage.jsx
       picked_up:  'default',
       in_transit: 'default',
       delivered:  'success',
-      cancelled:  'destructive',
+      cancelled:  'destructive',   // kept for historical data only
     }
 
   STATUSES ARRAY (for filter pills):
     const STATUSES = ['all','pending','assigned','picked_up',
-                      'in_transit','delivered','cancelled']
+                      'in_transit','delivered']
 
   SKELETON ROW:
     A <tr> with 6 <td> cells, each containing:
@@ -281,7 +278,7 @@ TASK 6 — Frontend: Create OrderDetailPage.jsx
     Step 1: Create the file frontend/src/pages/OrderDetailPage.jsx
     Step 2: Add all imports (see "WHAT TO IMPORT" below)
     Step 3: Define state: order, loading, simulating
-            Define VALID_TRANSITIONS map: { pending: ['assigned','cancelled'], ... }
+            Define VALID_TRANSITIONS map: { pending: ['assigned'], ... }
     Step 4: Write the useEffect — call getOrder(orderId) on mount,
             store result in order state (see "START-UP" below)
     Step 5: Build the JSX in order — one section at a time:
@@ -289,7 +286,6 @@ TASK 6 — Frontend: Create OrderDetailPage.jsx
             →  C) Two info cards (recipient + parcel)
             →  D) Status timeline (map over order.status_history)
             →  E) Simulation buttons (one per allowed next state)
-            →  F) Cancel button (only when pending)
     Step 6: Test in browser at /deliveries/PTH-1 (check Deliveries page for a
             real PTH ID). Confirm the timeline grows when you click a sim button.
     Step 7 (bonus): Add Edit modal (Section G) only after A–F are working.
@@ -297,7 +293,7 @@ TASK 6 — Frontend: Create OrderDetailPage.jsx
   WHAT TO IMPORT:
     useParams, useNavigate from 'react-router-dom'
     useState, useEffect from 'react'
-    { getOrder, cancelOrder, updateOrderStatus } from '@/api/orders'
+    { getOrder, updateOrderStatus } from '@/api/orders'
     Button, Card, CardContent, CardHeader, CardTitle, Badge from shadcn/ui
     Lucide icons: ArrowLeft, Clock, UserCheck, Package, Truck,
                   CheckCircle2, XCircle (for the status timeline)
@@ -349,12 +345,9 @@ TASK 6 — Frontend: Create OrderDetailPage.jsx
                  re-fetch the order, set simulating=false
        Disable all buttons while simulating=true
 
-    F. Cancel button
-       Only render when order.status === 'pending'
-       On click: confirm("Cancel this order?") — native browser dialog is fine
-       If confirmed: call cancelOrder(orderId), then re-fetch the order
+    F. [REMOVED — cancel order feature removed from project]
 
-    G. Edit Order [BONUS — do this after A–F are working]
+    G. Edit Order [BONUS — do this after A–E are working]
        Only render when order.status === 'pending'
        Add an "Edit Order" button that opens a shadcn Dialog modal.
        The modal has a form with editable fields:
@@ -373,10 +366,9 @@ TASK 6 — Frontend: Create OrderDetailPage.jsx
     picked_up  → Package icon,      text-blue-400
     in_transit → Truck icon,        text-blue-500
     delivered  → CheckCircle2 icon, text-emerald-500
-    cancelled  → XCircle icon,      text-rose-500
 
   IMPORTANT: the orderId from useParams() is the PTH string ("PTH-1" etc).
-  Pass it directly to getOrder(), cancelOrder(), and updateOrderStatus().
+  Pass it directly to getOrder() and updateOrderStatus().
   Do NOT use order.id (the UUID) for API calls.
 
 
@@ -384,9 +376,8 @@ WHAT'S ALREADY BUILT
 ======================
   ✅ GET /api/orders/{order_id} — returns order dict + status_history array
        status_history items: { status, changed_at, note }
-  ✅ PATCH /api/orders/{order_id}/cancel — works, don't touch it
   ✅ order_status_history table exists in the DB with correct schema
-  ✅ getOrder() and cancelOrder() in @/api/orders — ready to use
+  ✅ getOrder() in @/api/orders — ready to use
   ✅ All shadcn/ui components are already installed
   ✅ AppShell, auth, theme — all done
   ✅ You will add onClick to DeliveriesPage rows (in your Task 5) →

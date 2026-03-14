@@ -62,7 +62,7 @@ Repo:     https://github.com/smammahdi/isd-pathao-demo
 
   ┌──────────────────────────┐
   │   React Frontend         │  Vite + React 19 + React Router v7
-  │   (merchant-desktop)     │  Recharts, Lucide, Axios
+  │   (merchant-desktop)     │  Recharts, Lucide, Fetch API
   └──────────┬───────────────┘
              │  REST API (JSON) + JWT Bearer token
   ┌──────────▼───────────────┐
@@ -83,8 +83,8 @@ isd-pathao-demo/
 ├── frontend/                     React app (refactored from merchant-desktop)
 │   ├── public/
 │   ├── src/
-│   │   ├── api/                  API service layer (Axios + JWT interceptor)
-│   │   │   ├── client.js         Axios instance with base URL + interceptors
+│   │   ├── api/                  API service layer (Fetch + JWT interceptor)
+│   │   │   ├── client.js         Fetch wrapper with base URL + JWT headers
 │   │   │   ├── auth.js           Auth API calls (login, register, getMe)
 │   │   │   ├── orders.js         Order API calls (CRUD + filters)
 │   │   │   ├── stores.js         Store API calls (CRUD)
@@ -219,7 +219,7 @@ TABLE: orders
   - driver_id       UUID REFERENCES drivers(id) ON DELETE SET NULL  (nullable)
   - status          VARCHAR(20) DEFAULT 'pending'
                     CHECK (status IN ('pending','assigned','picked_up',
-                           'in_transit','delivered','cancelled'))
+                           'in_transit','delivered'))
   - recipient_name  VARCHAR(255) NOT NULL
   - recipient_phone VARCHAR(20) NOT NULL
   - recipient_address TEXT NOT NULL
@@ -297,14 +297,9 @@ PUT    /api/orders/{order_id}
   Returns: { data: order, message: "Order updated" }
 
 PATCH  /api/orders/{order_id}/status
-  Body: { status: "assigned" | "picked_up" | "in_transit" | "delivered" | "cancelled", note? }
+  Body: { status: "assigned" | "picked_up" | "in_transit" | "delivered", note? }
   Constraint: Status must follow valid transitions
   Returns: { data: order, message: "Status updated" }
-
-DELETE /api/orders/{order_id}
-  Constraint: Only when status = 'pending'
-  Effect: Sets status to 'cancelled'
-  Returns: { message: "Order cancelled" }
 
 --- STORES (scoped to merchant) ---
 GET    /api/stores
@@ -330,7 +325,7 @@ GET    /api/dashboard/stats
   Returns: {
     data: {
       total_orders, pending_count, in_transit_count, delivered_count,
-      cancelled_count, total_revenue, today_orders, today_revenue,
+      total_revenue, today_orders, today_revenue,
       success_rate, total_stores, active_stores,
       weekly_trend: [{ day, count, revenue }],
       status_distribution: { pending: n, assigned: n, ... }
@@ -380,7 +375,7 @@ COLORS (HSL values in index.css @theme inline):
     Picked up:  blue
     In transit: blue
     Delivered:  emerald/green
-    Cancelled:  rose/red
+
 
 TYPOGRAPHY:
   Font: 'Plus Jakarta Sans', system-ui, sans-serif (Google Fonts)
@@ -417,11 +412,9 @@ DO NOT USE:
 Valid status transitions:
 
   pending ──→ assigned ──→ picked_up ──→ in_transit ──→ delivered
-     │                                                       
-     └──→ cancelled                                          
 
   - Orders start as 'pending'
-  - Only 'pending' orders can be edited or cancelled
+  - Only 'pending' orders can be edited
   - Status changes are recorded in order_status_history
   - For demo: include "Simulate Status" buttons to advance status
 
@@ -435,12 +428,12 @@ Branches:
   <roll-number> Per-member branches (e.g. 2105056, 2105057)
 
 Naming (actual branches in repo):
-  2105056    Project setup, auth, design system, deployment
-  2105057    Order creation
-  2105058    Order listing & filtering
-  2105040    Order detail, edit, cancel, status simulation
-  2105045    Dashboard, stores, UI components
-  2105039    Testing
+  2105056    Project setup, auth, dashboard page, design system, deployment
+  2105057    Order creation, payments page
+  2105058    Deliveries page (order listing & filtering)
+  2105040    Order detail, edit, analytics page, status simulation
+  2105045    Stores page, shared UI components
+  2105039    Testing, settings page
 
 Commit Messages (conventional):
   feat: add order creation API endpoint
@@ -465,17 +458,17 @@ PHASE 1: FOUNDATION  (Member 2105056)
   - Supabase PostgreSQL connection
   - Database schema creation (all tables)
   - JWT authentication (login, register, token verify)
-  - Frontend API service layer (Axios + interceptor)
+  - Frontend API service layer (Fetch wrapper + JWT)
   - Design system CSS variables
   - Seed data script
   ★ BLOCKER: All other members depend on this being complete
 
 PHASE 2: CORE FEATURES  (All members in parallel)
-  - 2105057: Order creation (backend + frontend)
-  - 2105058: Order listing & filtering (backend + frontend)
-  - 2105040: Order detail, edit, cancel, status simulation (backend + frontend)
-  - 2105045: Dashboard + stores + UI components (backend + frontend)
-  - 2105039: Write tests for all features as they are built
+  - 2105057: Order creation + payments page (backend + frontend)
+  - 2105058: Deliveries page — order listing & filtering (backend + frontend)
+  - 2105040: Order detail, edit, analytics page, status simulation (backend + frontend)
+  - 2105045: Stores page + shared UI components (backend + frontend)
+  - 2105039: Write tests for all features as they are built + settings page
 
 PHASE 3: INTEGRATION & DEPLOYMENT  (Member 2105056 + all)
   - Merge all feature branches into develop
@@ -508,7 +501,7 @@ API Response Format:
 Frontend API Calls:
   - All API calls go through src/api/client.js
   - JWT token stored in localStorage as 'auth_token'
-  - Axios interceptor adds Bearer token to all requests
+  - Fetch wrapper adds Bearer token to all requests
   - 401 responses trigger automatic logout + redirect to /login
 
 Form Validation:
@@ -527,11 +520,10 @@ Status Badge Colors:
   - Picked Up: blue bg, blue text
   - In Transit: blue bg, blue text
   - Delivered: emerald bg, emerald text
-  - Cancelled: rose bg, rose text
 
 Environment Variables:
   Frontend (.env):
-    VITE_API_URL=http://localhost:8000/api   (or deployed URL)
+    VITE_API_URL=http://localhost:8001   (NO /api suffix — path is in the API calls)
 
   Backend (.env):
     DATABASE_URL=postgresql://...@db.xxx.supabase.co:5432/postgres
@@ -544,12 +536,12 @@ Environment Variables:
   TEAM — ROLL NUMBERS & ASSIGNMENTS
 ================================================================================
 
-  2105056 — Project Setup, Auth, Supabase, Deployment, Design System
-  2105057 — Order Creation (Backend + Frontend)
-  2105058 — Order Listing, Filtering, Search, Pagination (Backend + Frontend)
-  2105040 — Order Detail, Edit, Cancel, Status Simulation (Backend + Frontend)
-  2105045 — Dashboard, Stores, Analytics, UI Components (Backend + Frontend)
-  2105039 — Testing (All features — unit + integration + E2E)
+  2105056 — Project Setup, Auth, Dashboard Page, Supabase, Deployment, Design System
+  2105057 — Order Creation (Backend + Frontend), Payments Page
+  2105058 — Deliveries Page: Order Listing, Filtering, Search, Pagination (Backend + Frontend)
+  2105040 — Order Detail, Edit, Analytics Page, Status Simulation (Backend + Frontend)
+  2105045 — Stores Page (CRUD), Shared UI Components (Backend + Frontend)
+  2105039 — Testing (All features — unit + integration + E2E), Settings Page
 
   See individual member files (plan/2105XXX.txt) for detailed task breakdowns.
 

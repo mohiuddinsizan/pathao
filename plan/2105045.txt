@@ -23,7 +23,7 @@ STATUS OVERVIEW
 
 HOW TO RUN LOCALLY
 ===================
-  Backend:  cd backend && uvicorn app.main:app --reload --port 8000
+  Backend:  cd backend && uvicorn app.main:app --reload --port 8001
   Frontend: cd frontend && npm run dev
   Login:    rahim.ahmed@gmail.com / demo123
   Env file: provided by 2105056 — put it at backend/.env
