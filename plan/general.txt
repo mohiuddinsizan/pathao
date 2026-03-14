@@ -607,3 +607,62 @@ RULES FOR ALL TEAM MEMBERS:
 
   5. Default TTL is 5 minutes. Override with options:
        useCachedQuery('key', fetcher, { ttl: 60000 }) // 1 minute
+
+
+================================================================================
+  BACKEND OPTIMIZATION — DATABASE QUERIES (IMPORTANT: READ THIS)
+================================================================================
+
+PROBLEM:
+  Our database is hosted on Supabase (remote PostgreSQL). Every query is a
+  network round-trip (~50-200ms depending on connection). Running multiple
+  simple queries sequentially adds up fast and makes API responses slow.
+
+RULES FOR ALL TEAM MEMBERS:
+
+  1. COMBINE RELATED QUERIES using SQL aggregation instead of multiple calls.
+
+     BAD (6 round-trips = ~600ms):
+       total = await db.fetchval("SELECT COUNT(*) FROM orders WHERE merchant_id=$1", mid)
+       pending = await db.fetchval("SELECT COUNT(*) FROM orders WHERE merchant_id=$1 AND status='pending'", mid)
+       in_transit = await db.fetchval("SELECT COUNT(*) FROM orders WHERE ... AND status='in_transit'", mid)
+       delivered = await db.fetchval("SELECT COUNT(*) FROM orders WHERE ... AND status='delivered'", mid)
+       revenue = await db.fetchval("SELECT SUM(amount) FROM orders WHERE ... AND status='delivered'", mid)
+
+     GOOD (1 round-trip = ~100ms):
+       row = await db.fetchrow("""
+         SELECT
+           COUNT(*)                                                AS total_orders,
+           COUNT(*) FILTER (WHERE status = 'pending')              AS pending,
+           COUNT(*) FILTER (WHERE status = 'in_transit')           AS in_transit,
+           COUNT(*) FILTER (WHERE status = 'delivered')            AS delivered,
+           COALESCE(SUM(amount) FILTER (WHERE status='delivered'), 0) AS total_revenue
+         FROM orders WHERE merchant_id = $1
+       """, mid)
+
+  2. Use PostgreSQL FILTER clause for conditional aggregation (as shown above).
+     It's cleaner than CASE WHEN and supported by our PostgreSQL version.
+
+  3. Use JOINs to fetch related data in a single query instead of N+1 queries.
+
+     BAD (N+1 queries):
+       orders = await db.fetch("SELECT * FROM orders WHERE merchant_id=$1", mid)
+       for order in orders:
+           store = await db.fetchrow("SELECT * FROM stores WHERE id=$1", order['store_id'])
+
+     GOOD (1 query with JOIN):
+       await db.fetch("""
+         SELECT o.*, s.name AS store_name
+         FROM orders o LEFT JOIN stores s ON o.store_id = s.id
+         WHERE o.merchant_id = $1
+       """, mid)
+
+  4. Always use parameterized queries ($1, $2, ...) — NEVER string formatting.
+     This prevents SQL injection and lets PostgreSQL cache query plans.
+
+  5. Use LIMIT for listing endpoints. Never return unbounded result sets.
+
+  6. If you need counts + data, consider window functions:
+       SELECT *, COUNT(*) OVER() AS total_count
+       FROM orders WHERE merchant_id = $1
+       LIMIT 20 OFFSET 0
