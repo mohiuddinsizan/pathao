@@ -60,6 +60,20 @@ FILES TO CHANGE / CREATE  (5 items total)
   5. frontend/src/pages/PaymentsPage.jsx      — Task 4 (new file)
 
 
+IMPLEMENTATION ORDER  (do tasks in this sequence)
+==================================================
+  1. TASK 1: Create backend/app/routers/payments.py and register it in main.py.
+     Quick test: use a browser or curl to hit GET /api/payments with a JWT to
+     verify the response shape before starting the frontend.
+  2. TASK 2: Register your two routes in frontend/src/App.jsx (4-line change).
+  3. TASK 3: Build CreateParcelPage.jsx — this is your main deliverable.
+     Follow the step-by-step sequence inside the task.
+  4. TASK 4: Build PaymentsPage.jsx — simpler once the backend works.
+     Follow the step-by-step sequence inside the task.
+  After both pages work, test end-to-end: create a parcel, verify it appears
+  in the Deliveries list AND in /payments.
+
+
 TASK 1 — Backend: GET /api/payments
 ======================================
   NEW FILE: backend/app/routers/payments.py
@@ -150,6 +164,26 @@ TASK 3 — Frontend: CreateParcelPage.jsx
   Build it using React hooks + the design system described above.
   The form submits to the existing POST /api/orders backend endpoint.
 
+  STEP-BY-STEP SEQUENCE:
+    Step 1: Install shadcn components (run once in the frontend/ folder):
+              npx shadcn@latest add select textarea
+    Step 2: Create the file frontend/src/pages/CreateParcelPage.jsx
+    Step 3: Add all imports (see "IMPORTS YOU WILL NEED" below)
+    Step 4: Declare all state variables (see "STATE TO MANAGE" below)
+    Step 5: Write useEffect to fetch stores list on mount (see "ON MOUNT" below)
+    Step 6: Write the validate() function for client-side field checks
+            (see "VALIDATION" below)
+    Step 7: Write the handleSubmit() async function (see "SUBMIT" below)
+    Step 8: Write the JSX — build the page top to bottom:
+            Header → Card 1 (Pickup) → Card 2 (Recipient)
+            → Card 3 full-width (Parcel & Payment) → Submit footer
+            (see "FORM SECTIONS" and "LAYOUT" below for details)
+    Step 9: Test end-to-end:
+            - Click "Create Parcel" in the sidebar → page loads at /deliveries/new
+            - Submit empty form → red validation errors appear under each field
+            - Fill all required fields → Submit → redirected to /deliveries
+              and new order shows in the list
+
   IMPORTS YOU WILL NEED:
     useState, useEffect from 'react'
     useNavigate from 'react-router-dom'
@@ -231,6 +265,23 @@ TASK 4 — Frontend: PaymentsPage.jsx
 
   This page shows payment/transaction history. It calls GET /api/payments
   (the endpoint you built in Task 1).
+
+  STEP-BY-STEP SEQUENCE:
+    Step 1: Create the file frontend/src/pages/PaymentsPage.jsx
+    Step 2: Add all imports (see "IMPORTS YOU WILL NEED" below)
+    Step 3: Declare state variables: data, loading, page (see "STATE" below)
+    Step 4: Write the useEffect to fetch /api/payments when page changes
+            (see "ON MOUNT" below — use page in the dependency array)
+    Step 5: Write the JSX:
+            A) Page title + subtitle
+            B) Two summary stat cards (total orders + total revenue)
+            C) Payments table with columns: Order ID | Recipient | Amount |
+               Payment Method | Status | Date
+            D) Previous / Next pagination buttons
+            E) Loading state while fetching
+            F) "No records" message when list is empty
+    Step 6: Test in browser at /payments — confirm table shows data and
+            pagination works.
 
   IMPORTS YOU WILL NEED:
     useState, useEffect from 'react'

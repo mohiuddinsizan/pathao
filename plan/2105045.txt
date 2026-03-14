@@ -57,6 +57,16 @@ FILES TO CHANGE  (3 files total)
   3. frontend/src/pages/StoresPage.jsx — add modals + action buttons
 
 
+IMPLEMENTATION ORDER  (do tasks in this sequence)
+==================================================
+  1. TASK 1: Add the DELETE soft-delete endpoint to stores.py (backend).
+     Test it manually with a HTTP client or by clicking deactivate later.
+  2. TASK 2: Add deleteStore() to frontend/src/api/stores.js (one function).
+  3. TASK 3: Update StoresPage.jsx — this is the bulk of your work.
+     Follow the step-by-step sequence inside Task 3. Work section by section
+     and test in the browser after each step.
+
+
 TASK 1 — Backend: DELETE /api/stores/{store_id}
 ================================================
   File: backend/app/routers/stores.py
@@ -95,6 +105,28 @@ TASK 3 — Frontend: Update StoresPage.jsx
 
   READ THE FILE FIRST before editing. The current file has a functional
   component that fetches stores and renders cards. You will extend it.
+
+  STEP-BY-STEP SEQUENCE:
+    Step 1: Open StoresPage.jsx and read the entire file before making changes.
+    Step 2: Add the new imports at the top (see "NEW IMPORTS TO ADD" below).
+    Step 3: Add the new state variables after existing state declarations
+            (see "NEW STATE TO ADD" below).
+    Step 4: Write the 5 handler functions in the component body above the JSX:
+            openCreateModal → openEditModal → handleCreate → handleEdit → handleDeactivate
+            (see "FUNCTIONS TO ADD" below for what each function should do).
+    Step 5: Update the page header JSX — add the "Add Store" button next to the
+            "Stores" title (see "Page header" in UI CHANGES below).
+    Step 6: Update each store card in the JSX — add Edit (Pencil icon) and
+            Deactivate (PowerOff icon) buttons; add opacity and "Inactive" badge
+            for is_active === false (see "Each store card" in UI CHANGES below).
+    Step 7: Add the Create Store Dialog modal at the bottom of the JSX return
+            (see "Create Store modal" in UI CHANGES below).
+    Step 8: Add the Edit Store Dialog modal right next to the Create modal
+            (see "Edit Store modal" in UI CHANGES below).
+    Step 9: Test each interaction in the browser:
+            "Add Store" button opens modal → fill form → store appears in list.
+            Edit icon opens modal with pre-filled data → save → card updates.
+            Deactivate icon → confirm dialog → card shows "Inactive" badge + gray.
 
   NEW IMPORTS TO ADD:
     { useState } from 'react'           (may already be there)

@@ -68,6 +68,18 @@ FILES TO CHANGE  (4 files total)
   4. frontend/src/pages/OrderDetailPage.jsx  — create this new file
 
 
+IMPLEMENTATION ORDER  (do tasks in this sequence)
+==================================================
+  1. TASK 1: Add PATCH /status endpoint in orders.py
+  2. TASK 2: Add PUT /{order_id} endpoint in orders.py
+  3. TASK 3: Add the two helper functions to frontend/src/api/orders.js
+  4. TASK 4: Register the /deliveries/:orderId route in App.jsx (2 lines)
+  5. TASK 5: Build OrderDetailPage.jsx — follow the step-by-step sequence
+     inside the task. Work through sections A→B→C→D→E→F. Test in the browser
+     at each section before moving on.
+  6. TASK 5G (bonus): Add Edit modal only after sections A–F are fully working.
+
+
 TASK 1 — Backend: PATCH /api/orders/{order_id}/status
 =======================================================
   File: backend/app/routers/orders.py
@@ -151,6 +163,23 @@ TASK 4 — Frontend: Register route in App.jsx
 TASK 5 — Frontend: Create OrderDetailPage.jsx
 ==============================================
   File: frontend/src/pages/OrderDetailPage.jsx  (new file)
+
+  STEP-BY-STEP SEQUENCE:
+    Step 1: Create the file frontend/src/pages/OrderDetailPage.jsx
+    Step 2: Add all imports (see "WHAT TO IMPORT" below)
+    Step 3: Define state: order, loading, simulating
+            Define VALID_TRANSITIONS map: { pending: ['assigned','cancelled'], ... }
+    Step 4: Write the useEffect — call getOrder(orderId) on mount,
+            store result in order state (see "START-UP" below)
+    Step 5: Build the JSX in order — one section at a time:
+            A) Back button  →  B) Order header with status badge
+            →  C) Two info cards (recipient + parcel)
+            →  D) Status timeline (map over order.status_history)
+            →  E) Simulation buttons (one per allowed next state)
+            →  F) Cancel button (only when pending)
+    Step 6: Test in browser at /deliveries/PTH-1 (check Deliveries page for a
+            real PTH ID). Confirm the timeline grows when you click a sim button.
+    Step 7 (bonus): Add Edit modal (Section G) only after A–F are working.
 
   WHAT TO IMPORT:
     useParams, useNavigate from 'react-router-dom'

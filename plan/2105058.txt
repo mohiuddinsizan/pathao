@@ -62,9 +62,43 @@ FILES TO CHANGE / CREATE  (5 items total)
   5. frontend/src/App.jsx                        — task 4 (swap Placeholder route)
 
 
+IMPLEMENTATION ORDER  (do tasks in this sequence)
+==================================================
+  1. TASK 2 first — add onClick to table rows (one-line change in the existing
+     <tr>). This is the quickest win. Test: click a row → browser should navigate
+     to /deliveries/PTH-X (blank page is OK until 2105040 builds that route).
+  2. TASK 1 — add store filter dropdown to DeliveriesPage.
+     Follow the step-by-step sequence inside the task.
+  3. TASK 3 — create analytics.py backend endpoint + register in main.py.
+     Quick test: call GET /api/analytics with a JWT token to check the shape.
+  4. TASK 4 — build AnalyticsPage.jsx using Recharts.
+     Follow the step-by-step sequence inside the task.
+  Test the full analytics page in the browser — charts should render with data.
+
+
 TASK 1 — Store filter dropdown in DeliveriesPage
 =================================================
   File: frontend/src/pages/DeliveriesPage.jsx
+
+  STEP-BY-STEP SEQUENCE:
+    Step 1: Install the shadcn Select component (run in frontend/ folder):
+              npx shadcn@latest add select
+    Step 2: Open DeliveriesPage.jsx and read the whole file — understand the
+            existing state variables and where getOrders() is called.
+    Step 3: Add useNavigate, getStores, and Select imports at the top
+            (see "IMPORTS TO ADD" below).
+    Step 4: Add stores and storeFilter state variables after existing state
+            (see "NEW STATE" below).
+    Step 5: Add a getStores() call in a useEffect on mount
+            (see "ON MOUNT" below).
+    Step 6: Find the existing getOrders() call and add store_id to its params
+            (see "PASS store_id TO getOrders" below).
+    Step 7: Add storeFilter to the useEffect's dependency array so changing
+            the store triggers a re-fetch. Reset page to 1 when it changes.
+    Step 8: Add the Select dropdown in the filter bar area of the JSX
+            (see "UI — ADD SELECT DROPDOWN" below).
+    Step 9: Test in browser — dropdown should list your stores, and selecting
+            one should filter the orders table to that store only.
 
   IMPORTS TO ADD:
     { useNavigate } from 'react-router-dom'
@@ -212,6 +246,23 @@ TASK 4 — Analytics frontend page
     Leave the Placeholder import in place (it's still used for /payments and /settings).
 
   BUILD AnalyticsPage.jsx:
+
+  STEP-BY-STEP SEQUENCE:
+    Step 1: Create the file frontend/src/pages/AnalyticsPage.jsx
+    Step 2: Add all imports (see "IMPORTS" below) — note Recharts imports
+    Step 3: Declare state: data (null), loading (true) (see "STATE" below)
+    Step 4: Write the useEffect to call api.get('/api/analytics') on mount
+            and store the result in data (see "ON MOUNT" below)
+    Step 5: Build the JSX section by section:
+            A) Page title + subtitle
+            B) BarChart for order_counts — convert dict to array first:
+               Object.entries(data.order_counts).map(([status,count])=>({status,count}))
+            C) BarChart for daily_data — two Bars (count + revenue)
+            D) Top Stores table — loop over data.top_stores
+            E) Loading state (loading === true)
+            F) Error state (loading === false && data === null)
+    Step 6: Test in browser at /analytics — bar charts and table should
+            render with real data from your backend.
 
   IMPORTS:
     { useState, useEffect } from 'react'

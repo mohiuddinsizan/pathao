@@ -91,6 +91,20 @@ FILES TO CREATE  (7 files)
   7. backend/tests/MANUAL_E2E_RESULTS.md
 
 
+IMPLEMENTATION ORDER  (do tasks in this sequence)
+==================================================
+  1. TASK 1 first — auth endpoints are already working, so you can start
+     immediately. This also forces you to set up the httpx client fixture
+     that all other integration tests will reuse.
+  2. TASK 3 — stores integration tests (stores endpoints already exist).
+  3. TASK 2 — orders integration tests. Write tests for existing endpoints
+     first, then add the status-change tests after 2105040 pushes their branch.
+  4. TASK 5 — frontend component tests (independent, do any time).
+  5. TASK 4 — analytics integration tests (do after 2105058 pushes analytics.py).
+  6. TASK 6 — E2E checklist: do LAST, after all feature branches are merged
+     and deployed. This is your final deliverable before the demo.
+
+
 TASK 1 — Backend Integration: Auth endpoints
 =============================================
   File: backend/tests/test_auth_integration.py
