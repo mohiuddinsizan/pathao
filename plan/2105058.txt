@@ -11,23 +11,144 @@ STATUS OVERVIEW
   [x] Frontend: DeliveriesPage — table, status filter buttons, search, pagination
   [ ] Frontend: Store-based filter dropdown — API supports it, UI missing
   [ ] Frontend: Date range filter — not implemented
+  [ ] Frontend: Clickable rows → navigate to order detail
 
-YOUR REMAINING WORK
-====================
+DESIGN SYSTEM (READ FIRST)
+============================
+  Font:     Plus Jakarta Sans (already loaded — just use font-sans)
+  Primary:  bg-primary / text-primary  (red)
+  Cards:    className="rounded-xl border-2 border-border bg-card p-6"
+  Inputs:   Use <Input> from '@/components/ui/input'
+  Select:   Use <Select> from '@/components/ui/select'
+  Test credentials:  rahim.ahmed@gmail.com / demo123
 
-  [ ] 1. Add store filter dropdown to DeliveriesPage
-      File: frontend/src/pages/DeliveriesPage.jsx
-      - Fetch stores from GET /api/stores
-      - Add a dropdown/select above the table: "All Stores" | store names
-      - When selected, pass store_id to GET /api/orders?store_id=...
 
-  [ ] 2. Add date range filter (optional, nice-to-have)
-      - Date pickers for "from" and "to"
-      - Pass date_from, date_to to GET /api/orders
+STEP 1 — Add store filter dropdown
+=====================================
+  File: frontend/src/pages/DeliveriesPage.jsx
 
-  [ ] 3. Make table rows clickable → open order detail
-      - When clicking a row, navigate to /deliveries/{order_id}
-      - Or open a side panel with order details (coordinate with 2105040)
+  === ADD IMPORTS (at top) ===
+
+  import { useNavigate } from 'react-router-dom'
+  import {
+    Select, SelectContent, SelectItem,
+    SelectTrigger, SelectValue
+  } from '@/components/ui/select'
+
+  === ADD STATE ===
+
+  const navigate = useNavigate()
+  const [stores, setStores]             = useState([])
+  const [storeFilter, setStoreFilter]   = useState('all')
+
+  === FETCH STORES ON MOUNT (in existing useEffect or a new one) ===
+
+  useEffect(() => {
+    api.get('/api/stores')
+      .then(res => setStores(res.data || []))
+      .catch(() => {})
+  }, [])
+
+  === PASS store_id WHEN FETCHING ORDERS ===
+
+  In the params object for your existing fetch call:
+
+    const params = {
+      page,
+      limit: 20,
+      status:   statusFilter !== 'all' ? statusFilter : undefined,
+      store_id: storeFilter  !== 'all' ? storeFilter  : undefined,
+      search:   searchQuery  || undefined,
+    }
+    // Build query string manually (safe):
+    const qs = new URLSearchParams(
+      Object.fromEntries(Object.entries(params).filter(([, v]) => v != null))
+    ).toString()
+    const res = await api.get(`/api/orders?${qs}`)
+
+  === RESET page to 1 when storeFilter changes ===
+
+  useEffect(() => { setPage(1) }, [storeFilter])
+
+  === JSX — Place Select next to the search box in the filter bar ===
+
+    <Select value={storeFilter} onValueChange={v => { setStoreFilter(v); setPage(1) }}>
+      <SelectTrigger className="w-44">
+        <SelectValue placeholder="All Stores" />
+      </SelectTrigger>
+      <SelectContent>
+        <SelectItem value="all">All Stores</SelectItem>
+        {stores.map(s => (
+          <SelectItem key={s.id} value={s.id}>
+            {s.name}{s.branch ? ` — ${s.branch}` : ''}
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
+
+
+STEP 2 — Make table rows clickable
+=====================================
+  File: frontend/src/pages/DeliveriesPage.jsx
+
+  Find the existing <tr> element for each order row and update it:
+
+  BEFORE:
+    <tr key={order.id} className="border-b border-border ...">
+
+  AFTER:
+    <tr
+      key={order.id}
+      className="border-b border-border ... cursor-pointer hover:bg-muted/50 transition-colors"
+      onClick={() => navigate(`/deliveries/${order.id}`)}
+    >
+
+  That's all — 2105040 builds the detail page at /deliveries/:orderId.
+
+
+STEP 3 — Date range filter (nice-to-have)
+==========================================
+  File: frontend/src/pages/DeliveriesPage.jsx
+
+  === ADD STATE ===
+
+  const [dateFrom, setDateFrom] = useState('')
+  const [dateTo,   setDateTo]   = useState('')
+
+  === PASS TO PARAMS (add to your existing params object) ===
+
+    date_from: dateFrom || undefined,
+    date_to:   dateTo   || undefined,
+
+  === RESET page on date change ===
+
+  useEffect(() => { setPage(1) }, [dateFrom, dateTo])
+
+  === JSX — Two date inputs in the filter bar ===
+
+    <div className="flex items-center gap-2">
+      <Input
+        type="date"
+        value={dateFrom}
+        onChange={e => setDateFrom(e.target.value)}
+        className="w-36"
+      />
+      <span className="text-muted-foreground text-sm">—</span>
+      <Input
+        type="date"
+        value={dateTo}
+        onChange={e => setDateTo(e.target.value)}
+        className="w-36"
+      />
+      {(dateFrom || dateTo) && (
+        <Button
+          variant="ghost" size="sm"
+          onClick={() => { setDateFrom(''); setDateTo('') }}
+        >
+          Clear
+        </Button>
+      )}
+    </div>
 
 
 WHAT'S ALREADY BUILT
@@ -39,12 +160,19 @@ WHAT'S ALREADY BUILT
   ✅ Pagination (prev/next buttons, page numbers)
   ✅ Search by recipient name, phone, order ID
 
+HOW TO USE THE API CLIENT
+===========================
+  Import:   import { api } from '@/api/client'
+  GET:      const res = await api.get('/api/orders')  → res.data (array)
+  Auth:     JWT added automatically, 401 → redirects to /login
+  Test:     npm run dev in frontend/, login: rahim.ahmed@gmail.com / demo123
 
 NOTES
 =====
   - NEVER use string formatting/interpolation for SQL — always use
     parameterized queries to prevent SQL injection (ILIKE '%' || $n || '%').
-  - Changing any filter should reset page to 1.
-  - Coordinate with 2105040: clicking a row should navigate to
-    /deliveries/{orderId} which 2105040 will implement.
-  - Coordinate with 2105057: after order creation, refetch the list.
+  - Changing any filter (status, store, date, search) should reset page to 1.
+  - Coordinate with 2105040: clicking a row navigates to /deliveries/{orderId}
+    which 2105040 implements as OrderDetailPage.
+  - Coordinate with 2105057: after order creation, user is sent back to
+    /deliveries list — your filters should still work.
