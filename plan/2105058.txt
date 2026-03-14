@@ -1,222 +1,361 @@
 ================================================================================
-  MEMBER: 2105058 — ORDER LISTING, FILTERING, SEARCH & PAGINATION
+  MEMBER: 2105058 — ORDER LISTING ENHANCEMENTS + ANALYTICS PAGE
 ================================================================================
-  Branch: feature/2105058-order-listing
-  Depends on: 2105056 completing Phase 1 (project setup + auth + DB schema)
+  Branch: 2105058
+  Depends on: 2105056 (DONE — project setup, auth, DB schema all ready)
 ================================================================================
 
+STATUS OVERVIEW
+===============
+  [x] Backend: GET /api/orders — pagination, status filter, store_id filter
+  [x] Frontend: DeliveriesPage — table, status filter buttons, search, pagination
+  [x] Frontend: /analytics route registered in App.jsx (shows Placeholder — you replace it)
+  [ ] Frontend: Store filter Select dropdown in DeliveriesPage
+  [ ] Frontend: Clickable rows → navigate to order detail page
+  [ ] Backend: GET /api/analytics — new analytics summary endpoint
+  [ ] Backend: analytics router registered in main.py
+  [ ] Frontend: AnalyticsPage.jsx — real page replacing the Placeholder
 
-OVERVIEW
-========
-Build the order list view: backend API with filtering, searching, sorting, and
-pagination + frontend table/list with interactive filters. This is the main
-page where merchants see all their deliveries.
+HOW TO RUN LOCALLY
+===================
+  Backend:  cd backend && uvicorn app.main:app --reload --port 8000
+  Frontend: cd frontend && npm run dev
+  Login:    rahim.ahmed@gmail.com / demo123
+  Env file: provided by 2105056 — put it at backend/.env
 
+IMPORTANT — HOW THE CODEBASE WORKS
+=====================================
+  API client: frontend/src/api/client.js
+    api.get(path), api.post(path, body), api.patch(path, body), api.delete(path)
+  JWT is auto-injected via localStorage. On 401 → auto-redirects to /login.
 
-BACKEND TASKS
-=============
+  Order API helpers: frontend/src/api/orders.js
+    getOrders({ page, limit, status, store_id })
+    ← This function already handles the store_id parameter.
+       It appends store_id to the query string automatically.
+       You just need to pass it from the component.
 
-  [ ] 1. Create list schemas
-      File: backend/app/schemas/orders.py (add to existing)
+  Store API helpers: frontend/src/api/stores.js
+    getStores()  ← call this to populate the store filter dropdown
 
-      OrderListResponse:
-        - orders:  list[OrderResponse]
-        - total:   int        (total matching records)
-        - page:    int        (current page)
-        - limit:   int        (items per page)
-        - pages:   int        (total pages = ceil(total/limit))
+  DeliveriesPage.jsx currently imports: getOrders from @/api/orders and
+  several shadcn/ui components. Open the file first to understand the
+  existing state variables and the shape of the orders array before editing.
 
-      OrderFilters (query params):
-        - store_id:    Optional[UUID]
-        - status:      Optional[str]    (pending|assigned|picked_up|in_transit|delivered|cancelled)
-        - date_from:   Optional[date]
-        - date_to:     Optional[date]
-        - search:      Optional[str]    (search in order_id, recipient_name, recipient_phone)
-        - sort_by:     Optional[str]    (created_at_desc | created_at_asc |
-                                         amount_desc | amount_asc)
-        - page:        int = 1          (min 1)
-        - limit:       int = 20         (min 1, max 100)
+  Key data shape of each order object:
+    order.order_id   — "PTH-1" (PTH-XXXXXX string) — USE THIS for navigation
+    order.id         — UUID — do NOT use this for navigation or API calls
+    order.status, order.recipient_name, order.amount, order.created_at, etc.
 
-  [ ] 2. Create list service
-      File: backend/app/services/order_service.py (add to existing)
+  Available shadcn/ui: Button, Card, Badge, Input already used in this app.
+  Select components are NOT currently imported in DeliveriesPage — see Task 1.
 
-      async def get_orders(db, merchant_id, filters) -> dict:
-        Build dynamic SQL query:
-        - Base: SELECT o.*, s.name as store_name
-                FROM orders o
-                LEFT JOIN stores s ON o.store_id = s.id
-                WHERE o.merchant_id = $merchant_id
-        - If store_id:   AND o.store_id = $store_id
-        - If status:     AND o.status = $status
-        - If date_from:  AND o.created_at >= $date_from
-        - If date_to:    AND o.created_at <= $date_to + 1 day
-        - If search:     AND (o.order_id ILIKE $search
-                              OR o.recipient_name ILIKE $search
-                              OR o.recipient_phone ILIKE $search)
-        - Count total matching rows (separate COUNT query or CTE)
-        - Apply ORDER BY based on sort_by
-        - Apply LIMIT and OFFSET for pagination
-        - Return { orders, total, page, limit, pages }
+  Recharts is installed (in package.json as "recharts": "^3.x") but not yet
+  used anywhere. You will be the first to use it for the Analytics page.
 
-      IMPORTANT:
-        - Use parameterized queries ($1, $2, ...) — NEVER string format SQL
-        - ILIKE search should wrap with %search% for partial matching
-        - Default sort: created_at DESC (newest first)
-
-  [ ] 3. Create list endpoint
-      File: backend/app/routers/orders.py (add to existing)
-
-      GET /api/orders
-        - Protected: requires get_current_merchant
-        - Accept all filter params as query parameters
-        - Call order_service.get_orders()
-        - Return { data: { orders, total, page, limit, pages } }
+FILES TO CHANGE / CREATE  (5 items total)
+==========================================
+  1. frontend/src/pages/DeliveriesPage.jsx       — tasks 1 & 2
+  2. backend/app/routers/analytics.py            — task 3 (new file)
+  3. backend/app/main.py                         — task 3 (register router)
+  4. frontend/src/pages/AnalyticsPage.jsx        — task 4 (new file)
+  5. frontend/src/App.jsx                        — task 4 (swap Placeholder route)
 
 
-FRONTEND TASKS
-==============
-
-  [ ] 4. Create orders API service
-      File: frontend/src/api/orders.js (add to existing)
-
-      export async function getOrders(params) {
-        // params: { store_id, status, date_from, date_to, search, sort_by, page, limit }
-        return client.get('/orders', { params });
-      }
-
-  [ ] 5. Create useOrders hook
-      File: frontend/src/hooks/useOrders.js
-
-      function useOrders(initialFilters) {
-        - State: orders, loading, error, pagination, filters
-        - fetchOrders(filters): calls getOrders API, updates state
-        - Automatically refetch when filters change
-        - Return: { orders, loading, error, pagination, filters,
-                    setFilters, refetch }
-      }
-
-  [ ] 6. Refactor Orders page — Filter Bar
-      File: frontend/src/pages/Orders.jsx
-
-      Top filter section with:
-        a. Store Filter (dropdown)
-           - Fetch from GET /api/stores
-           - Options: All Stores + each store
-        b. Status Filter (dropdown or pill buttons)
-           - Options: All, Pending, Assigned, Picked Up, In Transit,
-                      Delivered, Cancelled
-           - Each with colored dot matching status color
-        c. Date Range (two date inputs or a preset selector)
-           - Presets: Today, Last 7 Days, Last 30 Days, Custom range
-        d. Search Bar
-           - Text input with search icon
-           - Debounce input by 300ms before triggering API call
-           - Placeholder: "Search by Order ID, recipient name, or phone..."
-        e. Sort (dropdown)
-           - Newest First, Oldest First, Amount High-Low, Amount Low-High
-
-      Filter behavior:
-        - Changing any filter resets page to 1
-        - Active filters shown as removable chips/badges
-        - "Clear All Filters" button when any filter is active
-
-  [ ] 7. Refactor Orders page — Order Table/List
-      File: frontend/src/pages/Orders.jsx
-
-      Each row/card shows:
-        - Order ID (monospace font, e.g. PTH-100042)
-        - Recipient name
-        - Store name
-        - Amount (formatted: ৳1,250.00)
-        - Status badge (colored per design system)
-        - Created date (relative: "2 hours ago" or formatted date)
-        - Click row → view detail (handled by 2105040)
-
-      Table features:
-        - Skeleton loading while data is fetching
-        - Empty state when no orders match filters
-        - Responsive: table on desktop, card list on smaller screens
-
-  [ ] 8. Pagination component
-      File: frontend/src/components/Pagination.jsx (new)
-
-      - Show: "Showing 1-20 of 156 orders"
-      - Previous / Next buttons (disabled at edges)
-      - Page numbers: 1 ... 4 5 [6] 7 8 ... 15
-      - Items per page selector: 10, 20, 50
-
-  [ ] 9. Style everything with the new design system
-      - Table rows: --bg-surface background, hover: --bg-hover
-      - Alternate row shading (subtle) or consistent with hover
-      - Filter bar: --bg-surface with --border-default
-      - Active filter chips: --brand-primary bg at 12% opacity
-      - Search input: --bg-primary bg, border on focus --brand-primary
-      - Pagination buttons: --bg-surface, active: --brand-primary
+IMPLEMENTATION ORDER  (do tasks in this sequence)
+==================================================
+  1. TASK 2 first — add onClick to table rows (one-line change in the existing
+     <tr>). This is the quickest win. Test: click a row → browser should navigate
+     to /deliveries/PTH-X (blank page is OK until 2105040 builds that route).
+  2. TASK 1 — add store filter dropdown to DeliveriesPage.
+     Follow the step-by-step sequence inside the task.
+  3. TASK 3 — create analytics.py backend endpoint + register in main.py.
+     Quick test: call GET /api/analytics with a JWT token to check the shape.
+  4. TASK 4 — build AnalyticsPage.jsx using Recharts.
+     Follow the step-by-step sequence inside the task.
+  Test the full analytics page in the browser — charts should render with data.
 
 
-SQL QUERY PATTERN (for reference)
-=================================
-This is the general pattern for the dynamic query. Use parameterized queries:
+TASK 1 — Store filter dropdown in DeliveriesPage
+=================================================
+  File: frontend/src/pages/DeliveriesPage.jsx
 
-  WITH filtered AS (
-    SELECT o.*, s.name as store_name
-    FROM orders o
-    LEFT JOIN stores s ON o.store_id = s.id
-    WHERE o.merchant_id = $1
-      AND ($2::uuid IS NULL OR o.store_id = $2)
-      AND ($3::text IS NULL OR o.status = $3)
-      AND ($4::timestamptz IS NULL OR o.created_at >= $4)
-      AND ($5::timestamptz IS NULL OR o.created_at < $5)
-      AND ($6::text IS NULL OR
-           o.order_id ILIKE '%' || $6 || '%' OR
-           o.recipient_name ILIKE '%' || $6 || '%' OR
-           o.recipient_phone ILIKE '%' || $6 || '%')
-  )
-  SELECT *, COUNT(*) OVER() AS total_count
-  FROM filtered
-  ORDER BY ...
-  LIMIT $7 OFFSET $8;
+  STEP-BY-STEP SEQUENCE:
+    Step 1: Install the shadcn Select component (run in frontend/ folder):
+              npx shadcn@latest add select
+    Step 2: Open DeliveriesPage.jsx and read the whole file — understand the
+            existing state variables and where getOrders() is called.
+    Step 3: Add useNavigate, getStores, and Select imports at the top
+            (see "IMPORTS TO ADD" below).
+    Step 4: Add stores and storeFilter state variables after existing state
+            (see "NEW STATE" below).
+    Step 5: Add a getStores() call in a useEffect on mount
+            (see "ON MOUNT" below).
+    Step 6: Find the existing getOrders() call and add store_id to its params
+            (see "PASS store_id TO getOrders" below).
+    Step 7: Add storeFilter to the useEffect's dependency array so changing
+            the store triggers a re-fetch. Reset page to 1 when it changes.
+    Step 8: Add the Select dropdown in the filter bar area of the JSX
+            (see "UI — ADD SELECT DROPDOWN" below).
+    Step 9: Test in browser — dropdown should list your stores, and selecting
+            one should filter the orders table to that store only.
+
+  IMPORTS TO ADD:
+    { useNavigate } from 'react-router-dom'
+    { getStores } from '@/api/stores'
+    Select, SelectContent, SelectItem, SelectTrigger, SelectValue
+      from '@/components/ui/select'
+    (run `npx shadcn@latest add select` in the frontend/ folder if needed)
+
+  NEW STATE:
+    stores      — array, starts as []
+    storeFilter — string, starts as 'all'
+
+  ON MOUNT (add to existing useEffect or create a second one):
+    Call getStores(), store the result in stores state.
+    On error, leave stores as [] — do not crash the page.
+
+  PASS store_id TO getOrders:
+    Find the existing call to getOrders(). Its signature accepts:
+      getOrders({ page, limit, status, store_id })
+    Add store_id to whatever params you already pass:
+      store_id: storeFilter !== 'all' ? storeFilter : undefined
+    Make sure storeFilter is in the dependency array of the useEffect
+    that re-fetches orders (so a changed store filter triggers a new fetch).
+    Reset page to 1 whenever storeFilter changes.
+
+  UI — ADD SELECT DROPDOWN IN THE FILTER BAR:
+    Place a <Select> next to the existing search input or status buttons.
+    Give it these props:
+      value={storeFilter}
+      onValueChange={v => { setStoreFilter(v); setPage(1) }}
+
+    Place these items inside SelectContent:
+      <SelectItem value="all">All Stores</SelectItem>
+      {stores.map(s => (
+        <SelectItem key={s.id} value={s.id}>
+          {s.name}{s.branch ? ' — ' + s.branch : ''}
+        </SelectItem>
+      ))}
+    Use "All Stores" as the SelectTrigger placeholder text.
 
 
-TESTING EXPECTATIONS (for 2105039)
+TASK 2 — Make table rows clickable
+====================================
+  File: frontend/src/pages/DeliveriesPage.jsx
+
+  HOOK (add once at the top of the component):
+    const navigate = useNavigate()  ← from the Task 1 import
+
+  ON EACH <tr> IN THE TABLE BODY:
+    The rows already have cursor-pointer and hover:bg-muted/50 styling.
+    Add only this prop:
+      onClick={() => navigate('/deliveries/' + order.order_id)}
+
+    IMPORTANT: use order.order_id (the PTH-XXXXXX string),
+    NOT order.id (the UUID). The route /deliveries/:orderId is built by 2105040.
+
+  That single onClick is the only change needed for row navigation.
+
+
+TASK 3 — Backend analytics endpoint
+=====================================
+  NEW FILE: backend/app/routers/analytics.py
+
+  Create this file from scratch. Look at stores.py or dashboard.py in the
+  same routers/ folder for how to structure it (imports, APIRouter,
+  get_current_merchant, get_db pattern).
+
+  What the endpoint does:
+    GET /api/analytics — protected by JWT (requires get_current_merchant)
+    Returns a single JSON object with three keys:
+
+    1. "order_counts"
+       A dict mapping each status to its order count for this merchant.
+       SQL:
+         SELECT status, COUNT(*) as count
+         FROM orders
+         WHERE merchant_id = $1
+         GROUP BY status
+
+       Build result as: { row["status"]: row["count"] for row in rows }
+
+    2. "daily_data"
+       A list of the last 7 days. Each item: { date, count, revenue }.
+       date is an ISO date string (YYYY-MM-DD).
+       count is the number of orders created that day.
+       revenue is the sum of their amounts.
+       SQL:
+         SELECT
+           DATE(created_at) AS date,
+           COUNT(*) AS count,
+           COALESCE(SUM(amount), 0) AS revenue
+         FROM orders
+         WHERE merchant_id = $1
+           AND created_at >= CURRENT_DATE - INTERVAL '6 days'
+         GROUP BY DATE(created_at)
+         ORDER BY date ASC
+
+       Convert each date to str(row["date"]) when building the response list.
+
+    3. "top_stores"
+       Top 5 stores by order count for this merchant.
+       Each item: { name, branch, order_count, revenue }.
+       SQL:
+         SELECT
+           s.name,
+           s.branch,
+           COUNT(o.id) AS order_count,
+           COALESCE(SUM(o.amount), 0) AS revenue
+         FROM stores s
+         LEFT JOIN orders o ON o.store_id = s.id
+         WHERE s.merchant_id = $1
+         GROUP BY s.id, s.name, s.branch
+         ORDER BY order_count DESC
+         LIMIT 5
+
+    Return: {"order_counts": {...}, "daily_data": [...], "top_stores": [...]}
+
+  NOTE: All three SQL queries use parameterized placeholders ($1 = merchant_id)
+  — never concatenate user-supplied values directly into SQL strings.
+
+  REGISTER IN main.py:
+    File: backend/app/main.py
+
+    Line 8 currently reads:
+      from app.routers import auth, orders, stores, dashboard
+    Change it to:
+      from app.routers import auth, orders, stores, dashboard, analytics
+
+    After the existing include_router lines (around line 40), add:
+      app.include_router(analytics.router, prefix="/api/analytics", tags=["Analytics"])
+
+
+TASK 4 — Analytics frontend page
 ===================================
-  - GET /api/orders returns paginated list
-  - GET /api/orders?status=pending filters correctly
-  - GET /api/orders?search=PTH-100001 finds by order ID
-  - GET /api/orders?search=Rahman finds by recipient name
-  - GET /api/orders?page=2&limit=10 pagination works
-  - GET /api/orders without auth → 401
-  - Merchant A cannot see Merchant B's orders
-  - Frontend: filter changes trigger API refetch
-  - Frontend: search is debounced
-  - Frontend: pagination navigation works
+  NEW FILE: frontend/src/pages/AnalyticsPage.jsx
+
+  Also edit: frontend/src/App.jsx
+
+  UPDATE App.jsx FIRST:
+    Add at the top (with other page imports):
+      import AnalyticsPage from './pages/AnalyticsPage'
+    Find the analytics route (currently line 35):
+      <Route path="/analytics" element={<Placeholder />} />
+    Replace <Placeholder /> with <AnalyticsPage />.
+    Leave the Placeholder import in place (it's still used for /payments and /settings).
+
+  BUILD AnalyticsPage.jsx:
+
+  STEP-BY-STEP SEQUENCE:
+    Step 1: Create the file frontend/src/pages/AnalyticsPage.jsx
+    Step 2: Add all imports (see "IMPORTS" below) — note Recharts imports
+    Step 3: Declare state: data (null), loading (true) (see "STATE" below)
+    Step 4: Write the useEffect to call api.get('/api/analytics') on mount
+            and store the result in data (see "ON MOUNT" below)
+    Step 5: Build the JSX section by section:
+            A) Page title + subtitle
+            B) BarChart for order_counts — convert dict to array first:
+               Object.entries(data.order_counts).map(([status,count])=>({status,count}))
+            C) BarChart for daily_data — two Bars (count + revenue)
+            D) Top Stores table — loop over data.top_stores
+            E) Loading state (loading === true)
+            F) Error state (loading === false && data === null)
+    Step 6: Test in browser at /analytics — bar charts and table should
+            render with real data from your backend.
+
+  IMPORTS:
+    { useState, useEffect } from 'react'
+    { api } from '@/api/client'
+    Card, CardContent, CardHeader, CardTitle from shadcn/ui
+    BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer
+      from 'recharts'
+
+  RECHARTS QUICK REFERENCE (you are the first to use it in this project):
+    Basic bar chart pattern:
+      <ResponsiveContainer width="100%" height={260}>
+        <BarChart data={arrayOfObjects}>
+          <CartesianGrid strokeDasharray="3 3" />
+          <XAxis dataKey="keyForXAxis" />
+          <YAxis />
+          <Tooltip />
+          <Bar dataKey="keyForValueBars" fill="#ef4444" radius={[4,4,0,0]} />
+        </BarChart>
+      </ResponsiveContainer>
+    "data" must be an array where each item has the keys you reference in dataKey.
+
+  STATE:
+    data    — starts as null, filled after fetch from /api/analytics
+    loading — starts as true
+
+  ON MOUNT:
+    Call api.get('/api/analytics').
+    On success: store the full response object in data state.
+    On error: log error, leave data as null.
+    Set loading = false in a finally block.
+
+  PAGE LAYOUT (build section by section):
+
+    A. Page header
+       Title: "Analytics"
+       Subtitle: "Order performance overview for your stores"
+
+    B. Orders by Status — bar chart
+       Wrap in a Card.
+       Convert data.order_counts (a dict) into an array for Recharts:
+         Object.entries(data.order_counts).map(([status, count]) => ({ status, count }))
+       Render a BarChart with dataKey="status" on XAxis and dataKey="count" on the Bar.
+
+    C. Last 7 Days — bar chart
+       Wrap in a Card.
+       data.daily_data is already an array of { date, count, revenue }.
+       Show two Bars: one for "count" (orders) and one for "revenue" (amount).
+       Use different fill colors to distinguish them (e.g. "#ef4444" and "#3b82f6").
+       For XAxis, use dataKey="date" — the date strings act as labels.
+
+    D. Top Stores table
+       Wrap in a Card.
+       Render a simple <table> (or a list) showing for each item in data.top_stores:
+         Store Name | Branch | Orders | Revenue
+       Format revenue as: ৳{Number(store.revenue).toLocaleString()}
+       If data.top_stores is empty, show a "No store data yet" message.
+
+    E. Loading state
+       While loading is true, show a simple "Loading analytics…" text or
+       skeleton cards (match the pattern used in other pages).
+
+    F. Null data state
+       If loading is false and data is null, show "Could not load analytics."
 
 
-DELIVERABLES CHECKLIST
+WHAT'S ALREADY BUILT
 ======================
-  [ ] GET /api/orders endpoint with all filter params working
-  [ ] Parameterized SQL queries (no SQL injection)
-  [ ] Pagination returning correct total/pages
-  [ ] Search across order_id, recipient_name, recipient_phone
-  [ ] Sort by created_at and amount in both directions
-  [ ] Frontend filter bar with store, status, date, search, sort
-  [ ] Debounced search input
-  [ ] Order table with skeleton loading
-  [ ] Empty state for no results
-  [ ] Pagination component
-  [ ] Active filter chips with clear functionality
-  [ ] Styled with Obsidian & Indigo theme
+  ✅ Backend: GET /api/orders, /api/stores, /api/dashboard — all working
+  ✅ DeliveriesPage.jsx — table, status filter buttons, search, pagination
+  ✅ getOrders({ page, limit, status, store_id }) — store_id already handled
+  ✅ getStores() — ready to use for the dropdown
+  ✅ Recharts installed as a package — just import and use
+  ✅ /analytics route in App.jsx — currently shows Placeholder, you replace it
+  ✅ All shadcn/ui Card, Badge, Input, Button installed
+  ✅ Select component: run `npx shadcn@latest add select` if not yet installed
 
 
 NOTES
 =====
-  - The search query must use ILIKE for case-insensitive matching.
-  - NEVER use string formatting/interpolation for SQL — always use
-    parameterized queries to prevent SQL injection.
-  - The useOrders hook will be reused by 2105040 and 2105045 if they
-    need to display order lists (e.g., on dashboard).
-  - Coordinate with 2105057 — after they create an order, your list
-    should show it immediately (refetch on order creation).
-  - The "click to view detail" handler should navigate or open the
-    detail panel that 2105040 will build. Just emit an event or
-    set state — 2105040 will implement the actual detail view.
+  - NEVER put user-supplied values directly into SQL strings. Use parameterized
+    queries ($1, $2, …) exactly like all other routes in the backend.
+  - Any filter change (status, store, search) should reset page to 1.
+  - Coordinate with 2105040: your row onClick navigates to
+    /deliveries/${order.order_id} — their OrderDetailPage handles that route.
+    Use order.order_id exactly (PTH-XXXXXX), not order.id.
+  - Coordinate on App.jsx: 2105040 adds /deliveries/:orderId route, and 2105057
+    adds /deliveries/new route. You add the analytics import swap. Each person
+    touches different lines — read the file carefully when merging so you do
+    not overwrite what others added.
+  - analytics.py is a brand-new file — no conflicts with orders.py or stores.py.
+    The ONLY shared file you touch in the backend is main.py (one import line
+    and one include_router line). Let 2105056 know about this change.
+  - Do NOT modify the database schema. All analytics data comes from the
+    existing orders and stores tables.
+  - Keep the Placeholder import in App.jsx — it is still used for /payments
+    and /settings. You are only replacing the /analytics route target.
