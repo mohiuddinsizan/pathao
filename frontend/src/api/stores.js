@@ -15,3 +15,7 @@ export function createStore(data) {
 export function updateStore(storeId, data) {
   return api.put(`/api/stores/${storeId}`, data)
 }
+
+export function deleteStore(storeId) {
+  return api.delete(`/api/stores/${storeId}`)
+}

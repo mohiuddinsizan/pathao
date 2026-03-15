@@ -4,6 +4,7 @@ import DashboardPage from './pages/DashboardPage'
 import DeliveriesPage from './pages/DeliveriesPage'
 import OrderDetailPage from './pages/OrderDetailPage'
 import Placeholder from './pages/Placeholder'
+import StoresPage from './pages/StoresPage'
 import AnalyticsPage from './pages/AnalyticsPage'
 import DeliveriesPage from './pages/DeliveriesPage'
 import CreateParcelPage from './pages/CreateParcelPage'
@@ -43,7 +44,7 @@ function App() {
               <Route path="/deliveries" element={<DeliveriesPage />} />
               <Route path="/deliveries/:orderId" element={<OrderDetailPage />} />
               <Route path="/orders" element={<Navigate to="/deliveries" replace />} />
-              <Route path="/stores" element={<Placeholder />} />
+              <Route path="/stores" element={<StoresPage />} />
               <Route path="/analytics" element={<Placeholder />} />
               <Route path="/payments" element={<PaymentsPage />} />
               <Route path="/settings" element={<Placeholder />} />
