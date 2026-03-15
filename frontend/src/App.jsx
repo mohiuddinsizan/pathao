@@ -2,6 +2,8 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import LoginPage from './pages/LoginPage'
 import DashboardPage from './pages/DashboardPage'
 import Placeholder from './pages/Placeholder'
+import AnalyticsPage from './pages/AnalyticsPage'
+import DeliveriesPage from './pages/DeliveriesPage'
 import AppShell from './components/AppShell'
 import { AuthProvider, useAuth } from './context/AuthContext'
 import { ThemeProvider } from './hooks/use-theme'
@@ -27,10 +29,10 @@ function App() {
 
             <Route element={<ProtectedRoute><AppShell /></ProtectedRoute>}>
               <Route path="/dashboard" element={<DashboardPage />} />
-              <Route path="/deliveries" element={<Placeholder />} />
+              <Route path="/deliveries" element={<DeliveriesPage />} />
               <Route path="/orders" element={<Navigate to="/deliveries" replace />} />
               <Route path="/stores" element={<Placeholder />} />
-              <Route path="/analytics" element={<Placeholder />} />
+              <Route path="/analytics" element={<AnalyticsPage />} />
               <Route path="/payments" element={<Placeholder />} />
               <Route path="/settings" element={<Placeholder />} />
             </Route>

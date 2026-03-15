@@ -1,4 +1,13 @@
 import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { getStores } from "@/api/stores";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { getOrders } from "@/api/orders";
 import {
   Card,
@@ -41,11 +50,22 @@ export default function DeliveriesPage() {
   const [page, setPage] = useState(1);
   const [filter, setFilter] = useState("all");
   const [search, setSearch] = useState("");
+  const navigate = useNavigate();
+  const [stores, setStores] = useState([]);
+  const [storeFilter, setStoreFilter] = useState("all");
+
+  // Fetch stores once on mount for the store filter dropdown
+  useEffect(() => {
+    getStores()
+      .then((data) => setStores(Array.isArray(data) ? data : data.stores || []))
+      .catch(() => setStores([]));
+  }, []);
 
   useEffect(() => {
     setLoading(true);
     const params = { page, limit: 20 };
     if (filter !== "all") params.status = filter;
+    if (storeFilter !== "all") params.store_id = storeFilter;
 
     getOrders(params)
       .then((data) => {
@@ -53,15 +73,15 @@ export default function DeliveriesPage() {
       })
       .catch(() => setOrders([]))
       .finally(() => setLoading(false));
-  }, [page, filter]);
+  }, [page, filter, storeFilter]);
 
   const filtered = search
     ? orders.filter(
-        (o) =>
-          (o.recipient_name || "").toLowerCase().includes(search.toLowerCase()) ||
-          (o.recipient_phone || "").includes(search) ||
-          (o.order_id || "").toLowerCase().includes(search.toLowerCase())
-      )
+      (o) =>
+        (o.recipient_name || "").toLowerCase().includes(search.toLowerCase()) ||
+        (o.recipient_phone || "").includes(search) ||
+        (o.order_id || "").toLowerCase().includes(search.toLowerCase())
+    )
     : orders;
 
   return (
@@ -80,7 +100,7 @@ export default function DeliveriesPage() {
           <Input
             placeholder="Search by name, phone, or ID..."
             value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            onChange={(e) => { setSearch(e.target.value); setPage(1); }}
             className="pl-9"
           />
         </div>
@@ -100,6 +120,23 @@ export default function DeliveriesPage() {
             </Button>
           ))}
         </div>
+        {/* Store filter dropdown Selecting a store re-fetches orders filtered by that store_id. "All Stores" resets the filter (store_id = undefined). */}
+        <Select
+          value={storeFilter}
+          onValueChange={(v) => { setStoreFilter(v); setPage(1); }}
+        >
+          <SelectTrigger className="w-[180px] text-xs h-8">
+            <SelectValue placeholder="All Stores" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Stores</SelectItem>
+            {stores.map((s) => (
+              <SelectItem key={s.id} value={s.id}>
+                {s.name}{s.branch ? " — " + s.branch : ""}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
 
       {/* Table */}
@@ -154,6 +191,7 @@ export default function DeliveriesPage() {
                     <tr
                       key={order.order_id}
                       className="border-b border-border last:border-0 hover:bg-muted/50 transition-colors duration-150 cursor-pointer"
+                      onClick={() => navigate('/deliveries/' + order.order_id)}
                     >
                       <td className="py-3 px-4 font-mono text-xs">
                         {order.order_id}
