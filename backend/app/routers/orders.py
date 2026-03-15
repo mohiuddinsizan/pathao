@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 
 from app.auth.dependencies import get_current_merchant
 from app.database import get_db
+from app.schemas.order import CreateOrderRequest
 
 router = APIRouter()
 
@@ -97,7 +98,7 @@ async def get_order(
 
 @router.post("", status_code=status.HTTP_201_CREATED)
 async def create_order(
-    data: dict,
+    data: CreateOrderRequest,
     merchant: dict = Depends(get_current_merchant),
     db=Depends(get_db),
 ):
@@ -110,24 +111,25 @@ async def create_order(
         INSERT INTO orders (
             order_id, merchant_id, store_id, recipient_name, recipient_phone,
             recipient_address, pickup_address, destination_area, parcel_type,
-            item_description, item_weight, amount, payment_method, cod_amount
-        ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)
+            item_description, item_weight, amount, payment_method, cod_amount, notes
+        ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)
         RETURNING *
         """,
         oid,
         merchant["id"],
-        data.get("store_id"),
-        data["recipient_name"],
-        data["recipient_phone"],
-        data["recipient_address"],
-        data.get("pickup_address"),
-        data.get("destination_area"),
-        data.get("parcel_type", "small_box"),
-        data.get("item_description"),
-        data.get("item_weight", "0-1kg"),
-        data.get("amount", 0),
-        data.get("payment_method", "cod"),
-        data.get("cod_amount", 0),
+        data.store_id,
+        data.recipient_name,
+        data.recipient_phone,
+        data.recipient_address,
+        data.pickup_address,
+        data.destination_area,
+        data.parcel_type,
+        data.item_description,
+        data.item_weight,
+        data.amount,
+        data.payment_method,
+        data.cod_amount,
+        data.notes,
     )
 
     # Record initial status
