@@ -1,4 +1,5 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
+import { useCachedQuery } from "@/hooks/use-cached-query";
 import { useNavigate } from "react-router-dom";
 import { getOrders } from "@/api/orders";
 import {
@@ -26,36 +27,36 @@ const STATUSES = ["all", "pending", "assigned", "picked_up", "in_transit", "deli
 
 function SkeletonRow() {
   return (
-    <tr className="border-b border-border">
+    <div className="grid grid-cols-6 border-b border-border">
       {Array.from({ length: 6 }).map((_, i) => (
-        <td key={i} className="py-3 px-4">
+        <div key={i} className="py-3 px-4 flex items-center">
           <div className="h-4 w-20 rounded bg-muted animate-pulse" />
-        </td>
+        </div>
       ))}
-    </tr>
+    </div>
   );
 }
 
 export default function DeliveriesPage() {
   const navigate = useNavigate();
-  const [orders, setOrders] = useState([]);
-  const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
   const [filter, setFilter] = useState("all");
   const [search, setSearch] = useState("");
 
-  useEffect(() => {
-    setLoading(true);
+  const fetchOrders = () => {
     const params = { page, limit: 20 };
     if (filter !== "all") params.status = filter;
+    return getOrders(params).then((data) =>
+      Array.isArray(data) ? data : data.orders || []
+    );
+  };
 
-    getOrders(params)
-      .then((data) => {
-        setOrders(Array.isArray(data) ? data : data.orders || []);
-      })
-      .catch(() => setOrders([]))
-      .finally(() => setLoading(false));
-  }, [page, filter]);
+  const { data: ordersData, loading } = useCachedQuery(
+    `deliveries-${page}-${filter}`,
+    fetchOrders
+  );
+
+  const orders = ordersData || [];
 
   const filtered = search
     ? orders.filter(
@@ -119,30 +120,16 @@ export default function DeliveriesPage() {
         </CardHeader>
         <CardContent className="p-0 mt-4">
           <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead className="sticky top-0 z-10">
-                <tr className="border-b border-border bg-muted/50">
-                  <th className="py-3 px-4 text-left font-medium text-muted-foreground">
-                    Order ID
-                  </th>
-                  <th className="py-3 px-4 text-left font-medium text-muted-foreground">
-                    Recipient
-                  </th>
-                  <th className="py-3 px-4 text-left font-medium text-muted-foreground">
-                    Phone
-                  </th>
-                  <th className="py-3 px-4 text-left font-medium text-muted-foreground">
-                    Status
-                  </th>
-                  <th className="py-3 px-4 text-left font-medium text-muted-foreground">
-                    Amount
-                  </th>
-                  <th className="py-3 px-4 text-left font-medium text-muted-foreground">
-                    Created
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
+            <div className="w-[800px] min-w-full text-sm">
+              <div className="sticky top-0 z-10 grid grid-cols-6 border-b border-border bg-muted/50 text-xs font-extrabold uppercase tracking-widest text-muted-foreground">
+                <div className="py-3 px-4">Order ID</div>
+                <div className="py-3 px-4">Recipient</div>
+                <div className="py-3 px-4">Phone</div>
+                <div className="py-3 px-4">Status</div>
+                <div className="py-3 px-4">Amount</div>
+                <div className="py-3 px-4">Created</div>
+              </div>
+              <div className="flex flex-col">
                 {loading ? (
                   <>
                     <SkeletonRow />
@@ -153,21 +140,21 @@ export default function DeliveriesPage() {
                   </>
                 ) : filtered.length > 0 ? (
                   filtered.map((order) => (
-                    <tr
+                    <div
                       key={order.order_id}
-                      className="border-b border-border last:border-0 hover:bg-muted/50 transition-colors duration-150 cursor-pointer"
+                      className="grid grid-cols-6 items-center border-b border-border last:border-0 hover:bg-muted/50 transition-colors duration-150 cursor-pointer"
                       onClick={() => navigate(`/deliveries/${order.order_id}`)}
                     >
-                      <td className="py-3 px-4 font-mono text-xs">
+                      <div className="py-3 px-4 font-mono font-semibold text-xs">
                         {order.order_id}
-                      </td>
-                      <td className="py-3 px-4 font-medium">
+                      </div>
+                      <div className="py-3 px-4 font-medium text-sm">
                         {order.recipient_name || "—"}
-                      </td>
-                      <td className="py-3 px-4 text-muted-foreground">
+                      </div>
+                      <div className="py-3 px-4 text-muted-foreground text-sm font-medium">
                         {order.recipient_phone || "—"}
-                      </td>
-                      <td className="py-3 px-4">
+                      </div>
+                      <div className="py-3 px-4">
                         <Badge
                           variant={
                             statusColors[order.status] || "secondary"
@@ -175,31 +162,26 @@ export default function DeliveriesPage() {
                         >
                           {(order.status || "unknown").replace(/_/g, " ")}
                         </Badge>
-                      </td>
-                      <td className="py-3 px-4">
+                      </div>
+                      <div className="py-3 px-4 font-medium text-sm">
                         {order.amount != null
                           ? `৳${order.amount}`
                           : "—"}
-                      </td>
-                      <td className="py-3 px-4 text-muted-foreground">
+                      </div>
+                      <div className="py-3 px-4 text-muted-foreground text-sm font-medium">
                         {order.created_at
                           ? new Date(order.created_at).toLocaleDateString()
                           : "—"}
-                      </td>
-                    </tr>
+                      </div>
+                    </div>
                   ))
                 ) : (
-                  <tr>
-                    <td
-                      colSpan={6}
-                      className="py-8 text-center text-muted-foreground"
-                    >
-                      No orders found
-                    </td>
-                  </tr>
+                  <div className="py-8 text-center text-muted-foreground font-medium">
+                    No orders found
+                  </div>
                 )}
-              </tbody>
-            </table>
+              </div>
+            </div>
           </div>
         </CardContent>
       </Card>

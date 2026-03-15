@@ -48,11 +48,18 @@ async def list_orders(
         offset,
     )
 
+    import math
+    pages = math.ceil(count / limit) if count > 0 else 0
+
     return {
-        "orders": [dict(r) for r in rows],
-        "total": count,
-        "page": page,
-        "limit": limit,
+        "data": {
+            "orders": [dict(r) for r in rows],
+            "total": count,
+            "page": page,
+            "limit": limit,
+            "pages": pages,
+        },
+        "message": "Orders retrieved",
     }
 
 
@@ -85,7 +92,7 @@ async def get_order(
     )
     result = dict(row)
     result["status_history"] = [dict(h) for h in history]
-    return result
+    return {"data": result, "message": "Order details retrieved"}
 
 
 @router.post("", status_code=status.HTTP_201_CREATED)
@@ -128,7 +135,7 @@ async def create_order(
         "INSERT INTO order_status_history (order_id, status, note) VALUES ($1, 'pending', 'Order placed')",
         row["id"],
     )
-    return dict(row)
+    return {"data": dict(row), "message": "Order created successfully"}
 
 
 # ── Valid status transitions ──
@@ -195,7 +202,7 @@ async def update_order_status(
     )
     result = dict(updated)
     result["status_history"] = [dict(h) for h in history]
-    return result
+    return {"data": result, "message": "Status updated"}
 
 
 @router.put("/{order_id}")
@@ -236,10 +243,10 @@ async def edit_order(
             idx += 1
 
     if not updates:
-        return dict(row)
+        return {"data": dict(row), "message": "No updates provided"}
 
     params.append(order_id)
     sql = f"UPDATE orders SET {', '.join(updates)}, updated_at = NOW() WHERE order_id = ${idx} RETURNING *"
     updated = await db.fetchrow(sql, *params)
-    return dict(updated)
+    return {"data": dict(updated), "message": "Order updated"}
 

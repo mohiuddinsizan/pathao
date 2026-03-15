@@ -1,6 +1,7 @@
+import { useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { useState, useEffect } from "react";
 import { getOrder, updateOrderStatus, updateOrder } from "@/api/orders";
+import { useCachedQuery } from "@/hooks/use-cached-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -69,8 +70,12 @@ export default function OrderDetailPage() {
   const { orderId } = useParams();
   const navigate = useNavigate();
 
-  const [order, setOrder] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const {
+    data: order,
+    loading,
+    refetch,
+  } = useCachedQuery(`order-${orderId}`, () => getOrder(orderId));
+
   const [simulating, setSimulating] = useState(false);
 
   // Edit modal state
@@ -78,32 +83,19 @@ export default function OrderDetailPage() {
   const [editForm, setEditForm] = useState({});
   const [saving, setSaving] = useState(false);
 
-  // ── Fetch order on mount ──
-  useEffect(() => {
-    let cancelled = false;
-    setLoading(true);
-    getOrder(orderId)
-      .then((data) => {
-        if (!cancelled) setOrder(data);
-      })
-      .catch(() => {
-        if (!cancelled) navigate("/deliveries");
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [orderId, navigate]);
+  // ── Redirect on error ──
+  // Since useCachedQuery doesn't redirect on 404 naturally, we can handle it if order is null and not loading:
+  if (!loading && !order) {
+    navigate("/deliveries");
+    return null;
+  }
 
   // ── Simulate status change ──
   async function handleSimulate(nextStatus) {
     setSimulating(true);
     try {
       await updateOrderStatus(orderId, nextStatus);
-      const refreshed = await getOrder(orderId);
-      setOrder(refreshed);
+      refetch();
     } catch (err) {
       console.error("Status simulation failed:", err);
     } finally {
@@ -117,8 +109,7 @@ export default function OrderDetailPage() {
     setSaving(true);
     try {
       await updateOrder(orderId, editForm);
-      const refreshed = await getOrder(orderId);
-      setOrder(refreshed);
+      refetch();
       setEditOpen(false);
     } catch (err) {
       console.error("Edit failed:", err);
