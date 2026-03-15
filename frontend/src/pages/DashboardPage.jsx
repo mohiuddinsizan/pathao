@@ -141,6 +141,7 @@ function RecentOrdersTable({ loading, orders }) {
   const progressRef = useRef(null);
   const topBlurRef = useRef(null);
   const bottomBlurRef = useRef(null);
+  const navigate = useNavigate();
 
   useEffect(() => {
     const el = scrollRef.current;
@@ -207,7 +208,8 @@ function RecentOrdersTable({ loading, orders }) {
               {orders.map((order) => (
                 <div
                   key={order.order_id}
-                  className="grid grid-cols-[1fr_1.5fr_1fr_1fr_auto] items-center px-6 py-3.5 hover:bg-muted/40 transition-colors duration-200 cursor-default group"
+                  className="grid grid-cols-[1fr_1.5fr_1fr_1fr_auto] items-center px-6 py-3.5 hover:bg-muted/40 transition-colors duration-200 cursor-pointer group"
+                  onClick={() => navigate(`/deliveries/${order.order_id}`)}
                 >
                   <span className="font-mono text-xs font-semibold">{order.order_id}</span>
                   <span className="text-sm font-medium">{order.recipient_name || "—"}</span>

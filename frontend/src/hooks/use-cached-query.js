@@ -5,6 +5,19 @@ const CACHE_TTL = 5 * 60 * 1000 // 5 minutes — same as api/client.js
 // Global in-memory store so data survives component unmounts
 const queryCache = new Map()
 
+export function invalidateCachedQuery(match) {
+  const matcher =
+    typeof match === 'function'
+      ? match
+      : (key) => key === match || key.startsWith(match)
+
+  for (const key of Array.from(queryCache.keys())) {
+    if (matcher(key)) {
+      queryCache.delete(key)
+    }
+  }
+}
+
 /**
  * Hook that returns cached data instantly on re-mount (no loading flash)
  * and fetches fresh data in the background when cache is stale.

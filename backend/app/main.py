@@ -6,6 +6,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.config import settings
 from app.database import close_db, connect_db
 from app.routers import auth, dashboard, orders, stores
+from app.database import connect_db, close_db
+from app.routers import auth, orders, stores, dashboard, analytics, payments
 
 
 @asynccontextmanager
@@ -34,10 +36,18 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+app.include_router(auth.router,       prefix="/api/auth",       tags=["Auth"])
+app.include_router(orders.router,     prefix="/api/orders",     tags=["Orders"])
+app.include_router(stores.router,     prefix="/api/stores",     tags=["Stores"])
+app.include_router(dashboard.router,  prefix="/api/dashboard",  tags=["Dashboard"])
+app.include_router(analytics.router,  prefix="/api/analytics",  tags=["Analytics"])
 app.include_router(auth.router, prefix="/api/auth", tags=["Auth"])
 app.include_router(dashboard.router, prefix="/api/dashboard", tags=["Dashboard"])
 app.include_router(stores.router, prefix="/api/stores", tags=["Stores"])
 app.include_router(orders.router, prefix="/api/orders", tags=["Orders"])
+app.include_router(payments.router, prefix="/api/payments", tags=["Payments"])
+app.include_router(orders.router, prefix="/api/orders", tags=["Orders"])
+app.include_router(stores.router, prefix="/api/stores", tags=["Stores"])
 
 
 @app.get("/")
