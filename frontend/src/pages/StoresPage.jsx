@@ -246,7 +246,7 @@ export default function StoresPage() {
 
                   <div className="flex items-center gap-1 shrink-0">
                     {store.is_active === false && (
-                      <Badge variant="secondary">Inactive</Badge>
+                      <Badge variant="destructive">Inactive</Badge>
                     )}
                     <Button
                       variant="ghost"

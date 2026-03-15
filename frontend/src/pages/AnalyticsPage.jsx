@@ -3,6 +3,7 @@ import { useCachedQuery } from '@/hooks/use-cached-query'
 import {
   BarChart,
   Bar,
+  Cell,
   XAxis,
   YAxis,
   CartesianGrid,
@@ -135,6 +136,15 @@ export default function AnalyticsPage() {
   const colorPrimary = 'hsl(var(--primary))'
   const colorInfo = 'hsl(var(--chart-2, 217 91% 60%))'
 
+  const statusBarColors = {
+    pending: '#f59e0b',
+    assigned: '#3b82f6',
+    picked_up: '#3b82f6',
+    in_transit: '#3b82f6',
+    delivered: '#10b981',
+    cancelled: '#ef4444',
+  }
+
   return (
     <div className="flex flex-col h-full p-4 lg:p-6 overflow-y-auto space-y-6">
 
@@ -174,7 +184,11 @@ export default function AnalyticsPage() {
                   allowDecimals={false}
                 />
                 <Tooltip content={<CustomTooltip />} />
-                <Bar dataKey="count" name="Orders" fill={colorPrimary} radius={[4, 4, 0, 0]} />
+                <Bar dataKey="count" name="Orders" fill={colorPrimary} radius={[4, 4, 0, 0]}>
+                  {orderCountsArray.map((entry) => (
+                    <Cell key={entry.status} fill={statusBarColors[entry.status] || colorPrimary} />
+                  ))}
+                </Bar>
               </BarChart>
             </ResponsiveContainer>
           ) : (

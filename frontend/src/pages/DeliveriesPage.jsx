@@ -23,15 +23,15 @@ import { Input } from "@/components/ui/input";
 import { Search, ChevronLeft, ChevronRight } from "lucide-react";
 
 const statusColors = {
-  pending: "secondary",
-  assigned: "secondary",
-  picked_up: "default",
-  in_transit: "default",
+  pending: "warning",
+  assigned: "info",
+  picked_up: "info",
+  in_transit: "info",
   delivered: "success",
   cancelled: "destructive",
 };
 
-const STATUSES = ["all", "pending", "assigned", "picked_up", "in_transit", "delivered"];
+const STATUSES = ["all", "pending", "assigned", "picked_up", "in_transit", "delivered", "cancelled"];
 
 function SkeletonRow() {
   return (

@@ -43,10 +43,10 @@ const STATUS_META = {
 };
 
 const statusBadgeVariant = {
-  pending: "secondary",
-  assigned: "secondary",
-  picked_up: "default",
-  in_transit: "default",
+  pending: "warning",
+  assigned: "info",
+  picked_up: "info",
+  in_transit: "info",
   delivered: "success",
   cancelled: "destructive",
 };
@@ -250,7 +250,7 @@ export default function OrderDetailPage() {
                       </p>
                       {h.note && (
                         <p className="text-xs text-muted-foreground mt-0.5 italic">
-                          {h.note}
+                          {h.note.replace(/_/g, " ")}
                         </p>
                       )}
                     </div>

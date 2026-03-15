@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { api } from '@/api/client'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { DollarSign, Package, CreditCard } from 'lucide-react'
+import { Banknote, Package, CreditCard } from 'lucide-react'
 
 const methodColors = {
   cod: 'warning',
@@ -22,6 +23,7 @@ const statusColors = {
 }
 
 export default function PaymentsPage() {
+  const navigate = useNavigate()
   const [data, setData] = useState(null)
   const [loading, setLoading] = useState(true)
   const [page, setPage] = useState(1)
@@ -61,16 +63,16 @@ export default function PaymentsPage() {
             <Package className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <p className="text-2xl font-bold">{data?.total ?? 0}</p>
+            <p className="text-xl font-bold">{data?.total ?? 0}</p>
           </CardContent>
         </Card>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">Total Revenue</CardTitle>
-            <DollarSign className="h-4 w-4 text-muted-foreground" />
+            <Banknote className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <p className="text-2xl font-bold">৳{(data?.total_revenue ?? 0).toLocaleString()}</p>
+            <p className="text-xl font-bold">৳{(data?.total_revenue ?? 0).toLocaleString()}</p>
           </CardContent>
         </Card>
       </div>
@@ -82,12 +84,12 @@ export default function PaymentsPage() {
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-border bg-muted/50">
-                  <th className="py-3 px-4 text-left font-medium text-muted-foreground">Order ID</th>
-                  <th className="py-3 px-4 text-left font-medium text-muted-foreground">Recipient</th>
-                  <th className="py-3 px-4 text-left font-medium text-muted-foreground">Amount</th>
-                  <th className="py-3 px-4 text-left font-medium text-muted-foreground">Payment Method</th>
-                  <th className="py-3 px-4 text-left font-medium text-muted-foreground">Status</th>
-                  <th className="py-3 px-4 text-left font-medium text-muted-foreground">Date</th>
+                  <th className="py-3 px-4 text-left text-xs font-extrabold uppercase tracking-widest text-muted-foreground">Order ID</th>
+                  <th className="py-3 px-4 text-left text-xs font-extrabold uppercase tracking-widest text-muted-foreground">Recipient</th>
+                  <th className="py-3 px-4 text-left text-xs font-extrabold uppercase tracking-widest text-muted-foreground">Amount</th>
+                  <th className="py-3 px-4 text-left text-xs font-extrabold uppercase tracking-widest text-muted-foreground">Payment Method</th>
+                  <th className="py-3 px-4 text-left text-xs font-extrabold uppercase tracking-widest text-muted-foreground">Status</th>
+                  <th className="py-3 px-4 text-left text-xs font-extrabold uppercase tracking-widest text-muted-foreground">Date</th>
                 </tr>
               </thead>
               <tbody>
@@ -95,9 +97,10 @@ export default function PaymentsPage() {
                   data.payments.map((item) => (
                     <tr
                       key={item.order_id}
-                      className="border-b border-border last:border-0 hover:bg-muted/50 transition-colors duration-150"
+                      className="border-b border-border last:border-0 hover:bg-muted/50 transition-colors duration-150 cursor-pointer"
+                      onClick={() => navigate(`/deliveries/${item.order_id}`)}
                     >
-                      <td className="py-3 px-4 font-mono text-xs">{item.order_id}</td>
+                      <td className="py-3 px-4 font-mono text-xs font-semibold">{item.order_id}</td>
                       <td className="py-3 px-4 font-medium">{item.recipient_name || '—'}</td>
                       <td className="py-3 px-4">৳{Number(item.amount).toLocaleString()}</td>
                       <td className="py-3 px-4">

@@ -305,7 +305,7 @@ export default function CreateParcelPage() {
 
             <div className="space-y-3 md:col-span-2">
               <Label className="text-xs font-bold uppercase tracking-widest text-primary">Payment Method</Label>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 {[
                   { value: 'cod', label: 'Cash on Delivery', subtitle: 'Pay when delivered', icon: Wallet },
                   { value: 'prepaid', label: 'Prepaid', subtitle: 'Pay now with card', icon: CreditCard },
