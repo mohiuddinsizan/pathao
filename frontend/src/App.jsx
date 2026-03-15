@@ -1,6 +1,8 @@
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom'
 import LoginPage from './pages/LoginPage'
 import DashboardPage from './pages/DashboardPage'
+import DeliveriesPage from './pages/DeliveriesPage'
+import OrderDetailPage from './pages/OrderDetailPage'
 import Placeholder from './pages/Placeholder'
 import AppShell from './components/AppShell'
 import { AuthProvider, useAuth } from './context/AuthContext'
@@ -27,7 +29,8 @@ function App() {
 
             <Route element={<ProtectedRoute><AppShell /></ProtectedRoute>}>
               <Route path="/dashboard" element={<DashboardPage />} />
-              <Route path="/deliveries" element={<Placeholder />} />
+              <Route path="/deliveries" element={<DeliveriesPage />} />
+              <Route path="/deliveries/:orderId" element={<OrderDetailPage />} />
               <Route path="/orders" element={<Navigate to="/deliveries" replace />} />
               <Route path="/stores" element={<Placeholder />} />
               <Route path="/analytics" element={<Placeholder />} />
@@ -42,3 +45,4 @@ function App() {
 }
 
 export default App
+
