@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 
 from app.auth.dependencies import get_current_merchant
 from app.database import get_db
+from app.schemas.order import CreateOrderRequest
 
 router = APIRouter()
 
@@ -48,11 +49,18 @@ async def list_orders(
         offset,
     )
 
+    import math
+    pages = math.ceil(count / limit) if count > 0 else 0
+
     return {
-        "orders": [dict(r) for r in rows],
-        "total": count,
-        "page": page,
-        "limit": limit,
+        "data": {
+            "orders": [dict(r) for r in rows],
+            "total": count,
+            "page": page,
+            "limit": limit,
+            "pages": pages,
+        },
+        "message": "Orders retrieved",
     }
 
 
@@ -85,12 +93,12 @@ async def get_order(
     )
     result = dict(row)
     result["status_history"] = [dict(h) for h in history]
-    return result
+    return {"data": result, "message": "Order details retrieved"}
 
 
 @router.post("", status_code=status.HTTP_201_CREATED)
 async def create_order(
-    data: dict,
+    data: CreateOrderRequest,
     merchant: dict = Depends(get_current_merchant),
     db=Depends(get_db),
 ):
@@ -103,24 +111,25 @@ async def create_order(
         INSERT INTO orders (
             order_id, merchant_id, store_id, recipient_name, recipient_phone,
             recipient_address, pickup_address, destination_area, parcel_type,
-            item_description, item_weight, amount, payment_method, cod_amount
-        ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)
+            item_description, item_weight, amount, payment_method, cod_amount, notes
+        ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)
         RETURNING *
         """,
         oid,
         merchant["id"],
-        data.get("store_id"),
-        data["recipient_name"],
-        data["recipient_phone"],
-        data["recipient_address"],
-        data.get("pickup_address"),
-        data.get("destination_area"),
-        data.get("parcel_type", "small_box"),
-        data.get("item_description"),
-        data.get("item_weight", "0-1kg"),
-        data.get("amount", 0),
-        data.get("payment_method", "cod"),
-        data.get("cod_amount", 0),
+        data.store_id,
+        data.recipient_name,
+        data.recipient_phone,
+        data.recipient_address,
+        data.pickup_address,
+        data.destination_area,
+        data.parcel_type,
+        data.item_description,
+        data.item_weight,
+        data.amount,
+        data.payment_method,
+        data.cod_amount,
+        data.notes,
     )
 
     # Record initial status
@@ -128,4 +137,118 @@ async def create_order(
         "INSERT INTO order_status_history (order_id, status, note) VALUES ($1, 'pending', 'Order placed')",
         row["id"],
     )
-    return dict(row)
+    return {"data": dict(row), "message": "Order created successfully"}
+
+
+# ── Valid status transitions ──
+VALID_TRANSITIONS = {
+    "pending": ["assigned"],
+    "assigned": ["picked_up"],
+    "picked_up": ["in_transit"],
+    "in_transit": ["delivered"],
+    "delivered": [],
+}
+
+
+@router.patch("/{order_id}/status")
+async def update_order_status(
+    order_id: str,
+    data: dict,
+    merchant: dict = Depends(get_current_merchant),
+    db=Depends(get_db),
+):
+    """Simulate a status change for an order."""
+    new_status = data.get("status")
+    note = data.get("note", "")
+
+    # Fetch the order
+    row = await db.fetchrow(
+        "SELECT * FROM orders WHERE order_id = $1 AND merchant_id = $2",
+        order_id,
+        merchant["id"],
+    )
+    if row is None:
+        raise HTTPException(status_code=404, detail="Order not found")
+
+    # Validate transition
+    allowed = VALID_TRANSITIONS.get(row["status"], [])
+    if new_status not in allowed:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Cannot transition from '{row['status']}' to '{new_status}'. Allowed: {allowed}",
+        )
+
+    # Update order status
+    await db.execute(
+        "UPDATE orders SET status = $1, updated_at = NOW() WHERE order_id = $2",
+        new_status,
+        order_id,
+    )
+
+    # Record in status history (uses UUID id, not PTH string)
+    await db.execute(
+        "INSERT INTO order_status_history (order_id, status, note) VALUES ($1, $2, $3)",
+        row["id"],
+        new_status,
+        note or f"Status changed to {new_status}",
+    )
+
+    # Return updated order with status history
+    updated = await db.fetchrow(
+        "SELECT * FROM orders WHERE order_id = $1",
+        order_id,
+    )
+    history = await db.fetch(
+        "SELECT status, changed_at, note FROM order_status_history WHERE order_id = $1 ORDER BY changed_at",
+        updated["id"],
+    )
+    result = dict(updated)
+    result["status_history"] = [dict(h) for h in history]
+    return {"data": result, "message": "Status updated"}
+
+
+@router.put("/{order_id}")
+async def edit_order(
+    order_id: str,
+    data: dict,
+    merchant: dict = Depends(get_current_merchant),
+    db=Depends(get_db),
+):
+    """Edit a pending order's details."""
+    # Fetch the order
+    row = await db.fetchrow(
+        "SELECT * FROM orders WHERE order_id = $1 AND merchant_id = $2",
+        order_id,
+        merchant["id"],
+    )
+    if row is None:
+        raise HTTPException(status_code=404, detail="Order not found")
+
+    if row["status"] != "pending":
+        raise HTTPException(status_code=400, detail="Only pending orders can be edited.")
+
+    # Allowed editable fields
+    editable = [
+        "recipient_name", "recipient_phone", "recipient_address",
+        "destination_area", "parcel_type", "item_description",
+        "item_weight", "amount", "payment_method", "cod_amount",
+    ]
+
+    # Build dynamic UPDATE from provided non-None fields
+    updates = []
+    params = []
+    idx = 1
+    for field in editable:
+        if field in data and data[field] is not None:
+            updates.append(f"{field} = ${idx}")
+            params.append(data[field])
+            idx += 1
+
+    if not updates:
+        return {"data": dict(row), "message": "No updates provided"}
+
+    params.append(order_id)
+    sql = f"UPDATE orders SET {', '.join(updates)}, updated_at = NOW() WHERE order_id = ${idx} RETURNING *"
+    updated = await db.fetchrow(sql, *params)
+    return {"data": dict(updated), "message": "Order updated"}
+
