@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { getOrders } from "@/api/orders";
 import { getStores } from "@/api/stores";
+import { useCachedQuery } from "@/hooks/use-cached-query";
 import {
   Select,
   SelectContent,
@@ -8,10 +10,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { useState } from "react";
-import { useCachedQuery } from "@/hooks/use-cached-query";
-import { useNavigate } from "react-router-dom";
-import { getOrders } from "@/api/orders";
 import {
   Card,
   CardContent,
@@ -52,7 +50,6 @@ export default function DeliveriesPage() {
   const [page, setPage] = useState(1);
   const [filter, setFilter] = useState("all");
   const [search, setSearch] = useState("");
-  const navigate = useNavigate();
   const [stores, setStores] = useState([]);
   const [storeFilter, setStoreFilter] = useState("all");
 
@@ -67,21 +64,13 @@ export default function DeliveriesPage() {
     const params = { page, limit: 20 };
     if (filter !== "all") params.status = filter;
     if (storeFilter !== "all") params.store_id = storeFilter;
-
-    getOrders(params)
-      .then((data) => {
-        setOrders(Array.isArray(data) ? data : data.orders || []);
-      })
-      .catch(() => setOrders([]))
-      .finally(() => setLoading(false));
-  }, [page, filter, storeFilter]);
     return getOrders(params).then((data) =>
       Array.isArray(data) ? data : data.orders || []
     );
   };
 
   const { data: ordersData, loading } = useCachedQuery(
-    `deliveries-${page}-${filter}`,
+    `deliveries-${page}-${filter}-${storeFilter}`,
     fetchOrders
   );
 
@@ -188,8 +177,6 @@ export default function DeliveriesPage() {
                   filtered.map((order) => (
                     <div
                       key={order.order_id}
-                      className="border-b border-border last:border-0 hover:bg-muted/50 transition-colors duration-150 cursor-pointer"
-                      onClick={() => navigate('/deliveries/' + order.order_id)}
                       className="grid grid-cols-6 items-center border-b border-border last:border-0 hover:bg-muted/50 transition-colors duration-150 cursor-pointer"
                       onClick={() => navigate(`/deliveries/${order.order_id}`)}
                     >

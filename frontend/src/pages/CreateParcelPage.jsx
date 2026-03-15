@@ -85,9 +85,10 @@ export default function CreateParcelPage() {
       if (!payload.pickup_address?.trim()) delete payload.pickup_address
 
       const createdOrder = await api.post('/api/orders', payload)
+      const orderData = createdOrder?.data ?? createdOrder
       setSuccessOrder({
-        orderId: createdOrder?.order_id,
-        createdAt: createdOrder?.created_at,
+        orderId: orderData?.order_id,
+        createdAt: orderData?.created_at,
       })
       setCopied(false)
     } catch (err) {

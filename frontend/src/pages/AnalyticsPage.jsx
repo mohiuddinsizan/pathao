@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react'
-import { api } from '@/api/client'
+import { getAnalytics } from '@/api/analytics'
+import { useCachedQuery } from '@/hooks/use-cached-query'
 import {
   BarChart,
   Bar,
@@ -64,19 +64,7 @@ function Card({ title, subtitle, children }) {
 
 //Main Page
 export default function AnalyticsPage() {
-  const [data, setData] = useState(null)
-  const [loading, setLoading] = useState(true)
-
-  useEffect(() => {
-    api
-      .get('/api/analytics')
-      .then((res) => setData(res))
-      .catch((err) => {
-        console.error('Analytics fetch error:', err)
-        setData(null)
-      })
-      .finally(() => setLoading(false))
-  }, [])
+  const { data, loading } = useCachedQuery('analytics', getAnalytics)
 
   //Loading state
   if (loading) {

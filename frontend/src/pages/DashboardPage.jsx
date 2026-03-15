@@ -141,7 +141,6 @@ function RecentOrdersTable({ loading, orders }) {
   const progressRef = useRef(null);
   const topBlurRef = useRef(null);
   const bottomBlurRef = useRef(null);
-  const navigate = useNavigate();
 
   useEffect(() => {
     const el = scrollRef.current;
