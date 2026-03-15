@@ -136,6 +136,7 @@ export default function DashboardPage() {
 }
 
 function RecentOrdersTable({ loading, orders }) {
+  const navigate = useNavigate();
   const scrollRef = useRef(null);
   const progressRef = useRef(null);
   const topBlurRef = useRef(null);
@@ -220,7 +221,7 @@ function RecentOrdersTable({ loading, orders }) {
                       ? new Date(order.created_at).toLocaleDateString()
                       : "—"}
                   </span>
-                  <button className="flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground transition-all duration-200 cursor-pointer" title="View details">
+                  <button className="flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground transition-all duration-200 cursor-pointer" title="View details" onClick={() => navigate(`/deliveries/${order.order_id}`)}>
                     <Eye className="h-3.5 w-3.5" />
                   </button>
                 </div>

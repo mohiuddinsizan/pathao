@@ -2,6 +2,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import LoginPage from './pages/LoginPage'
 import DashboardPage from './pages/DashboardPage'
 import Placeholder from './pages/Placeholder'
+import StoresPage from './pages/StoresPage'
 import AppShell from './components/AppShell'
 import { AuthProvider, useAuth } from './context/AuthContext'
 import { ThemeProvider } from './hooks/use-theme'
@@ -29,7 +30,7 @@ function App() {
               <Route path="/dashboard" element={<DashboardPage />} />
               <Route path="/deliveries" element={<Placeholder />} />
               <Route path="/orders" element={<Navigate to="/deliveries" replace />} />
-              <Route path="/stores" element={<Placeholder />} />
+              <Route path="/stores" element={<StoresPage />} />
               <Route path="/analytics" element={<Placeholder />} />
               <Route path="/payments" element={<Placeholder />} />
               <Route path="/settings" element={<Placeholder />} />

@@ -94,3 +94,25 @@ async def update_store(
         store_id,
     )
     return dict(row)
+
+
+@router.delete("/{store_id}")
+async def deactivate_store(
+    store_id: str,
+    merchant: dict = Depends(get_current_merchant),
+    db=Depends(get_db),
+):
+    """Soft-delete a store by setting is_active = false."""
+    row = await db.fetchrow(
+        "SELECT id FROM stores WHERE id = $1 AND merchant_id = $2",
+        store_id,
+        merchant["id"],
+    )
+    if row is None:
+        raise HTTPException(status_code=404, detail="Store not found")
+
+    await db.execute(
+        "UPDATE stores SET is_active = false, updated_at = NOW() WHERE id = $1",
+        store_id,
+    )
+    return {"message": "Store deactivated"}
