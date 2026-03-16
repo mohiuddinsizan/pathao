@@ -263,7 +263,7 @@ export default function AppShell() {
       type: "info",
       icon: Package,
       unread: true,
-      link: "/deliveries",
+      link: "/deliveries/PTH-100043",
     },
     {
       id: "notif-2",
@@ -273,7 +273,7 @@ export default function AppShell() {
       type: "success",
       icon: CheckCircle2,
       unread: true,
-      link: "/deliveries",
+      link: "/deliveries/PTH-100009",
     },
     {
       id: "notif-3",
@@ -293,7 +293,7 @@ export default function AppShell() {
       type: "info",
       icon: Clock3,
       unread: false,
-      link: "/deliveries",
+      link: "/deliveries/PTH-100040",
     },
   ]);
 
