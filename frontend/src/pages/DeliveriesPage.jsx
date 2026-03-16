@@ -228,7 +228,7 @@ export default function DeliveriesPage() {
 
       {/* Table */}
       <div className="flex flex-col flex-1 min-h-0 overflow-hidden rounded-xl border-2 border-border bg-card">
-        <div className="relative shrink-0 border-b-2 border-border bg-primary/3 dark:bg-primary/6">
+        <div className="relative shrink-0 bg-primary/3 dark:bg-primary/6">
           <div className="grid grid-cols-6 items-center px-4 py-2.5 text-[11px] font-bold uppercase tracking-wider text-foreground/80">
             <div>Order ID</div>
             <div>Recipient</div>
