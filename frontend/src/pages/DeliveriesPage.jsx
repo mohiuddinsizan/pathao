@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { getOrders } from "@/api/orders";
 import { getStores } from "@/api/stores";
@@ -10,13 +10,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-  CardDescription,
-} from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -36,7 +29,7 @@ const STATUSES = ["all", "pending", "assigned", "picked_up", "in_transit", "deli
 
 function SkeletonRow() {
   return (
-    <div className="grid grid-cols-6 border-b border-border">
+    <div className="grid grid-cols-6">
       {Array.from({ length: 6 }).map((_, i) => (
         <div key={i} className="py-3 px-4 flex items-center">
           <div className="h-4 w-20 rounded bg-muted animate-pulse" />
@@ -48,6 +41,9 @@ function SkeletonRow() {
 
 export default function DeliveriesPage() {
   const navigate = useNavigate();
+  const scrollRef = useRef(null);
+  const progressRef = useRef(null);
+  const bottomBlurRef = useRef(null);
   const [page, setPage] = useState(1);
   const [filter, setFilter] = useState("all");
   const [search, setSearch] = useState("");
@@ -68,9 +64,17 @@ export default function DeliveriesPage() {
     const params = { page, limit: 20 };
     if (filter !== "all") params.status = filter;
     if (storeFilter !== "all") params.store_id = storeFilter;
-    return getOrders(params).then((data) =>
-      Array.isArray(data) ? data : data.orders || []
-    );
+    return getOrders(params).then((data) => {
+      if (Array.isArray(data)) {
+        return { orders: data, page, pages: data.length === 20 ? page + 1 : page };
+      }
+
+      return {
+        orders: Array.isArray(data?.orders) ? data.orders : [],
+        page: data?.page ?? page,
+        pages: data?.pages ?? 0,
+      };
+    });
   };
 
   const { data: ordersData, loading } = useCachedQuery(
@@ -78,7 +82,9 @@ export default function DeliveriesPage() {
     fetchOrders
   );
 
-  const orders = ordersData || [];
+  const orders = ordersData?.orders || [];
+  const totalPages = ordersData?.pages ?? 0;
+  const hasNextPage = totalPages > 0 ? page < totalPages : orders.length === 20;
 
   const filtered = orders
     .filter((o) =>
@@ -96,6 +102,41 @@ export default function DeliveriesPage() {
       return true;
     });
 
+  const activeFilterCount = [
+    search.trim() !== "",
+    filter !== "all",
+    storeFilter !== "all",
+    dateFrom !== "" || dateTo !== "",
+  ].filter(Boolean).length;
+
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+
+    const updateScrollIndicators = () => {
+      const { scrollTop, scrollHeight, clientHeight } = el;
+      const maxScroll = scrollHeight - clientHeight;
+      const progress = maxScroll > 0 ? scrollTop / maxScroll : 0;
+
+      if (progressRef.current) {
+        progressRef.current.style.width = `${progress * 100}%`;
+      }
+
+      if (bottomBlurRef.current) {
+        bottomBlurRef.current.style.opacity = scrollTop < maxScroll - 1 ? "1" : "0";
+      }
+    };
+
+    updateScrollIndicators();
+    el.addEventListener("scroll", updateScrollIndicators, { passive: true });
+    window.addEventListener("resize", updateScrollIndicators);
+
+    return () => {
+      el.removeEventListener("scroll", updateScrollIndicators);
+      window.removeEventListener("resize", updateScrollIndicators);
+    };
+  }, [filtersOpen, loading, filtered.length, page]);
+
   return (
     <div className="flex flex-col h-full overflow-hidden p-4 lg:p-6 gap-4">
       <div className="shrink-0 flex items-center justify-between">
@@ -103,11 +144,19 @@ export default function DeliveriesPage() {
         <Button
           variant="outline"
           size="sm"
-          onClick={() => setFiltersOpen((v) => { if (v) { setDateFrom(""); setDateTo(""); } return !v; })}
-          className="gap-2 cursor-pointer"
+          onClick={() => setFiltersOpen((v) => !v)}
+          className={cn(
+            "gap-2 cursor-pointer transition-colors duration-200",
+            activeFilterCount > 0 && "border-primary/30 bg-primary/5"
+          )}
         >
           <SlidersHorizontal className="h-4 w-4" />
           Filters
+          {activeFilterCount > 0 && (
+            <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-primary px-1.5 text-[10px] font-bold text-primary-foreground">
+              {activeFilterCount}
+            </span>
+          )}
           <ChevronDown className={cn("h-4 w-4 transition-transform duration-200", filtersOpen && "rotate-180")} />
         </Button>
       </div>
@@ -145,7 +194,7 @@ export default function DeliveriesPage() {
           value={storeFilter}
           onValueChange={(v) => { setStoreFilter(v); setPage(1); }}
         >
-          <SelectTrigger className="w-[180px] text-xs h-8">
+          <SelectTrigger className="h-8 w-45 text-xs">
             <SelectValue placeholder="All Stores" />
           </SelectTrigger>
           <SelectContent>
@@ -178,85 +227,78 @@ export default function DeliveriesPage() {
       )}
 
       {/* Table */}
-      <Card className="flex flex-col flex-1 min-h-0">
-        <CardHeader className="pb-0 shrink-0">
-          <CardTitle className="text-base">
-            Orders{" "}
-            {!loading && (
-              <span className="text-muted-foreground font-normal">
-                ({filtered.length})
-              </span>
-            )}
-          </CardTitle>
-          <CardDescription>Click any row to view details</CardDescription>
-        </CardHeader>
-        <CardContent className="flex flex-col flex-1 min-h-0 p-0 mt-4 overflow-hidden">
-          <div className="flex-1 min-h-0 overflow-auto">
-            <div className="w-[800px] min-w-full text-sm">
-              <div className="sticky top-0 z-10 grid grid-cols-6 border-b border-border bg-card text-xs font-extrabold uppercase tracking-widest text-muted-foreground">
-                <div className="py-3 px-4">Order ID</div>
-                <div className="py-3 px-4">Recipient</div>
-                <div className="py-3 px-4">Phone</div>
-                <div className="py-3 px-4">Status</div>
-                <div className="py-3 px-4">Amount</div>
-                <div className="py-3 px-4">Created</div>
-              </div>
-              <div className="flex flex-col">
-                {loading ? (
-                  <>
-                    <SkeletonRow />
-                    <SkeletonRow />
-                    <SkeletonRow />
-                    <SkeletonRow />
-                    <SkeletonRow />
-                  </>
-                ) : filtered.length > 0 ? (
-                  filtered.map((order) => (
+      <div className="flex flex-col flex-1 min-h-0 overflow-hidden rounded-xl border-2 border-border bg-card">
+        <div className="relative shrink-0 border-b-2 border-border bg-primary/3 dark:bg-primary/6">
+          <div className="grid grid-cols-6 items-center px-4 py-2.5 text-[11px] font-bold uppercase tracking-wider text-foreground/80">
+            <div>Order ID</div>
+            <div>Recipient</div>
+            <div>Phone</div>
+            <div>Status</div>
+            <div>Amount</div>
+            <div>Created</div>
+          </div>
+          <div className="absolute bottom-0 left-0 right-0 h-0.75 overflow-hidden bg-border">
+            <div
+              ref={progressRef}
+              className="h-full bg-primary transition-[width] duration-300 ease-out"
+              style={{ width: "0%" }}
+            />
+          </div>
+        </div>
+        <div className="relative flex-1 min-h-0">
+          <div ref={scrollRef} className="h-full overflow-y-auto scrollbar-hidden">
+            <div className="min-w-full text-sm">
+              {loading ? (
+                <div className="divide-y divide-border/50">
+                  <SkeletonRow />
+                  <SkeletonRow />
+                  <SkeletonRow />
+                  <SkeletonRow />
+                  <SkeletonRow />
+                </div>
+              ) : filtered.length > 0 ? (
+                <div className="divide-y divide-border/50">
+                  {filtered.map((order) => (
                     <div
                       key={order.order_id}
-                      className="grid grid-cols-6 items-center border-b border-border last:border-0 hover:bg-muted/50 transition-colors duration-150 cursor-pointer"
+                      className="grid grid-cols-6 items-center px-4 py-2.5 hover:bg-muted/40 transition-colors duration-200 cursor-pointer"
                       onClick={() => navigate(`/deliveries/${order.order_id}`)}
                     >
-                      <div className="py-3 px-4 font-mono font-semibold text-xs">
+                      <div className="font-mono text-xs font-semibold">
                         {order.order_id}
                       </div>
-                      <div className="py-3 px-4 font-medium text-sm">
+                      <div className="text-sm font-medium">
                         {order.recipient_name || "—"}
                       </div>
-                      <div className="py-3 px-4 text-muted-foreground text-sm font-medium">
+                      <div className="text-sm font-medium text-muted-foreground">
                         {order.recipient_phone || "—"}
                       </div>
-                      <div className="py-3 px-4">
-                        <Badge
-                          variant={
-                            statusColors[order.status] || "secondary"
-                          }
-                        >
+                      <div>
+                        <Badge variant={statusColors[order.status] || "secondary"}>
                           {(order.status || "unknown").replace(/_/g, " ")}
                         </Badge>
                       </div>
-                      <div className="py-3 px-4 font-medium text-sm">
-                        {order.amount != null
-                          ? `৳${order.amount}`
-                          : "—"}
+                      <div className="text-sm font-medium">
+                        {order.amount != null ? `৳${order.amount}` : "—"}
                       </div>
-                      <div className="py-3 px-4 text-muted-foreground text-sm font-medium">
+                      <div className="text-sm font-medium text-muted-foreground">
                         {order.created_at
                           ? new Date(order.created_at).toLocaleDateString()
                           : "—"}
                       </div>
                     </div>
-                  ))
-                ) : (
-                  <div className="py-8 text-center text-muted-foreground font-medium">
-                    No orders found
-                  </div>
-                )}
-              </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="py-8 text-center font-medium text-muted-foreground">
+                  No orders found
+                </div>
+              )}
             </div>
           </div>
-        </CardContent>
-      </Card>
+          <div ref={bottomBlurRef} className="pointer-events-none absolute bottom-0 left-0 right-0 z-10 h-6 bg-linear-to-t from-card to-transparent opacity-0 transition-opacity duration-200" />
+        </div>
+      </div>
 
       {/* Pagination */}
       <div className="shrink-0 flex items-center justify-end gap-2">
@@ -275,7 +317,7 @@ export default function DeliveriesPage() {
           variant="outline"
           size="sm"
           onClick={() => setPage((p) => p + 1)}
-          disabled={filtered.length < 20}
+          disabled={!hasNextPage}
           className="cursor-pointer"
         >
           Next
