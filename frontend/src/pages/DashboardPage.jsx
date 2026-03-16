@@ -407,15 +407,7 @@ function RecentActivityFeed({ loading, loadingMore, activities, newItemsFrom, er
   const progressRef = useRef(null);
   const topBlurRef = useRef(null);
   const bottomBlurRef = useRef(null);
-  const loadMoreAnchorRef = useRef(null);
   const sentinelRef = useRef(null);
-
-  // Auto-scroll to show the skeleton loader when loading more
-  useEffect(() => {
-    if (loadingMore && loadMoreAnchorRef.current) {
-      loadMoreAnchorRef.current.scrollIntoView({ behavior: "smooth", block: "end" });
-    }
-  }, [loadingMore]);
 
   // IntersectionObserver: auto-load when sentinel enters the scroll container
   useEffect(() => {
@@ -426,7 +418,7 @@ function RecentActivityFeed({ loading, loadingMore, activities, newItemsFrom, er
       ([entry]) => {
         if (entry.isIntersecting) onLoadMore();
       },
-      { root: container, threshold: 0.1 }
+      { root: container, rootMargin: "0px 0px 100px 0px", threshold: 0 }
     );
     observer.observe(sentinel);
     return () => observer.disconnect();
@@ -536,7 +528,7 @@ function RecentActivityFeed({ loading, loadingMore, activities, newItemsFrom, er
                   />
                 ))}
                 {loadingMore ? (
-                  <div ref={loadMoreAnchorRef} className="space-y-4 pt-1">
+                  <div className="space-y-4 pt-1">
                     <SkeletonRow />
                     <SkeletonRow />
                     <SkeletonRow />

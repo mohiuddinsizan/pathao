@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { getOrders } from "@/api/orders";
 import { getStores } from "@/api/stores";
@@ -13,7 +13,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { AlertCircle, Search, ChevronLeft, ChevronRight, SlidersHorizontal, ChevronDown, X, ArrowUp, ArrowDown, Plus } from "lucide-react";
+import { AlertCircle, Search, ChevronRight, SlidersHorizontal, ChevronDown, X, ArrowUp, ArrowDown, Plus, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { getAnalytics } from "@/api/analytics";
 
@@ -117,7 +117,9 @@ export default function DeliveriesPage() {
   const scrollRef = useRef(null);
   const progressRef = useRef(null);
   const bottomBlurRef = useRef(null);
+  const sentinelRef = useRef(null);
   const [page, setPage] = useState(1);
+  const [allOrders, setAllOrders] = useState([]);
   const [filter, setFilter] = useState("all");
   const [search, setSearch] = useState("");
   const [stores, setStores] = useState([]);
@@ -173,8 +175,47 @@ export default function DeliveriesPage() {
   const orders = ordersData?.orders || [];
   const totalPages = ordersData?.pages ?? 0;
   const hasNextPage = totalPages > 0 ? page < totalPages : orders.length === 20;
+  const loadingMore = loading && allOrders.length > 0;
 
-  const filtered = orders
+  // Accumulate orders across pages
+  useEffect(() => {
+    if (!orders.length) return;
+    setAllOrders((prev) => {
+      if (page === 1) return orders;
+      const existingIds = new Set(prev.map((o) => o.order_id));
+      const newOrders = orders.filter((o) => !existingIds.has(o.order_id));
+      return newOrders.length > 0 ? [...prev, ...newOrders] : prev;
+    });
+  }, [orders, page]);
+
+  // Reset accumulated orders when filters actually change (skip initial mount)
+  const prevFilterRef = useRef({ filter, storeFilter });
+  useEffect(() => {
+    const prev = prevFilterRef.current;
+    if (prev.filter === filter && prev.storeFilter === storeFilter) return;
+    prevFilterRef.current = { filter, storeFilter };
+    setAllOrders([]);
+    setPage(1);
+  }, [filter, storeFilter]);
+
+  // IntersectionObserver: auto-load next page when sentinel enters viewport
+  const loadNextPage = useCallback(() => {
+    if (!loading && hasNextPage) setPage((p) => p + 1);
+  }, [loading, hasNextPage]);
+
+  useEffect(() => {
+    const sentinel = sentinelRef.current;
+    const container = scrollRef.current;
+    if (!sentinel || !container || !hasNextPage || loading) return;
+    const observer = new IntersectionObserver(
+      ([entry]) => { if (entry.isIntersecting) loadNextPage(); },
+      { root: container, threshold: 0.1 }
+    );
+    observer.observe(sentinel);
+    return () => observer.disconnect();
+  }, [hasNextPage, loading, loadNextPage]);
+
+  const filtered = allOrders
     .filter((o) =>
       !search ||
       (o.recipient_name || "").toLowerCase().includes(search.toLowerCase()) ||
@@ -324,6 +365,43 @@ export default function DeliveriesPage() {
               ))}
             </SelectContent>
           </Select>
+          <div className="flex items-center gap-1">
+            {[
+              { label: "Today", from: 0, to: 0 },
+              { label: "Yesterday", from: 1, to: 1 },
+              { label: "7 days", from: 6, to: 0 },
+              { label: "30 days", from: 29, to: 0 },
+              { label: "This month", from: "month", to: 0 },
+            ].map(({ label, from, to }) => {
+              const apply = () => {
+                const fmt = (d) => d.toISOString().split("T")[0];
+                const today = new Date();
+                today.setHours(0, 0, 0, 0);
+                let start;
+                if (from === "month") {
+                  start = new Date(today.getFullYear(), today.getMonth(), 1);
+                } else {
+                  start = new Date(today);
+                  start.setDate(start.getDate() - from);
+                }
+                const end = new Date(today);
+                end.setDate(end.getDate() - to);
+                setDateFrom(fmt(start));
+                setDateTo(fmt(end));
+                setPage(1);
+              };
+              return (
+                <button
+                  key={label}
+                  type="button"
+                  onClick={apply}
+                  className="h-7 rounded-md border border-input bg-background px-2 text-[11px] font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground cursor-pointer"
+                >
+                  {label}
+                </button>
+              );
+            })}
+          </div>
           <div className="flex items-center gap-1.5">
             <input
               type="date"
@@ -446,6 +524,7 @@ export default function DeliveriesPage() {
                   </button>
                 </div>
               ) : filtered.length > 0 ? (
+                <>
                 <div className="divide-y divide-border/50">
                   {sortedFiltered.map((order) => (
                     <div
@@ -477,6 +556,18 @@ export default function DeliveriesPage() {
                     </div>
                   ))}
                 </div>
+                {loadingMore && (
+                  <div className="flex items-center justify-center gap-2 py-4">
+                    <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                    <span className="text-xs text-muted-foreground">Loading more...</span>
+                  </div>
+                )}
+                {hasNextPage ? (
+                  <div ref={sentinelRef} className="h-1" />
+                ) : allOrders.length > 0 ? (
+                  <p className="py-3 text-center text-xs text-muted-foreground">All orders loaded</p>
+                ) : null}
+                </>
               ) : (
                 <div className="flex flex-col items-center justify-center py-12 text-center">
                   <p className="text-sm font-medium text-foreground">
@@ -500,30 +591,6 @@ export default function DeliveriesPage() {
         </div>
       </div>
 
-      {/* Pagination */}
-      <div className="shrink-0 flex items-center justify-end gap-2">
-        <Button
-          variant="outline"
-          size="sm"
-          disabled={page <= 1}
-          onClick={() => setPage((p) => p - 1)}
-          className="cursor-pointer"
-        >
-          <ChevronLeft className="h-4 w-4" />
-          Previous
-        </Button>
-        <span className="text-sm text-muted-foreground px-2">Page {page}</span>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => setPage((p) => p + 1)}
-          disabled={!hasNextPage}
-          className="cursor-pointer"
-        >
-          Next
-          <ChevronRight className="h-4 w-4" />
-        </Button>
-      </div>
     </div>
   );
 }

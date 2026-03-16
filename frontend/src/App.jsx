@@ -7,7 +7,7 @@ import CreateParcelPage from './pages/CreateParcelPage'
 import StoresPage from './pages/StoresPage'
 import AnalyticsPage from './pages/AnalyticsPage'
 import PaymentsPage from './pages/PaymentsPage'
-import Placeholder from './pages/Placeholder'
+import SettingsPage from './pages/SettingsPage'
 import AppShell from './components/AppShell'
 import { AuthProvider, useAuth } from './context/AuthContext'
 import { ThemeProvider } from './hooks/use-theme'
@@ -40,7 +40,7 @@ function App() {
               <Route path="/stores" element={<StoresPage />} />
               <Route path="/analytics" element={<AnalyticsPage />} />
               <Route path="/payments" element={<PaymentsPage />} />
-              <Route path="/settings" element={<Placeholder />} />
+              <Route path="/settings" element={<SettingsPage />} />
             </Route>
           </Routes>
         </Router>
