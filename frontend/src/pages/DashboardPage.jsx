@@ -11,7 +11,6 @@ import {
   ChevronRight,
   CircleHelp,
   Clock3,
-  Loader2,
   Package,
   Store,
   Truck,
@@ -246,7 +245,7 @@ function ActivityItem({ activity, isFirst, isLast, isNew }) {
 
   return (
     <div className={isNew ? "animate-in fade-in slide-in-from-bottom-2 duration-500" : undefined}>
-    <div className="grid grid-cols-[2.75rem_1fr] gap-4">
+    <div className="group grid grid-cols-[2.75rem_1fr] gap-4">
       <div className="relative flex h-full items-center justify-center self-stretch">
         {isFirst ? (
           <div className="absolute bottom-[calc(50%+1rem)] left-1/2 top-0 z-1 w-3 -translate-x-1/2 rounded-full bg-card" />
@@ -255,15 +254,15 @@ function ActivityItem({ activity, isFirst, isLast, isNew }) {
           <div className="absolute bottom-0 left-1/2 top-[calc(50%+1rem)] z-1 w-3 -translate-x-1/2 rounded-full bg-card" />
         ) : null}
         <div className="absolute left-1/2 top-1/2 z-1 h-10 w-3 -translate-x-1/2 -translate-y-1/2 rounded-full bg-card" />
-        <div className={`relative z-10 flex h-8 w-8 items-center justify-center overflow-hidden rounded-full border-4 bg-background ${borderColor}`}>
+        <div className={`relative z-10 flex h-8 w-8 items-center justify-center overflow-hidden rounded-full border-4 bg-background grayscale opacity-55 transition-all duration-300 group-hover:grayscale-0 group-hover:opacity-100 ${borderColor}`}>
           <div className={`flex h-full w-full items-center justify-center rounded-full ${color}`}>
             <Icon className="h-4 w-4" />
           </div>
         </div>
       </div>
       <div
-        className={`group relative rounded-2xl border-2 border-border/80 px-4 py-2.5 transition-all duration-300 ease-out hover:border-border hover:shadow-sm ${
-          isClickable ? "cursor-pointer hover:bg-muted/30" : ""
+        className={`relative rounded-2xl border-2 border-border/80 px-4 py-2.5 transition-all duration-300 ease-out group-hover:border-border group-hover:shadow-sm ${
+          isClickable ? "cursor-pointer group-hover:bg-muted/30" : ""
         }`}
         onClick={() => isClickable && navigate(activity.href)}
         role={isClickable ? "link" : undefined}
@@ -409,6 +408,7 @@ function RecentActivityFeed({ loading, loadingMore, activities, newItemsFrom, er
   const topBlurRef = useRef(null);
   const bottomBlurRef = useRef(null);
   const loadMoreAnchorRef = useRef(null);
+  const sentinelRef = useRef(null);
 
   // Auto-scroll to show the skeleton loader when loading more
   useEffect(() => {
@@ -416,6 +416,21 @@ function RecentActivityFeed({ loading, loadingMore, activities, newItemsFrom, er
       loadMoreAnchorRef.current.scrollIntoView({ behavior: "smooth", block: "end" });
     }
   }, [loadingMore]);
+
+  // IntersectionObserver: auto-load when sentinel enters the scroll container
+  useEffect(() => {
+    const sentinel = sentinelRef.current;
+    const container = scrollRef.current;
+    if (!sentinel || !container || !hasMore || loadingMore) return;
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) onLoadMore();
+      },
+      { root: container, threshold: 0.1 }
+    );
+    observer.observe(sentinel);
+    return () => observer.disconnect();
+  }, [hasMore, loadingMore, onLoadMore]);
 
   useEffect(() => {
     const element = scrollRef.current;
@@ -459,7 +474,7 @@ function RecentActivityFeed({ loading, loadingMore, activities, newItemsFrom, er
                 </button>
               </TooltipTrigger>
               <TooltipContent side="right" sideOffset={8}>
-                Recent parcel and store events across your merchant account. Use Load more to expand the list.
+                Recent parcel and store events across your merchant account. Scroll down to load more.
               </TooltipContent>
             </Tooltip>
           </TooltipProvider>
@@ -528,27 +543,13 @@ function RecentActivityFeed({ loading, loadingMore, activities, newItemsFrom, er
                   </div>
                 ) : null}
               </div>
-              <div className="mt-4 flex justify-center">
-                {hasMore ? (
-                  <button
-                    type="button"
-                    onClick={onLoadMore}
-                    disabled={loading}
-                    className="inline-flex items-center gap-2 rounded-md border-2 border-border px-3 py-2 text-sm font-medium text-foreground transition-colors hover:bg-muted disabled:cursor-not-allowed disabled:opacity-60"
-                  >
-                    {loading ? (
-                      <>
-                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                        Loading more...
-                      </>
-                    ) : (
-                      "Load more"
-                    )}
-                  </button>
-                ) : (
+              {hasMore ? (
+                <div ref={sentinelRef} className="h-1" />
+              ) : (
+                <div className="mt-4 flex justify-center">
                   <p className="text-xs text-muted-foreground">You’re all caught up</p>
-                )}
-              </div>
+                </div>
+              )}
             </div>
           ) : (
             <div className="py-8 text-center text-muted-foreground">No recent activity found</div>

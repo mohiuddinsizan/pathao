@@ -13,7 +13,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { AlertCircle, Search, ChevronLeft, ChevronRight, SlidersHorizontal, ChevronDown, X, ArrowUp, ArrowDown, ChevronsUpDown } from "lucide-react";
+import { AlertCircle, Search, ChevronLeft, ChevronRight, SlidersHorizontal, ChevronDown, X, ArrowUp, ArrowDown, Plus } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { getAnalytics } from "@/api/analytics";
 
@@ -257,6 +257,14 @@ export default function DeliveriesPage() {
       <div className="shrink-0 flex items-center justify-between gap-3">
         <h1 className="text-2xl font-bold tracking-tight">Deliveries</h1>
         <div className="flex items-center gap-2">
+          <Button
+            size="sm"
+            className="h-9 gap-1.5 cursor-pointer"
+            onClick={() => navigate("/deliveries/new")}
+          >
+            <Plus className="h-4 w-4" />
+            New Delivery
+          </Button>
           <div className="relative w-60 xl:w-72">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <Input
