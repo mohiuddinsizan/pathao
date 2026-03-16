@@ -408,12 +408,23 @@ function RecentActivityFeed({ loading, loadingMore, activities, newItemsFrom, er
   const topBlurRef = useRef(null);
   const bottomBlurRef = useRef(null);
   const sentinelRef = useRef(null);
+  const [showSkeletons, setShowSkeletons] = useState(false);
+
+  // Minimum skeleton display time (1s) for graceful loading feel
+  useEffect(() => {
+    if (loadingMore) {
+      setShowSkeletons(true);
+    } else if (showSkeletons) {
+      const timer = setTimeout(() => setShowSkeletons(false), 1000);
+      return () => clearTimeout(timer);
+    }
+  }, [loadingMore]);
 
   // IntersectionObserver: auto-load when sentinel enters the scroll container
   useEffect(() => {
     const sentinel = sentinelRef.current;
     const container = scrollRef.current;
-    if (!sentinel || !container || !hasMore || loadingMore) return;
+    if (!sentinel || !container || !hasMore || loadingMore || showSkeletons) return;
     const observer = new IntersectionObserver(
       ([entry]) => {
         if (entry.isIntersecting) onLoadMore();
@@ -422,7 +433,7 @@ function RecentActivityFeed({ loading, loadingMore, activities, newItemsFrom, er
     );
     observer.observe(sentinel);
     return () => observer.disconnect();
-  }, [hasMore, loadingMore, onLoadMore]);
+  }, [hasMore, loadingMore, showSkeletons, onLoadMore]);
 
   useEffect(() => {
     const element = scrollRef.current;
@@ -527,7 +538,7 @@ function RecentActivityFeed({ loading, loadingMore, activities, newItemsFrom, er
                     isNew={newItemsFrom > 0 && index >= newItemsFrom}
                   />
                 ))}
-                {loadingMore ? (
+                {showSkeletons ? (
                   <div className="space-y-4 pt-1">
                     <SkeletonRow />
                     <SkeletonRow />

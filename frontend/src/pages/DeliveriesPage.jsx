@@ -176,6 +176,17 @@ export default function DeliveriesPage() {
   const totalPages = ordersData?.pages ?? 0;
   const hasNextPage = totalPages > 0 ? page < totalPages : orders.length === 20;
   const loadingMore = loading && allOrders.length > 0;
+  const [showSkeletons, setShowSkeletons] = useState(false);
+
+  // Minimum skeleton display time (1s) for graceful loading feel
+  useEffect(() => {
+    if (loadingMore) {
+      setShowSkeletons(true);
+    } else if (showSkeletons) {
+      const timer = setTimeout(() => setShowSkeletons(false), 1000);
+      return () => clearTimeout(timer);
+    }
+  }, [loadingMore]);
 
   // Accumulate orders across pages
   useEffect(() => {
@@ -206,14 +217,14 @@ export default function DeliveriesPage() {
   useEffect(() => {
     const sentinel = sentinelRef.current;
     const container = scrollRef.current;
-    if (!sentinel || !container || !hasNextPage || loading) return;
+    if (!sentinel || !container || !hasNextPage || loading || showSkeletons) return;
     const observer = new IntersectionObserver(
       ([entry]) => { if (entry.isIntersecting) loadNextPage(); },
       { root: container, threshold: 0.1 }
     );
     observer.observe(sentinel);
     return () => observer.disconnect();
-  }, [hasNextPage, loading, loadNextPage]);
+  }, [hasNextPage, loading, showSkeletons, loadNextPage]);
 
   const filtered = allOrders
     .filter((o) =>
@@ -556,7 +567,7 @@ export default function DeliveriesPage() {
                     </div>
                   ))}
                 </div>
-                {loadingMore && (
+                {showSkeletons && (
                   <div className="flex items-center justify-center gap-2 py-4">
                     <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
                     <span className="text-xs text-muted-foreground">Loading more...</span>
