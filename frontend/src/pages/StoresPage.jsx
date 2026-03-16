@@ -14,6 +14,8 @@ import { Label } from "@/components/ui/label";
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
@@ -40,7 +42,7 @@ function SkeletonCard() {
   );
 }
 
-function StoreFormFields({ form, onChange }) {
+function StoreFormFields({ form, onChange, nameError }) {
   return (
     <>
       <div className="space-y-1.5">
@@ -54,6 +56,9 @@ function StoreFormFields({ form, onChange }) {
           placeholder="e.g. Main Warehouse"
           required
         />
+        {nameError ? (
+          <p className="text-xs text-destructive">{nameError}</p>
+        ) : null}
       </div>
 
       <div className="space-y-1.5">
@@ -113,16 +118,26 @@ function StoreFormFields({ form, onChange }) {
 export default function StoresPage() {
   const [stores, setStores] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState("");
+  const [notice, setNotice] = useState(null);
   const [createOpen, setCreateOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
+  const [confirmOpen, setConfirmOpen] = useState(false);
   const [editTarget, setEditTarget] = useState(null);
+  const [deactivateTarget, setDeactivateTarget] = useState(null);
   const [form, setForm] = useState(BLANK_FORM);
+  const [formErrors, setFormErrors] = useState({ name: "" });
   const [saving, setSaving] = useState(false);
+  const [deactivating, setDeactivating] = useState(false);
 
   const fetchStores = () => {
+    setLoadError("");
     return getStores()
       .then((data) => setStores(Array.isArray(data) ? data : []))
-      .catch(() => setStores([]))
+      .catch((err) => {
+        setStores([]);
+        setLoadError(err?.message || "Failed to load stores.");
+      })
       .finally(() => setLoading(false));
   };
 
@@ -131,11 +146,15 @@ export default function StoresPage() {
   }, []);
 
   function updateField(key, value) {
+    if (key === "name") {
+      setFormErrors((prev) => ({ ...prev, name: "" }));
+    }
     setForm((prev) => ({ ...prev, [key]: value }));
   }
 
   function openCreateModal() {
     setForm(BLANK_FORM);
+    setFormErrors({ name: "" });
     setCreateOpen(true);
   }
 
@@ -148,24 +167,35 @@ export default function StoresPage() {
       zone: store.zone || "",
       phone: store.phone || "",
     });
+    setFormErrors({ name: "" });
     setEditTarget(store);
     setEditOpen(true);
   }
 
+  function validateForm() {
+    const errors = { name: "" };
+    if (!form.name.trim()) {
+      errors.name = "Store Name is required.";
+    }
+    setFormErrors(errors);
+    return !errors.name;
+  }
+
   async function handleCreate(e) {
     e.preventDefault();
-    if (!form.name.trim()) {
-      alert("Store Name is required.");
-      return;
-    }
+    if (!validateForm()) return;
     setSaving(true);
     try {
       await createStore(form);
       setCreateOpen(false);
       setForm(BLANK_FORM);
+      setNotice({ type: "success", message: "Store created successfully." });
       await fetchStores();
     } catch (err) {
-      alert(err.message || "Failed to create store.");
+      setNotice({
+        type: "error",
+        message: err?.message || "Failed to create store.",
+      });
     } finally {
       setSaving(false);
     }
@@ -173,29 +203,44 @@ export default function StoresPage() {
 
   async function handleEdit(e) {
     e.preventDefault();
-    if (!form.name.trim()) {
-      alert("Store Name is required.");
-      return;
-    }
+    if (!validateForm()) return;
     setSaving(true);
     try {
       await updateStore(editTarget.id, form);
       setEditOpen(false);
+      setNotice({ type: "success", message: "Store updated successfully." });
       await fetchStores();
     } catch (err) {
-      alert(err.message || "Failed to update store.");
+      setNotice({
+        type: "error",
+        message: err?.message || "Failed to update store.",
+      });
     } finally {
       setSaving(false);
     }
   }
 
-  async function handleDeactivate(store) {
-    if (!window.confirm(`Deactivate ${store.name}?`)) return;
+  function requestDeactivate(store) {
+    setDeactivateTarget(store);
+    setConfirmOpen(true);
+  }
+
+  async function handleDeactivate() {
+    if (!deactivateTarget) return;
+    setDeactivating(true);
     try {
-      await deleteStore(store.id);
+      await deleteStore(deactivateTarget.id);
+      setConfirmOpen(false);
+      setDeactivateTarget(null);
+      setNotice({ type: "success", message: "Store deactivated." });
       await fetchStores();
     } catch (err) {
-      alert(err.message || "Failed to deactivate store.");
+      setNotice({
+        type: "error",
+        message: err?.message || "Failed to deactivate store.",
+      });
+    } finally {
+      setDeactivating(false);
     }
   }
 
@@ -214,6 +259,46 @@ export default function StoresPage() {
           Add Store
         </Button>
       </div>
+
+      {notice ? (
+        <div
+          className={`rounded-md border px-3 py-2 text-sm ${
+            notice.type === "success"
+              ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300"
+              : "border-destructive/30 bg-destructive/10 text-destructive"
+          }`}
+        >
+          <div className="flex items-center justify-between gap-2">
+            <span>{notice.message}</span>
+            <button
+              type="button"
+              onClick={() => setNotice(null)}
+              className="text-xs font-medium opacity-80 hover:opacity-100 cursor-pointer"
+            >
+              Dismiss
+            </button>
+          </div>
+        </div>
+      ) : null}
+
+      {!loading && loadError ? (
+        <div className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+          <div className="flex items-center justify-between gap-2">
+            <span>{loadError}</span>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                setLoading(true);
+                fetchStores();
+              }}
+              className="h-7 cursor-pointer"
+            >
+              Retry
+            </Button>
+          </div>
+        </div>
+      ) : null}
 
       {/* Store Card Grid */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -262,7 +347,7 @@ export default function StoresPage() {
                         variant="ghost"
                         size="icon"
                         className="h-7 w-7 text-destructive hover:text-destructive cursor-pointer"
-                        onClick={() => handleDeactivate(store)}
+                        onClick={() => requestDeactivate(store)}
                         title="Deactivate store"
                       >
                         <PowerOff className="h-3.5 w-3.5" />
@@ -305,7 +390,11 @@ export default function StoresPage() {
             <DialogTitle>Add New Store</DialogTitle>
           </DialogHeader>
           <form onSubmit={handleCreate} className="space-y-4 mt-2">
-            <StoreFormFields form={form} onChange={updateField} />
+            <StoreFormFields
+              form={form}
+              onChange={updateField}
+              nameError={formErrors.name}
+            />
             <Button
               type="submit"
               disabled={saving}
@@ -324,7 +413,11 @@ export default function StoresPage() {
             <DialogTitle>Edit Store</DialogTitle>
           </DialogHeader>
           <form onSubmit={handleEdit} className="space-y-4 mt-2">
-            <StoreFormFields form={form} onChange={updateField} />
+            <StoreFormFields
+              form={form}
+              onChange={updateField}
+              nameError={formErrors.name}
+            />
             <Button
               type="submit"
               disabled={saving}
@@ -333,6 +426,45 @@ export default function StoresPage() {
               {saving ? "Saving…" : "Save Changes"}
             </Button>
           </form>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={confirmOpen}
+        onOpenChange={(open) => {
+          setConfirmOpen(open);
+          if (!open) {
+            setDeactivateTarget(null);
+          }
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Deactivate Store</DialogTitle>
+            <DialogDescription>
+              {deactivateTarget
+                ? `Are you sure you want to deactivate ${deactivateTarget.name || "this store"}?`
+                : "Are you sure you want to deactivate this store?"}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setConfirmOpen(false)}
+              disabled={deactivating}
+              className="cursor-pointer"
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleDeactivate}
+              disabled={deactivating}
+              className="cursor-pointer"
+            >
+              {deactivating ? "Deactivating…" : "Deactivate"}
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>

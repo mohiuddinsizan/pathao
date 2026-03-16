@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Query
 
 from app.auth.dependencies import get_current_merchant
 from app.database import get_db
@@ -21,9 +21,28 @@ async def dashboard_stats(
             COUNT(*) FILTER (WHERE status = 'pending')            AS pending,
             COUNT(*) FILTER (WHERE status = 'in_transit')         AS in_transit,
             COUNT(*) FILTER (WHERE status = 'delivered')          AS delivered,
-            COALESCE(SUM(amount) FILTER (WHERE status = 'delivered'), 0) AS total_revenue
+            COALESCE(SUM(amount) FILTER (WHERE status = 'delivered'), 0) AS total_revenue,
+            COUNT(*) FILTER (WHERE created_at::date = CURRENT_DATE) AS orders_today
         FROM orders
         WHERE merchant_id = $1
+        """,
+        mid,
+    )
+
+    today_delivery = await db.fetchrow(
+        """
+        WITH delivered_today AS (
+            SELECT DISTINCT o.id, o.amount
+            FROM orders o
+            JOIN order_status_history osh ON osh.order_id = o.id
+            WHERE o.merchant_id = $1
+              AND osh.status = 'delivered'
+              AND osh.changed_at::date = CURRENT_DATE
+        )
+        SELECT
+            COUNT(*) AS delivered_today,
+            COALESCE(SUM(amount), 0) AS revenue_today
+        FROM delivered_today
         """,
         mid,
     )
@@ -40,6 +59,9 @@ async def dashboard_stats(
         "delivered": row["delivered"],
         "total_revenue": float(row["total_revenue"]),
         "stores": stores_count,
+        "orders_today": row["orders_today"],
+        "delivered_today": today_delivery["delivered_today"],
+        "revenue_today": float(today_delivery["revenue_today"]),
     }
 
 
@@ -68,6 +90,8 @@ async def recent_orders(
 
 @router.get("/recent-activity")
 async def recent_activity(
+    limit: int = Query(10, ge=1, le=50),
+    offset: int = Query(0, ge=0),
     merchant: dict = Depends(get_current_merchant),
     db=Depends(get_db),
 ):
@@ -99,7 +123,7 @@ async def recent_activity(
             JOIN orders o ON o.id = osh.order_id
             WHERE o.merchant_id = $1
             ORDER BY osh.changed_at DESC
-            LIMIT 10
+            LIMIT (($2::int) + ($3::int))
         ),
         store_created_events AS (
             SELECT
@@ -116,7 +140,7 @@ async def recent_activity(
             FROM stores s
             WHERE s.merchant_id = $1
             ORDER BY s.created_at DESC
-            LIMIT 10
+            LIMIT (($2::int) + ($3::int))
         ),
         store_updated_events AS (
             SELECT
@@ -135,7 +159,27 @@ async def recent_activity(
               AND s.is_active = TRUE
               AND s.updated_at > s.created_at
             ORDER BY s.updated_at DESC
-            LIMIT 10
+                        LIMIT (($2::int) + ($3::int))
+        ),
+        store_deactivated_events AS (
+            SELECT
+                'store_deactivated' AS type,
+                COALESCE(NULLIF(s.branch, ''), s.name) AS reference,
+                'Store deactivated' AS title,
+                CASE
+                    WHEN COALESCE(NULLIF(s.branch, ''), '') <> '' THEN s.name || ' • ' || s.branch
+                    ELSE s.name
+                END AS description,
+                s.updated_at AS occurred_at,
+                '/stores' AS href,
+                'inactive'::text AS status
+            FROM stores s
+            WHERE s.merchant_id = $1
+              AND s.is_active = FALSE
+              AND s.updated_at > s.created_at
+                            AND s.updated_at >= NOW() - INTERVAL '14 days'
+            ORDER BY s.updated_at DESC
+                        LIMIT 1
         ),
         activities AS (
             SELECT * FROM order_events
@@ -147,12 +191,19 @@ async def recent_activity(
             UNION ALL
 
             SELECT * FROM store_updated_events
+
+            UNION ALL
+
+            SELECT * FROM store_deactivated_events
         )
         SELECT type, reference, title, description, occurred_at, href, status
         FROM activities
         ORDER BY occurred_at DESC
-        LIMIT 10
+        LIMIT $2
+        OFFSET $3
         """,
         merchant["id"],
+        limit,
+        offset,
     )
     return [dict(r) for r in rows]

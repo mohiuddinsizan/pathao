@@ -13,13 +13,14 @@ export function invalidateDashboardCaches() {
 }
 
 export function getDashboardStats() {
-  return api.get('/api/dashboard/stats')
+  return api.cachedGet('/api/dashboard/stats')
 }
 
 export function getRecentOrders() {
-  return api.get('/api/dashboard/recent-orders')
+  return api.cachedGet('/api/dashboard/recent-orders')
 }
 
-export function getRecentActivity() {
-  return api.get('/api/dashboard/recent-activity')
+export function getRecentActivity({ limit = 10, offset = 0 } = {}) {
+  const params = new URLSearchParams({ limit: String(limit), offset: String(offset) })
+  return api.get(`/api/dashboard/recent-activity?${params.toString()}`)
 }

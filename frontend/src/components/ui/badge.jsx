@@ -20,6 +20,14 @@ const badgeVariants = cva(
           "bg-amber-500/30 text-foreground border-amber-500/40",
         info:
           "bg-blue-500/30 text-foreground border-blue-500/40",
+        sky:
+          "bg-sky-500/30 text-foreground border-sky-500/40",
+        teal:
+          "bg-teal-500/30 text-foreground border-teal-500/40",
+        orange:
+          "bg-orange-500/30 text-foreground border-orange-500/40",
+        negative:
+          "bg-red-500/30 text-foreground border-red-500/40",
         outline:
           "border-border text-foreground [a&]:hover:bg-accent [a&]:hover:text-accent-foreground",
         ghost: "[a&]:hover:bg-accent [a&]:hover:text-accent-foreground",
