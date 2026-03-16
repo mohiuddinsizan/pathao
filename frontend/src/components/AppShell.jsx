@@ -58,41 +58,57 @@ function getNotificationBadgeVariant(type) {
 
 function NotificationItem({ item, onNotificationClick, onRemoveNotification }) {
   const Icon = item.icon ?? Bell;
+  const tone = getNotificationBadgeVariant(item.type);
+
+  const iconToneClass =
+    tone === "success"
+      ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400"
+      : tone === "warning"
+        ? "bg-amber-500/15 text-amber-600 dark:text-amber-400"
+        : tone === "destructive"
+          ? "bg-destructive/15 text-destructive"
+          : "bg-primary/15 text-primary";
+
+  const unreadRailClass =
+    tone === "success"
+      ? "bg-emerald-500"
+      : tone === "warning"
+        ? "bg-amber-500"
+        : tone === "destructive"
+          ? "bg-destructive"
+          : "bg-primary";
 
   return (
     <DropdownMenuItem
       onClick={() => onNotificationClick(item)}
       onSelect={(event) => event.preventDefault()}
-      className="group relative cursor-pointer items-start gap-3 rounded-none border-b border-border/70 px-2 py-2 last:border-b-0 hover:bg-accent/70"
+      className="group relative cursor-pointer items-start gap-3 rounded-lg border border-transparent px-3 py-3 focus:bg-accent/70 focus:text-foreground data-highlighted:bg-accent/70 hover:border-border/70 hover:bg-accent/60"
     >
-      {item.unread ? <span className="absolute bottom-1 left-0 top-1 w-0.5 rounded-full bg-primary" /> : null}
-      <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+      {item.unread ? <span className={`absolute bottom-2 left-0 top-2 w-1 rounded-r-full ${unreadRailClass}`} /> : null}
+
+      <div className={`mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${iconToneClass}`}>
         <Icon className="h-4 w-4" />
       </div>
-      <div className="min-w-0 flex-1 space-y-0.5">
+
+      <div className="min-w-0 flex-1 space-y-1">
         <div className="flex items-start justify-between gap-2">
-          <p className={`truncate text-sm ${item.unread ? "font-semibold" : "font-medium"}`}>{item.title}</p>
-          <div className="flex items-center gap-1">
-            <Badge variant={getNotificationBadgeVariant(item.type)} className="shrink-0 capitalize">
-              {item.type}
-            </Badge>
-            <button
-              type="button"
-              onClick={(event) => {
-                event.preventDefault();
-                event.stopPropagation();
-                onRemoveNotification(item.id);
-              }}
-              className="rounded p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-              aria-label="Remove notification"
-              title="Remove"
-            >
-              <X className="h-3.5 w-3.5" />
-            </button>
-          </div>
+          <p className={`line-clamp-1 text-sm leading-5 ${item.unread ? "font-semibold text-foreground" : "font-medium text-foreground/90"}`}>
+            {item.title}
+          </p>
+          <button
+            type="button"
+            onClick={(event) => {
+              event.stopPropagation();
+              onRemoveNotification(item.id);
+            }}
+            className="rounded-md p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+            aria-label="Remove notification"
+          >
+            <X className="h-3.5 w-3.5" />
+          </button>
         </div>
-        <p className="truncate text-xs text-muted-foreground">{item.description}</p>
-        <p className="text-xs text-foreground/80">{item.timestamp}</p>
+        <p className="line-clamp-2 text-xs leading-5 text-muted-foreground">{item.description}</p>
+        <p className="text-[11px] font-medium text-foreground/70">{item.timestamp}</p>
       </div>
     </DropdownMenuItem>
   );
@@ -107,31 +123,48 @@ function NotificationsMenu({
   onClearAll,
 }) {
   const unreadCount = notifications.filter((item) => item.unread).length;
+  const hasRead = notifications.some((item) => !item.unread);
 
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="ghost" size="icon" className="relative h-8 w-8 cursor-pointer" aria-label="Open notifications">
+        <Button variant="ghost" size="icon" className="relative h-9 w-9 cursor-pointer rounded-full" aria-label="Open notifications">
           <Bell className="h-4 w-4" />
           {unreadCount > 0 ? (
-            <span className="absolute right-1.5 top-1.5 h-1.5 w-1.5 rounded-full bg-primary" />
+            <Badge
+              variant="destructive"
+              className="absolute -right-1 -top-1 h-5 min-w-5 justify-center rounded-full px-1 text-[10px] font-semibold leading-none"
+            >
+              {unreadCount > 9 ? "9+" : unreadCount}
+            </Badge>
           ) : null}
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-72">
-        <div className="px-2 py-1.5">
-          <p className="text-sm font-semibold">Notifications</p>
-          <p className="text-xs text-muted-foreground">Recent dashboard updates</p>
+      <DropdownMenuContent align="end" className="w-96 p-0">
+        <div className="border-b border-border/70 px-3 py-2.5">
+          <div className="flex items-center justify-between gap-2">
+            <p className="text-sm font-semibold">Notifications</p>
+            {unreadCount > 0 ? (
+              <Badge variant="secondary" className="h-5 rounded-full px-2 text-[11px] font-medium">
+                {unreadCount} unread
+              </Badge>
+            ) : null}
+          </div>
+          <p className="mt-0.5 text-xs text-muted-foreground">
+            {unreadCount === 0 ? "All caught up" : `${unreadCount} unread update${unreadCount > 1 ? "s" : ""}`}
+          </p>
         </div>
-        <DropdownMenuSeparator />
 
         {notifications.length === 0 ? (
-          <div className="flex flex-col items-center justify-center px-4 py-8">
-            <BellOff className="mb-2 h-8 w-8 text-muted-foreground" />
-            <p className="text-sm text-muted-foreground">No notifications</p>
+          <div className="flex flex-col items-center justify-center px-6 py-10">
+            <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-muted">
+              <BellOff className="h-6 w-6 text-muted-foreground" />
+            </div>
+            <p className="text-sm font-medium text-foreground">No notifications</p>
+            <p className="mt-1 text-xs text-muted-foreground">You're all set for now.</p>
           </div>
         ) : (
-          <div className="max-h-96 overflow-y-auto scrollbar-thin rounded-md border border-border/60 bg-background">
+          <div className="max-h-104 space-y-1 overflow-y-auto p-2">
             {notifications.map((item) => (
               <NotificationItem
                 key={item.id}
@@ -143,31 +176,36 @@ function NotificationsMenu({
           </div>
         )}
 
-        <DropdownMenuSeparator />
-        <DropdownMenuItem
-          onClick={onMarkAllRead}
-          onSelect={(event) => event.preventDefault()}
-          disabled={unreadCount === 0}
-          className="cursor-pointer text-xs font-medium"
-        >
-          Mark all as read
-        </DropdownMenuItem>
-        <DropdownMenuItem
-          onClick={onClearRead}
-          onSelect={(event) => event.preventDefault()}
-          disabled={!notifications.some((item) => !item.unread)}
-          className="cursor-pointer text-xs font-medium"
-        >
-          Clear read notifications
-        </DropdownMenuItem>
-        <DropdownMenuItem
-          onClick={onClearAll}
-          onSelect={(event) => event.preventDefault()}
-          disabled={notifications.length === 0}
-          className="cursor-pointer text-xs font-medium text-destructive focus:text-destructive"
-        >
-          Clear all notifications
-        </DropdownMenuItem>
+        <DropdownMenuSeparator className="my-0" />
+        <div className="grid grid-cols-3 gap-1.5 p-2">
+          <DropdownMenuItem
+            disabled={unreadCount === 0}
+            onClick={onMarkAllRead}
+            onSelect={(event) => event.preventDefault()}
+            className="cursor-pointer justify-center gap-1.5 rounded-md border border-border/70 px-2 py-2 text-xs font-medium data-disabled:cursor-not-allowed data-disabled:opacity-50"
+          >
+            <CheckCircle2 className="h-3.5 w-3.5" />
+            Read all
+          </DropdownMenuItem>
+          <DropdownMenuItem
+            disabled={!hasRead}
+            onClick={onClearRead}
+            onSelect={(event) => event.preventDefault()}
+            className="cursor-pointer justify-center gap-1.5 rounded-md border border-border/70 px-2 py-2 text-xs font-medium data-disabled:cursor-not-allowed data-disabled:opacity-50"
+          >
+            <Clock3 className="h-3.5 w-3.5" />
+            Clear read
+          </DropdownMenuItem>
+          <DropdownMenuItem
+            disabled={notifications.length === 0}
+            onClick={onClearAll}
+            onSelect={(event) => event.preventDefault()}
+            className="cursor-pointer justify-center gap-1.5 rounded-md border border-destructive/30 px-2 py-2 text-xs font-medium text-destructive data-disabled:cursor-not-allowed data-disabled:opacity-50"
+          >
+            <X className="h-3.5 w-3.5" />
+            Clear all
+          </DropdownMenuItem>
+        </div>
       </DropdownMenuContent>
     </DropdownMenu>
   );
