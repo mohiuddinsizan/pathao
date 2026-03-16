@@ -20,7 +20,8 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Search, ChevronLeft, ChevronRight } from "lucide-react";
+import { Search, ChevronLeft, ChevronRight, SlidersHorizontal, ChevronDown } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 const statusColors = {
   pending: "warning",
@@ -52,6 +53,9 @@ export default function DeliveriesPage() {
   const [search, setSearch] = useState("");
   const [stores, setStores] = useState([]);
   const [storeFilter, setStoreFilter] = useState("all");
+  const [filtersOpen, setFiltersOpen] = useState(false);
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
 
   // Fetch stores once on mount for the store filter dropdown
   useEffect(() => {
@@ -76,26 +80,41 @@ export default function DeliveriesPage() {
 
   const orders = ordersData || [];
 
-  const filtered = search
-    ? orders.filter(
-      (o) =>
-        (o.recipient_name || "").toLowerCase().includes(search.toLowerCase()) ||
-        (o.recipient_phone || "").includes(search) ||
-        (o.order_id || "").toLowerCase().includes(search.toLowerCase())
+  const filtered = orders
+    .filter((o) =>
+      !search ||
+      (o.recipient_name || "").toLowerCase().includes(search.toLowerCase()) ||
+      (o.recipient_phone || "").includes(search) ||
+      (o.order_id || "").toLowerCase().includes(search.toLowerCase())
     )
-    : orders;
+    .filter((o) => {
+      if (!dateFrom && !dateTo) return true;
+      const d = o.created_at ? new Date(o.created_at) : null;
+      if (!d) return true;
+      if (dateFrom && d < new Date(dateFrom + "T00:00:00")) return false;
+      if (dateTo && d > new Date(dateTo + "T23:59:59.999")) return false;
+      return true;
+    });
 
   return (
     <div className="flex flex-col h-full overflow-hidden p-4 lg:p-6 gap-4">
-      <div className="shrink-0">
+      <div className="shrink-0 flex items-center justify-between">
         <h1 className="text-2xl font-bold tracking-tight">Deliveries</h1>
-        <p className="text-sm text-muted-foreground mt-1">
-          Manage and track all delivery orders
-        </p>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => setFiltersOpen((v) => { if (v) { setDateFrom(""); setDateTo(""); } return !v; })}
+          className="gap-2 cursor-pointer"
+        >
+          <SlidersHorizontal className="h-4 w-4" />
+          Filters
+          <ChevronDown className={cn("h-4 w-4 transition-transform duration-200", filtersOpen && "rotate-180")} />
+        </Button>
       </div>
 
-      {/* Filters */}
-      <div className="shrink-0 flex flex-col sm:flex-row gap-3">
+      {/* Collapsible Filters */}
+      {filtersOpen && (
+      <div className="shrink-0 flex flex-col sm:flex-row gap-3 flex-wrap">
         <div className="relative flex-1 max-w-sm">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
@@ -138,7 +157,25 @@ export default function DeliveriesPage() {
             ))}
           </SelectContent>
         </Select>
+        <div className="flex items-center gap-1.5">
+          <input
+            type="date"
+            value={dateFrom}
+            onChange={(e) => { setDateFrom(e.target.value); setPage(1); }}
+            className="h-8 rounded-md border border-input bg-background px-2 text-xs text-foreground cursor-pointer"
+            title="From date"
+          />
+          <span className="text-xs text-muted-foreground">–</span>
+          <input
+            type="date"
+            value={dateTo}
+            onChange={(e) => { setDateTo(e.target.value); setPage(1); }}
+            className="h-8 rounded-md border border-input bg-background px-2 text-xs text-foreground cursor-pointer"
+            title="To date"
+          />
+        </div>
       </div>
+      )}
 
       {/* Table */}
       <Card className="flex flex-col flex-1 min-h-0">
@@ -156,7 +193,7 @@ export default function DeliveriesPage() {
         <CardContent className="flex flex-col flex-1 min-h-0 p-0 mt-4 overflow-hidden">
           <div className="flex-1 min-h-0 overflow-auto">
             <div className="w-[800px] min-w-full text-sm">
-              <div className="sticky top-0 z-10 grid grid-cols-6 border-b border-border bg-muted/50 text-xs font-extrabold uppercase tracking-widest text-muted-foreground">
+              <div className="sticky top-0 z-10 grid grid-cols-6 border-b border-border bg-card text-xs font-extrabold uppercase tracking-widest text-muted-foreground">
                 <div className="py-3 px-4">Order ID</div>
                 <div className="py-3 px-4">Recipient</div>
                 <div className="py-3 px-4">Phone</div>
