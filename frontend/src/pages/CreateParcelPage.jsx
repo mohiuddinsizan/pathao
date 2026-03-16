@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { api } from '@/api/client'
+import { createOrder } from '@/api/orders'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -84,8 +84,7 @@ export default function CreateParcelPage() {
       if (!payload.store_id) delete payload.store_id
       if (!payload.pickup_address?.trim()) delete payload.pickup_address
 
-      const createdOrder = await api.post('/api/orders', payload)
-      const orderData = createdOrder?.data ?? createdOrder
+      const orderData = await createOrder(payload)
       setSuccessOrder({
         orderId: orderData?.order_id,
         createdAt: orderData?.created_at,
