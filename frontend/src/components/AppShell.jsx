@@ -82,16 +82,17 @@ function NotificationItem({ item, onNotificationClick, onRemoveNotification }) {
     <DropdownMenuItem
       onClick={() => onNotificationClick(item)}
       onSelect={(event) => event.preventDefault()}
-      className="group relative cursor-pointer items-start gap-3 rounded-lg border border-transparent px-3 py-3 focus:bg-accent/70 focus:text-foreground data-highlighted:bg-accent/70 hover:border-border/70 hover:bg-accent/60"
+      className="group relative cursor-pointer items-start gap-3 rounded-lg border border-transparent px-3 py-2.5 transition-all duration-200 focus:bg-accent/70 focus:text-foreground data-highlighted:bg-accent/70 hover:border-border/70 hover:bg-accent/60"
     >
       {item.unread ? <span className={`absolute bottom-2 left-0 top-2 w-1 rounded-r-full ${unreadRailClass}`} /> : null}
 
-      <div className={`mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${iconToneClass}`}>
+      <div className={`mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${iconToneClass}`}>
         <Icon className="h-4 w-4" />
       </div>
 
-      <div className="min-w-0 flex-1 space-y-1">
-        <div className="flex items-start justify-between gap-2">
+      <div className="min-w-0 flex-1">
+        {/* Always visible: title + dismiss button */}
+        <div className="flex items-center justify-between gap-2">
           <p className={`line-clamp-1 text-sm leading-5 ${item.unread ? "font-semibold text-foreground" : "font-medium text-foreground/90"}`}>
             {item.title}
           </p>
@@ -101,14 +102,21 @@ function NotificationItem({ item, onNotificationClick, onRemoveNotification }) {
               event.stopPropagation();
               onRemoveNotification(item.id);
             }}
-            className="rounded-md p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+            className="shrink-0 rounded-md p-1 text-muted-foreground opacity-0 transition-opacity duration-150 group-hover:opacity-100 hover:bg-muted hover:text-foreground"
             aria-label="Remove notification"
           >
-            <X className="h-3.5 w-3.5" />
+            <X className="h-3 w-3" />
           </button>
         </div>
-        <p className="line-clamp-2 text-xs leading-5 text-muted-foreground">{item.description}</p>
-        <p className="text-[11px] font-medium text-foreground/70">{item.timestamp}</p>
+        {/* Hover-expanded: description + timestamp */}
+        <div className="grid grid-rows-[0fr] transition-[grid-template-rows] duration-250 ease-out group-hover:grid-rows-[1fr]">
+          <div className="overflow-hidden">
+            <div className="flex flex-col gap-0.5 opacity-0 transition-opacity duration-150 delay-75 group-hover:opacity-100">
+              <p className="line-clamp-2 text-xs leading-5 text-muted-foreground">{item.description}</p>
+              <p className="text-[11px] font-medium text-foreground/55">{item.timestamp}</p>
+            </div>
+          </div>
+        </div>
       </div>
     </DropdownMenuItem>
   );
