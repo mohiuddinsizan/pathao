@@ -86,8 +86,8 @@ export default function DeliveriesPage() {
     : orders;
 
   return (
-    <div className="p-4 lg:p-6 space-y-6">
-      <div>
+    <div className="flex flex-col h-full overflow-hidden p-4 lg:p-6 gap-4">
+      <div className="shrink-0">
         <h1 className="text-2xl font-bold tracking-tight">Deliveries</h1>
         <p className="text-sm text-muted-foreground mt-1">
           Manage and track all delivery orders
@@ -95,7 +95,7 @@ export default function DeliveriesPage() {
       </div>
 
       {/* Filters */}
-      <div className="flex flex-col sm:flex-row gap-3">
+      <div className="shrink-0 flex flex-col sm:flex-row gap-3">
         <div className="relative flex-1 max-w-sm">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
@@ -141,8 +141,8 @@ export default function DeliveriesPage() {
       </div>
 
       {/* Table */}
-      <Card>
-        <CardHeader className="pb-0">
+      <Card className="flex flex-col flex-1 min-h-0">
+        <CardHeader className="pb-0 shrink-0">
           <CardTitle className="text-base">
             Orders{" "}
             {!loading && (
@@ -153,8 +153,8 @@ export default function DeliveriesPage() {
           </CardTitle>
           <CardDescription>Click any row to view details</CardDescription>
         </CardHeader>
-        <CardContent className="p-0 mt-4">
-          <div className="overflow-x-auto">
+        <CardContent className="flex flex-col flex-1 min-h-0 p-0 mt-4 overflow-hidden">
+          <div className="flex-1 min-h-0 overflow-auto">
             <div className="w-[800px] min-w-full text-sm">
               <div className="sticky top-0 z-10 grid grid-cols-6 border-b border-border bg-muted/50 text-xs font-extrabold uppercase tracking-widest text-muted-foreground">
                 <div className="py-3 px-4">Order ID</div>
@@ -222,7 +222,7 @@ export default function DeliveriesPage() {
       </Card>
 
       {/* Pagination */}
-      <div className="flex items-center justify-end gap-2">
+      <div className="shrink-0 flex items-center justify-end gap-2">
         <Button
           variant="outline"
           size="sm"
