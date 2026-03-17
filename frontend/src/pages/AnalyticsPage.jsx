@@ -319,104 +319,123 @@ export default function AnalyticsPage() {
       : 'Selected period'
 
   return (
-    <div className="flex flex-col h-full overflow-hidden p-4 lg:p-6 gap-4">
-      {/* Sticky header */}
-      <div className="shrink-0 flex items-center justify-between">
-        <h1 className="text-2xl font-bold tracking-tight">Analytics</h1>
-        {loading && (
-          <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
-        )}
-      </div>
+    <Tabs defaultValue="overview" className="flex flex-col h-full overflow-hidden p-4 lg:p-6 gap-0">
+      {/* Sticky header: title + tabs + filters */}
+      <div className="shrink-0 space-y-3 pb-4">
+        <div className="flex items-center justify-between">
+          <h1 className="text-2xl font-bold tracking-tight">Analytics</h1>
+          {loading && (
+            <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+          )}
+        </div>
 
-      {/* Store filter */}
-      {/* Date & store filter bar */}
-      <div className="shrink-0 rounded-xl border-2 border-border bg-card p-3">
-        <div className="flex items-center gap-2 flex-wrap">
-          {DATE_PRESETS.map((preset) => (
-            <button
-              key={preset.key}
-              type="button"
-              onClick={() => applyPreset(preset)}
-              className={cn(
-                'h-7 rounded-md border px-2.5 text-xs font-medium transition-colors cursor-pointer',
-                selectedPreset === preset.key
-                  ? 'border-primary bg-primary/10 text-primary'
-                  : 'border-input bg-background text-muted-foreground hover:bg-muted hover:text-foreground'
-              )}
+        {/* Tab navigation — always visible */}
+        <TabsList className="w-full justify-start bg-transparent h-auto p-0 rounded-none border-b border-border">
+          {[
+            { value: 'overview', label: 'Overview' },
+            { value: 'deliveries', label: 'Deliveries' },
+            { value: 'stores', label: 'Stores' },
+            { value: 'payments', label: 'Payments' },
+          ].map((tab) => (
+            <TabsTrigger
+              key={tab.value}
+              value={tab.value}
+              className="rounded-none border-b-2 border-transparent px-4 py-2 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground data-[state=active]:border-primary data-[state=active]:text-foreground data-[state=active]:font-semibold data-[state=active]:bg-transparent data-[state=active]:shadow-none"
             >
-              {preset.label}
-            </button>
+              {tab.label}
+            </TabsTrigger>
           ))}
+        </TabsList>
 
-          <div className="h-5 w-px bg-border" />
+        {/* Date & store filter bar */}
+        <div className="rounded-xl border-2 border-border bg-card p-3">
+          <div className="flex items-center gap-2 flex-wrap">
+            {DATE_PRESETS.map((preset) => (
+              <button
+                key={preset.key}
+                type="button"
+                onClick={() => applyPreset(preset)}
+                className={cn(
+                  'h-7 rounded-md border px-2.5 text-xs font-medium transition-colors cursor-pointer',
+                  selectedPreset === preset.key
+                    ? 'border-primary bg-primary/10 text-primary'
+                    : 'border-input bg-background text-muted-foreground hover:bg-muted hover:text-foreground'
+                )}
+              >
+                {preset.label}
+              </button>
+            ))}
 
-          <input
-            type="date"
-            value={dateFrom}
-            onChange={(e) => {
-              setDateFrom(e.target.value)
-              setSelectedPreset(null)
-            }}
-            className={cn(
-              'h-8 rounded-md border bg-background px-2 text-xs cursor-pointer',
-              dateFrom && !selectedPreset
-                ? 'border-primary bg-primary/10 text-primary'
-                : 'border-input text-foreground'
+            <div className="h-5 w-px bg-border" />
+
+            <input
+              type="date"
+              value={dateFrom}
+              onChange={(e) => {
+                setDateFrom(e.target.value)
+                setSelectedPreset(null)
+              }}
+              className={cn(
+                'h-8 rounded-md border bg-background px-2 text-xs cursor-pointer',
+                dateFrom && !selectedPreset
+                  ? 'border-primary bg-primary/10 text-primary'
+                  : 'border-input text-foreground'
+              )}
+              title="From date"
+            />
+            <span className="text-xs text-muted-foreground">–</span>
+            <input
+              type="date"
+              value={dateTo}
+              onChange={(e) => {
+                setDateTo(e.target.value)
+                setSelectedPreset(null)
+              }}
+              className={cn(
+                'h-8 rounded-md border bg-background px-2 text-xs cursor-pointer',
+                dateTo && !selectedPreset
+                  ? 'border-primary bg-primary/10 text-primary'
+                  : 'border-input text-foreground'
+              )}
+              title="To date"
+            />
+
+            {(dateFrom || dateTo) && !selectedPreset && (
+              <button
+                type="button"
+                onClick={() => applyPreset(DATE_PRESETS[2])}
+                className="inline-flex items-center gap-1 h-7 rounded-md px-2.5 text-xs font-medium text-destructive/70 transition-colors hover:bg-destructive/10 hover:text-destructive cursor-pointer"
+              >
+                <X className="h-3 w-3" />
+                Reset
+              </button>
             )}
-            title="From date"
-          />
-          <span className="text-xs text-muted-foreground">–</span>
-          <input
-            type="date"
-            value={dateTo}
-            onChange={(e) => {
-              setDateTo(e.target.value)
-              setSelectedPreset(null)
-            }}
-            className={cn(
-              'h-8 rounded-md border bg-background px-2 text-xs cursor-pointer',
-              dateTo && !selectedPreset
-                ? 'border-primary bg-primary/10 text-primary'
-                : 'border-input text-foreground'
+
+            <div className="h-5 w-px bg-border" />
+
+            <Select value={storeFilter} onValueChange={(v) => setStoreFilter(v)}>
+              <SelectTrigger className="h-7 w-auto min-w-[140px] max-w-[220px] text-xs font-medium truncate border-input">
+                <SelectValue placeholder="All Stores" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Stores</SelectItem>
+                {stores.map((s) => (
+                  <SelectItem key={s.id} value={s.id}>
+                    {s.name}{s.branch ? ` — ${s.branch}` : ''}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {storeFilter !== 'all' && (
+              <button
+                type="button"
+                onClick={() => setStoreFilter('all')}
+                className="inline-flex items-center gap-1 h-7 rounded-md px-2 text-xs font-medium text-destructive/70 transition-colors hover:bg-destructive/10 hover:text-destructive cursor-pointer"
+              >
+                <X className="h-3 w-3" />
+              </button>
             )}
-            title="To date"
-          />
-
-          {(dateFrom || dateTo) && !selectedPreset && (
-            <button
-              type="button"
-              onClick={() => applyPreset(DATE_PRESETS[2])}
-              className="inline-flex items-center gap-1 h-7 rounded-md px-2.5 text-xs font-medium text-destructive/70 transition-colors hover:bg-destructive/10 hover:text-destructive cursor-pointer"
-            >
-              <X className="h-3 w-3" />
-              Reset
-            </button>
-          )}
-
-          <div className="h-5 w-px bg-border" />
-
-          <Select value={storeFilter} onValueChange={(v) => setStoreFilter(v)}>
-            <SelectTrigger className="h-7 w-auto min-w-[140px] max-w-[220px] text-xs font-medium truncate border-input">
-              <SelectValue placeholder="All Stores" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Stores</SelectItem>
-              {stores.map((s) => (
-                <SelectItem key={s.id} value={s.id}>
-                  {s.name}{s.branch ? ` — ${s.branch}` : ''}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          {storeFilter !== 'all' && (
-            <button
-              type="button"
-              onClick={() => setStoreFilter('all')}
-              className="inline-flex items-center gap-1 h-7 rounded-md px-2 text-xs font-medium text-destructive/70 transition-colors hover:bg-destructive/10 hover:text-destructive cursor-pointer"
-            >
-              <X className="h-3 w-3" />
-            </button>
-          )}
+          </div>
         </div>
       </div>
 
@@ -427,16 +446,6 @@ export default function AnalyticsPage() {
             {error}
           </div>
         )}
-
-        <Tabs defaultValue="overview" className="flex flex-col gap-0 h-full">
-          <div className="sticky top-0 z-10 bg-background/95 backdrop-blur-sm pb-3 -mt-0.5 pt-0.5">
-            <TabsList className="w-full justify-start">
-              <TabsTrigger value="overview">Overview</TabsTrigger>
-              <TabsTrigger value="deliveries">Deliveries</TabsTrigger>
-              <TabsTrigger value="stores">Stores</TabsTrigger>
-              <TabsTrigger value="payments">Payments</TabsTrigger>
-            </TabsList>
-          </div>
 
           {/* ─── Overview Tab ─── */}
           <TabsContent value="overview" className="space-y-4">
@@ -645,6 +654,48 @@ export default function AnalyticsPage() {
 
           {/* ─── Stores Tab ─── */}
           <TabsContent value="stores" className="space-y-4">
+            {/* Inter-store Comparison Stats */}
+            {!loading && topStores.length > 1 && (() => {
+              const sorted = [...topStores].sort((a, b) => b.order_count - a.order_count)
+              const best = sorted[0]
+              const avgRevenue = topStores.reduce((s, t) => s + t.revenue, 0) / topStores.length
+              const avgRate = topStores.reduce((s, t) => s + t.delivery_rate, 0) / topStores.length
+              const bestRate = topStores.reduce((b, t) => t.delivery_rate > b.delivery_rate ? t : b, topStores[0])
+              const worstRate = topStores.filter(t => t.order_count > 0).reduce((w, t) => t.delivery_rate < w.delivery_rate ? t : w, topStores[0])
+              return (
+                <div className="grid gap-3 grid-cols-2 lg:grid-cols-4">
+                  <KpiCard
+                    icon={TrendingUp}
+                    label="Top Store"
+                    value={best.name}
+                    sub={`${best.order_count} orders · ৳${best.revenue.toLocaleString()}`}
+                    color="bg-muted text-foreground"
+                  />
+                  <KpiCard
+                    icon={Package}
+                    label="Avg Revenue / Store"
+                    value={`৳${Math.round(avgRevenue).toLocaleString()}`}
+                    sub={`Across ${topStores.length} stores`}
+                    color="bg-muted text-foreground"
+                  />
+                  <KpiCard
+                    icon={CheckCircle}
+                    label="Best Delivery Rate"
+                    value={`${bestRate.delivery_rate}%`}
+                    sub={`${bestRate.name}${bestRate.branch ? ` (${bestRate.branch})` : ''}`}
+                    color="bg-muted text-foreground"
+                  />
+                  <KpiCard
+                    icon={Banknote}
+                    label="Avg Delivery Rate"
+                    value={`${avgRate.toFixed(1)}%`}
+                    sub={worstRate.order_count > 0 ? `Lowest: ${worstRate.delivery_rate}% (${worstRate.name})` : ''}
+                    color="bg-muted text-foreground"
+                  />
+                </div>
+              )
+            })()}
+
             {/* Top Stores Table */}
             <SectionCard title="Top Stores" subtitle="Ranked by order volume">
               {loading ? (
@@ -801,8 +852,7 @@ export default function AnalyticsPage() {
               </div>
             )}
           </TabsContent>
-        </Tabs>
       </div>
-    </div>
+    </Tabs>
   )
 }
