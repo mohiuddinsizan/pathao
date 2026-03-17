@@ -29,3 +29,17 @@ export function deleteStore(storeId) {
     return res
   })
 }
+
+export function reactivateStore(storeId) {
+  return api.post(`/api/stores/${storeId}/reactivate`).then((res) => {
+    invalidateDashboardCaches()
+    return res
+  })
+}
+
+export function permanentlyDeleteStore(storeId) {
+  return api.delete(`/api/stores/${storeId}/permanent`).then((res) => {
+    invalidateDashboardCaches()
+    return res
+  })
+}

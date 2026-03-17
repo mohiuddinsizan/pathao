@@ -140,6 +140,9 @@ export default function DeliveriesPage() {
   const [sortField, setSortField] = useState(null); // "amount" | "created_at" | null
   const [sortDir, setSortDir] = useState("desc");
 
+  // Per-tab cache: remembers loaded orders + page for each status tab
+  const tabCacheRef = useRef({});
+
   // Fetch stores once on mount for the store filter dropdown
   useEffect(() => {
     getStores()
@@ -174,6 +177,8 @@ export default function DeliveriesPage() {
   const totalCount = Object.values(orderCounts).reduce((a, b) => a + Number(b), 0);
 
   const handleClearFilters = () => {
+    tabCacheRef.current = {};
+    setAllOrders([]);
     setFilter("all");
     setStoreFilter("all");
     setDateFrom("");
@@ -208,27 +213,43 @@ export default function DeliveriesPage() {
     return () => clearTimeout(timer);
   }, [autoLoadPhase, loading, loadingMore]);
 
-  // Accumulate orders across pages
+  // Accumulate orders across pages and persist to per-tab cache
   useEffect(() => {
     if (!orders.length) return;
     setAllOrders((prev) => {
-      if (page === 1) return orders;
-      const existingIds = new Set(prev.map((o) => o.order_id));
-      const newOrders = orders.filter((o) => !existingIds.has(o.order_id));
-      return newOrders.length > 0 ? [...prev, ...newOrders] : prev;
+      let next;
+      if (page === 1) {
+        next = orders;
+      } else {
+        const existingIds = new Set(prev.map((o) => o.order_id));
+        const newOrders = orders.filter((o) => !existingIds.has(o.order_id));
+        next = newOrders.length > 0 ? [...prev, ...newOrders] : prev;
+      }
+      // Save to per-tab cache so we can restore when switching back
+      const cacheKey = `${filter}__${storeFilter}`;
+      tabCacheRef.current[cacheKey] = { orders: next, page };
+      return next;
     });
-  }, [orders, page]);
+  }, [orders, page, filter, storeFilter]);
 
-  // Reset page when filters change (skip initial mount). 
-  // Don't clear allOrders — let the accumulation effect replace them when new data arrives
-  // to avoid a flash of empty state.
+  // When filter/storeFilter changes: save current state to cache, restore target tab
   const prevFilterRef = useRef({ filter, storeFilter });
   useEffect(() => {
     const prev = prevFilterRef.current;
     if (prev.filter === filter && prev.storeFilter === storeFilter) return;
     prevFilterRef.current = { filter, storeFilter };
     setAutoLoadPhase("idle");
-    setPage(1);
+
+    // Restore from per-tab cache if available
+    const cacheKey = `${filter}__${storeFilter}`;
+    const cached = tabCacheRef.current[cacheKey];
+    if (cached) {
+      setAllOrders(cached.orders);
+      setPage(cached.page);
+    } else {
+      setAllOrders([]);
+      setPage(1);
+    }
   }, [filter, storeFilter]);
 
   // IntersectionObserver: auto-load next page when sentinel enters viewport
@@ -248,14 +269,9 @@ export default function DeliveriesPage() {
     return () => observer.disconnect();
   }, [hasNextPage, loading, autoLoadPhase, loadNextPage, allOrders.length]);
 
-  const statusScopedOrders =
-    filter === "all"
-      ? allOrders
-      : (() => {
-          const matched = allOrders.filter((o) => o.status === filter);
-          if (matched.length === 0 && loading) return allOrders;
-          return matched;
-        })();
+  // Since each tab now has its own cached orders, just use allOrders directly.
+  // The API already filters by status, so allOrders contains the right data for the active tab.
+  const statusScopedOrders = allOrders;
 
   const filtered = statusScopedOrders
     .filter((o) =>

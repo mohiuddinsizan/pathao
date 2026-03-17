@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { getStores, createStore, updateStore, deleteStore } from "@/api/stores";
+import { getStores, createStore, updateStore, deleteStore, reactivateStore, permanentlyDeleteStore } from "@/api/stores";
 import {
   Card,
   CardContent,
@@ -19,7 +19,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { MapPin, Phone, Plus, Pencil, PowerOff } from "lucide-react";
+import { MapPin, Phone, Plus, Pencil, PowerOff, Power, Trash2, Search, X, SlidersHorizontal } from "lucide-react";
+import AddressPicker from "@/components/AddressPicker";
 
 const BLANK_FORM = {
   name: "",
@@ -42,7 +43,7 @@ function SkeletonCard() {
   );
 }
 
-function StoreFormFields({ form, onChange, nameError }) {
+function StoreFormFields({ form, onChange, nameError, addressError, phoneError }) {
   return (
     <>
       <div className="space-y-1.5">
@@ -72,13 +73,17 @@ function StoreFormFields({ form, onChange, nameError }) {
       </div>
 
       <div className="space-y-1.5">
-        <Label htmlFor="form-address">Address</Label>
-        <Input
-          id="form-address"
+        <Label htmlFor="form-address">
+          Address <span className="text-destructive">*</span>
+        </Label>
+        <AddressPicker
+          label="Store Address"
           value={form.address}
-          onChange={(e) => onChange("address", e.target.value)}
-          placeholder="Street address"
+          onChange={(addr) => onChange("address", addr)}
         />
+        {addressError ? (
+          <p className="text-xs text-destructive">{addressError}</p>
+        ) : null}
       </div>
 
       <div className="grid grid-cols-2 gap-3">
@@ -103,13 +108,18 @@ function StoreFormFields({ form, onChange, nameError }) {
       </div>
 
       <div className="space-y-1.5">
-        <Label htmlFor="form-phone">Phone</Label>
+        <Label htmlFor="form-phone">
+          Phone <span className="text-destructive">*</span>
+        </Label>
         <Input
           id="form-phone"
           value={form.phone}
           onChange={(e) => onChange("phone", e.target.value)}
           placeholder="e.g. 01700000000"
         />
+        {phoneError ? (
+          <p className="text-xs text-destructive">{phoneError}</p>
+        ) : null}
       </div>
     </>
   );
@@ -126,9 +136,16 @@ export default function StoresPage() {
   const [editTarget, setEditTarget] = useState(null);
   const [deactivateTarget, setDeactivateTarget] = useState(null);
   const [form, setForm] = useState(BLANK_FORM);
-  const [formErrors, setFormErrors] = useState({ name: "" });
+  const [formErrors, setFormErrors] = useState({ name: "", address: "", phone: "" });
   const [saving, setSaving] = useState(false);
   const [deactivating, setDeactivating] = useState(false);
+  const [reactivating, setReactivating] = useState(null);
+  const [deletePermOpen, setDeletePermOpen] = useState(false);
+  const [deletePermTarget, setDeletePermTarget] = useState(null);
+  const [deletingPerm, setDeletingPerm] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all"); // "all" | "active" | "inactive"
+  const [filtersVisible, setFiltersVisible] = useState(false);
 
   const fetchStores = () => {
     setLoadError("");
@@ -146,15 +163,15 @@ export default function StoresPage() {
   }, []);
 
   function updateField(key, value) {
-    if (key === "name") {
-      setFormErrors((prev) => ({ ...prev, name: "" }));
+    if (key === "name" || key === "address" || key === "phone") {
+      setFormErrors((prev) => ({ ...prev, [key]: "" }));
     }
     setForm((prev) => ({ ...prev, [key]: value }));
   }
 
   function openCreateModal() {
     setForm(BLANK_FORM);
-    setFormErrors({ name: "" });
+    setFormErrors({ name: "", address: "", phone: "" });
     setCreateOpen(true);
   }
 
@@ -167,18 +184,24 @@ export default function StoresPage() {
       zone: store.zone || "",
       phone: store.phone || "",
     });
-    setFormErrors({ name: "" });
+    setFormErrors({ name: "", address: "", phone: "" });
     setEditTarget(store);
     setEditOpen(true);
   }
 
   function validateForm() {
-    const errors = { name: "" };
+    const errors = { name: "", address: "", phone: "" };
     if (!form.name.trim()) {
       errors.name = "Store Name is required.";
     }
+    if (!form.address.trim()) {
+      errors.address = "Address is required.";
+    }
+    if (!form.phone.trim()) {
+      errors.phone = "Phone is required.";
+    }
     setFormErrors(errors);
-    return !errors.name;
+    return !errors.name && !errors.address && !errors.phone;
   }
 
   async function handleCreate(e) {
@@ -244,25 +267,158 @@ export default function StoresPage() {
     }
   }
 
+  async function handleReactivate(store) {
+    setReactivating(store.id);
+    try {
+      await reactivateStore(store.id);
+      setNotice({ type: "success", message: `${store.name || "Store"} reactivated.` });
+      await fetchStores();
+    } catch (err) {
+      setNotice({
+        type: "error",
+        message: err?.message || "Failed to reactivate store.",
+      });
+    } finally {
+      setReactivating(null);
+    }
+  }
+
+  function requestPermanentDelete(store) {
+    setDeletePermTarget(store);
+    setDeletePermOpen(true);
+  }
+
+  async function handlePermanentDelete() {
+    if (!deletePermTarget) return;
+    setDeletingPerm(true);
+    try {
+      await permanentlyDeleteStore(deletePermTarget.id);
+      setDeletePermOpen(false);
+      setDeletePermTarget(null);
+      setNotice({ type: "success", message: "Store permanently deleted." });
+      await fetchStores();
+    } catch (err) {
+      setNotice({
+        type: "error",
+        message: err?.message || "Failed to delete store.",
+      });
+    } finally {
+      setDeletingPerm(false);
+    }
+  }
+
+  const filteredStores = stores
+    .filter((s) => {
+      if (statusFilter === "active") return s.is_active !== false;
+      if (statusFilter === "inactive") return s.is_active === false;
+      return true;
+    })
+    .filter((s) => {
+      if (!searchQuery.trim()) return true;
+      const q = searchQuery.toLowerCase();
+      return (
+        (s.name || "").toLowerCase().includes(q) ||
+        (s.branch || "").toLowerCase().includes(q) ||
+        (s.address || "").toLowerCase().includes(q) ||
+        (s.phone || "").includes(q) ||
+        (s.city || "").toLowerCase().includes(q)
+      );
+    });
+
+  const activeFilterCount = [
+    searchQuery.trim() !== "",
+    statusFilter !== "all",
+  ].filter(Boolean).length;
+
   return (
-    <div className="p-4 lg:p-6 space-y-6">
-      {/* Page Header */}
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">Stores</h1>
-          <p className="text-sm text-muted-foreground mt-1">
-            Your registered pickup locations
-          </p>
+    <div className="flex flex-col h-full overflow-hidden p-4 lg:p-6 gap-4">
+      {/* Sticky header */}
+      <div className="shrink-0 flex items-center justify-between">
+        <h1 className="text-2xl font-bold tracking-tight">Stores</h1>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            className={`h-9 gap-1.5 cursor-pointer ${filtersVisible || activeFilterCount > 0 ? "border-primary text-primary" : ""}`}
+            onClick={() => setFiltersVisible((v) => !v)}
+          >
+            <SlidersHorizontal className="h-3.5 w-3.5" />
+            {activeFilterCount > 0 && (
+              <span className="text-xs bg-primary text-primary-foreground rounded-full h-4 w-4 inline-flex items-center justify-center">
+                {activeFilterCount}
+              </span>
+            )}
+          </Button>
+          <Button size="sm" onClick={openCreateModal} className="h-9 gap-1.5 cursor-pointer">
+            <Plus className="h-4 w-4" />
+            Add Store
+          </Button>
         </div>
-        <Button onClick={openCreateModal} className="shrink-0 cursor-pointer">
-          <Plus className="h-4 w-4" />
-          Add Store
-        </Button>
       </div>
+
+      {/* Collapsible filter bar */}
+      {filtersVisible && (
+        <div className="shrink-0 rounded-xl border-2 border-border bg-card p-3">
+          <div className="flex items-center gap-2 flex-wrap">
+            <div className="relative w-56">
+              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                placeholder="Name, address, phone..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-9 h-8 text-sm"
+              />
+              {searchQuery && (
+                <button
+                  type="button"
+                  onClick={() => setSearchQuery("")}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground cursor-pointer"
+                  aria-label="Clear search"
+                >
+                  <X className="h-3.5 w-3.5" />
+                </button>
+              )}
+            </div>
+            <div className="flex items-center rounded-md border border-border text-xs">
+              {[
+                { label: "All", value: "all" },
+                { label: "Active", value: "active" },
+                { label: "Inactive", value: "inactive" },
+              ].map(({ label, value }) => (
+                <button
+                  key={value}
+                  type="button"
+                  onClick={() => setStatusFilter(value)}
+                  className={`px-3 py-1.5 cursor-pointer transition-colors ${
+                    statusFilter === value
+                      ? "bg-primary text-primary-foreground"
+                      : "hover:bg-muted"
+                  } ${value === "all" ? "rounded-l-md" : ""} ${value === "inactive" ? "rounded-r-md" : ""}`}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+            {activeFilterCount > 0 && (
+              <button
+                type="button"
+                onClick={() => {
+                  setSearchQuery("");
+                  setStatusFilter("all");
+                }}
+                className="ml-auto inline-flex items-center gap-1 h-7 rounded-md px-2.5 text-xs font-medium text-destructive/70 transition-colors hover:bg-destructive/10 hover:text-destructive cursor-pointer"
+              >
+                <X className="h-3 w-3" />
+                Clear
+              </button>
+            )}
+          </div>
+        </div>
+      )}
 
       {notice ? (
         <div
-          className={`rounded-md border px-3 py-2 text-sm ${
+          className={`shrink-0 rounded-md border px-3 py-2 text-sm ${
             notice.type === "success"
               ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300"
               : "border-destructive/30 bg-destructive/10 text-destructive"
@@ -282,7 +438,7 @@ export default function StoresPage() {
       ) : null}
 
       {!loading && loadError ? (
-        <div className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+        <div className="shrink-0 rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
           <div className="flex items-center justify-between gap-2">
             <span>{loadError}</span>
             <Button
@@ -300,16 +456,17 @@ export default function StoresPage() {
         </div>
       ) : null}
 
-      {/* Store Card Grid */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+      {/* Scrollable store cards */}
+      <div className="flex-1 min-h-0 overflow-y-auto">
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {loading ? (
           <>
             <SkeletonCard />
             <SkeletonCard />
             <SkeletonCard />
           </>
-        ) : stores.length > 0 ? (
-          stores.map((store) => (
+        ) : filteredStores.length > 0 ? (
+          filteredStores.map((store) => (
             <Card
               key={store.id}
               className={`transition-shadow duration-200 ${
@@ -353,6 +510,29 @@ export default function StoresPage() {
                         <PowerOff className="h-3.5 w-3.5" />
                       </Button>
                     )}
+                    {store.is_active === false && (
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-7 w-7 text-emerald-600 hover:text-emerald-600 cursor-pointer"
+                        onClick={() => handleReactivate(store)}
+                        disabled={reactivating === store.id}
+                        title="Reactivate store"
+                      >
+                        <Power className="h-3.5 w-3.5" />
+                      </Button>
+                    )}
+                    {store.is_active === false && (
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-7 w-7 text-destructive hover:text-destructive cursor-pointer"
+                        onClick={() => requestPermanentDelete(store)}
+                        title="Permanently delete store"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </Button>
+                    )}
                   </div>
                 </div>
               </CardHeader>
@@ -376,11 +556,13 @@ export default function StoresPage() {
         ) : (
           <Card className="col-span-full">
             <CardContent className="py-8 text-center text-muted-foreground">
-              No stores found. Click &quot;Add Store&quot; to create your first
-              pickup location.
+              {activeFilterCount > 0
+                ? "No stores match your filters."
+                : "No stores found. Click \"Add Store\" to create your first pickup location."}
             </CardContent>
           </Card>
         )}
+        </div>
       </div>
 
       {/* Create Store Modal */}
@@ -388,12 +570,15 @@ export default function StoresPage() {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Add New Store</DialogTitle>
+            <DialogDescription className="sr-only">Fill in the store details below</DialogDescription>
           </DialogHeader>
           <form onSubmit={handleCreate} className="space-y-4 mt-2">
             <StoreFormFields
               form={form}
               onChange={updateField}
               nameError={formErrors.name}
+              addressError={formErrors.address}
+              phoneError={formErrors.phone}
             />
             <Button
               type="submit"
@@ -411,12 +596,15 @@ export default function StoresPage() {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Edit Store</DialogTitle>
+            <DialogDescription className="sr-only">Update the store details below</DialogDescription>
           </DialogHeader>
           <form onSubmit={handleEdit} className="space-y-4 mt-2">
             <StoreFormFields
               form={form}
               onChange={updateField}
               nameError={formErrors.name}
+              addressError={formErrors.address}
+              phoneError={formErrors.phone}
             />
             <Button
               type="submit"
@@ -463,6 +651,43 @@ export default function StoresPage() {
               className="cursor-pointer"
             >
               {deactivating ? "Deactivating…" : "Deactivate"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={deletePermOpen}
+        onOpenChange={(open) => {
+          setDeletePermOpen(open);
+          if (!open) setDeletePermTarget(null);
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Permanently Delete Store</DialogTitle>
+            <DialogDescription>
+              This action cannot be undone. All data for{" "}
+              <strong>{deletePermTarget?.name || "this store"}</strong> will be
+              permanently removed.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setDeletePermOpen(false)}
+              disabled={deletingPerm}
+              className="cursor-pointer"
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handlePermanentDelete}
+              disabled={deletingPerm}
+              className="cursor-pointer"
+            >
+              {deletingPerm ? "Deleting…" : "Delete Forever"}
             </Button>
           </DialogFooter>
         </DialogContent>

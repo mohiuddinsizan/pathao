@@ -178,7 +178,7 @@ export default function OrderDetailPage() {
               {order.recipient_address || "—"}
             </p>
             <p>
-              <span className="text-muted-foreground">Area:</span>{" "}
+              <span className="text-muted-foreground">Note:</span>{" "}
               {order.destination_area || "—"}
             </p>
           </CardContent>
@@ -373,7 +373,7 @@ export default function OrderDetailPage() {
                     />
                   </div>
                   <div className="space-y-1.5">
-                    <Label htmlFor="edit-area">Destination Area</Label>
+                    <Label htmlFor="edit-area">Additional Note</Label>
                     <Input
                       id="edit-area"
                       value={editForm.destination_area}
