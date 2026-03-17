@@ -8,6 +8,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs'
 import {
   BarChart,
   Bar,
@@ -24,7 +25,7 @@ import {
   Area,
 } from 'recharts'
 import { cn } from '@/lib/utils'
-import { Package, TrendingUp, Banknote, CheckCircle, Loader2, X, ChevronRight } from 'lucide-react'
+import { Package, TrendingUp, Banknote, CheckCircle, Loader2, X, ChevronRight, HandCoins, Wallet } from 'lucide-react'
 
 /* ─── helpers ─── */
 const fmt = (d) => d.toISOString().split('T')[0]
@@ -48,9 +49,9 @@ const STATUS_COLORS = {
 }
 
 const PAYMENT_COLORS = {
-  cod: '#334155',
-  prepaid: '#64748b',
-  bkash: '#94a3b8',
+  cod: '#1e293b',
+  prepaid: '#3b82f6',
+  bkash: '#e11d8f',
 }
 
 const PIPELINE_STAGES = [
@@ -183,7 +184,7 @@ function SectionCard({ title, subtitle, children, className }) {
   return (
     <div className={cn('rounded-xl border-2 border-border bg-card p-5 space-y-4', className)}>
       <div>
-        <h2 className="text-base font-semibold tracking-tight">{title}</h2>
+        <h2 className="text-lg font-semibold tracking-tight">{title}</h2>
         {subtitle && (
           <p className="text-xs text-muted-foreground mt-0.5">{subtitle}</p>
         )}
@@ -420,464 +421,382 @@ export default function AnalyticsPage() {
       </div>
 
       {/* Scrollable content */}
-      <div className="flex-1 min-h-0 overflow-y-auto space-y-4">
+      <div className="flex-1 min-h-0 overflow-y-auto">
         {error && (
-          <div className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+          <div className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive mb-4">
             {error}
           </div>
         )}
 
-        {/* KPI Cards */}
-        <div className="grid gap-3 grid-cols-2 lg:grid-cols-4">
-          {loading ? (
-            <>
-              <KpiSkeleton />
-              <KpiSkeleton />
-              <KpiSkeleton />
-              <KpiSkeleton />
-            </>
-          ) : (
-            <>
-              <KpiCard
-                icon={Package}
-                label="Total Orders"
-                value={summary.total_orders?.toLocaleString() ?? 0}
-                sub={periodLabel}
-                color="bg-muted text-foreground"
-              />
-              <KpiCard
-                icon={Banknote}
-                label="Total Revenue"
-                value={`৳${(summary.total_revenue ?? 0).toLocaleString()}`}
-                sub={`Avg ৳${(summary.avg_order_value ?? 0).toLocaleString()}/order`}
-                color="bg-muted text-foreground"
-              />
-              <KpiCard
-                icon={CheckCircle}
-                label="Delivery Rate"
-                value={`${summary.delivery_rate ?? 0}%`}
-                sub={`${summary.delivered_count ?? 0} delivered`}
-                color="bg-muted text-foreground"
-              />
-              <KpiCard
-                icon={TrendingUp}
-                label="COD Collected"
-                value={`৳${(summary.total_cod_collected ?? 0).toLocaleString()}`}
-                sub={`৳${(summary.delivered_revenue ?? 0).toLocaleString()} delivered rev.`}
-                color="bg-muted text-foreground"
-              />
-            </>
-          )}
-        </div>
+        <Tabs defaultValue="overview" className="gap-3">
+          <TabsList className="w-full justify-start">
+            <TabsTrigger value="overview">Overview</TabsTrigger>
+            <TabsTrigger value="deliveries">Deliveries</TabsTrigger>
+            <TabsTrigger value="stores">Stores</TabsTrigger>
+            <TabsTrigger value="payments">Payments</TabsTrigger>
+          </TabsList>
 
-        {/* Charts row */}
-        <div className="grid gap-4 lg:grid-cols-2">
-          {/* Daily Trend */}
-          <SectionCard
-            title="Order & Revenue Trend"
-            subtitle={periodLabel}
-          >
-            {loading ? (
-              <ChartSkeleton />
-            ) : dailyData.length > 0 ? (
-              <ResponsiveContainer width="100%" height={260}>
-                <AreaChart
-                  data={dailyData}
-                  margin={{ top: 5, right: 10, left: -10, bottom: 5 }}
-                >
-                  <defs>
-                    <linearGradient id="colorOrders" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor={colorPrimary} stopOpacity={0.3} />
-                      <stop offset="95%" stopColor={colorPrimary} stopOpacity={0} />
-                    </linearGradient>
-                    <linearGradient id="colorRevenue" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#94a3b8" stopOpacity={0.3} />
-                      <stop offset="95%" stopColor="#94a3b8" stopOpacity={0} />
-                    </linearGradient>
-                  </defs>
-                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
-                  <XAxis
-                    dataKey="date"
-                    tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }}
-                    axisLine={false}
-                    tickLine={false}
-                    tickFormatter={(v) => v.slice(5)}
+          {/* ─── Overview Tab ─── */}
+          <TabsContent value="overview" className="space-y-4">
+            {/* KPI Cards */}
+            <div className="grid gap-3 grid-cols-2 lg:grid-cols-4">
+              {loading ? (
+                <>
+                  <KpiSkeleton />
+                  <KpiSkeleton />
+                  <KpiSkeleton />
+                  <KpiSkeleton />
+                </>
+              ) : (
+                <>
+                  <KpiCard
+                    icon={Package}
+                    label="Total Orders"
+                    value={summary.total_orders?.toLocaleString() ?? 0}
+                    sub={periodLabel}
+                    color="bg-muted text-foreground"
                   />
-                  <YAxis
-                    yAxisId="left"
-                    tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }}
-                    axisLine={false}
-                    tickLine={false}
-                    allowDecimals={false}
+                  <KpiCard
+                    icon={Banknote}
+                    label="Total Revenue"
+                    value={`৳${(summary.total_revenue ?? 0).toLocaleString()}`}
+                    sub={`Avg ৳${(summary.avg_order_value ?? 0).toLocaleString()}/order`}
+                    color="bg-muted text-foreground"
                   />
-                  <YAxis
-                    yAxisId="right"
-                    orientation="right"
-                    tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }}
-                    axisLine={false}
-                    tickLine={false}
-                    tickFormatter={(v) => `৳${v}`}
+                  <KpiCard
+                    icon={CheckCircle}
+                    label="Delivery Rate"
+                    value={`${summary.delivery_rate ?? 0}%`}
+                    sub={`${summary.delivered_count ?? 0} delivered`}
+                    color="bg-muted text-foreground"
                   />
-                  <Tooltip content={<CustomTooltip />} />
-                  <Legend wrapperStyle={{ fontSize: '11px', paddingTop: '12px' }} />
-                  <Area
-                    yAxisId="left"
-                    type="monotone"
-                    dataKey="count"
-                    name="Orders"
-                    stroke={colorPrimary}
-                    fill="url(#colorOrders)"
-                    strokeWidth={2}
+                  <KpiCard
+                    icon={TrendingUp}
+                    label="COD Collected"
+                    value={`৳${(summary.total_cod_collected ?? 0).toLocaleString()}`}
+                    sub={`৳${(summary.delivered_revenue ?? 0).toLocaleString()} delivered rev.`}
+                    color="bg-muted text-foreground"
                   />
-                  <Area
-                    yAxisId="right"
-                    type="monotone"
-                    dataKey="revenue"
-                    name="Revenue (৳)"
-                    stroke="#94a3b8"
-                    fill="url(#colorRevenue)"
-                    strokeWidth={2}
-                  />
-                </AreaChart>
-              </ResponsiveContainer>
-            ) : (
-              <div className="h-[260px] flex items-center justify-center text-sm text-muted-foreground">
-                No data for this period
-              </div>
-            )}
-          </SectionCard>
-
-          {/* Orders by Status */}
-          <SectionCard
-            title="Orders by Status"
-            subtitle={periodLabel}
-          >
-            {loading ? (
-              <ChartSkeleton />
-            ) : orderCountsArray.length > 0 ? (
-              <ResponsiveContainer width="100%" height={260}>
-                <BarChart
-                  data={orderCountsArray}
-                  margin={{ top: 5, right: 10, left: -10, bottom: 5 }}
-                >
-                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
-                  <XAxis
-                    dataKey="status"
-                    tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }}
-                    axisLine={false}
-                    tickLine={false}
-                    tickFormatter={(v) => v.replace(/_/g, ' ')}
-                  />
-                  <YAxis
-                    tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }}
-                    axisLine={false}
-                    tickLine={false}
-                    allowDecimals={false}
-                  />
-                  <Tooltip content={<CustomTooltip />} />
-                  <Bar dataKey="count" name="Orders" fill={colorPrimary} radius={[4, 4, 0, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
-            ) : (
-              <div className="h-[260px] flex items-center justify-center text-sm text-muted-foreground">
-                No order data
-              </div>
-            )}
-          </SectionCard>
-        </div>
-
-        {/* Delivery Pipeline */}
-        <SectionCard title="Delivery Pipeline" subtitle={periodLabel}>
-          {loading ? (
-            <ChartSkeleton />
-          ) : pipeline.length > 0 ? (
-            <div className="flex items-stretch gap-0">
-              {PIPELINE_STAGES.map((stage, idx) => {
-                const match = pipeline.find(p => p.from_status === stage.from && p.to_status === stage.to)
-                return (
-                  <Fragment key={stage.from}>
-                    {idx > 0 && (
-                      <div className="flex items-center px-1 text-muted-foreground">
-                        <ChevronRight className="h-5 w-5" />
-                      </div>
-                    )}
-                    <div className="flex-1 rounded-lg border border-border p-3 space-y-1" style={{ borderTopColor: STATUS_COLORS[stage.to], borderTopWidth: '3px' }}>
-                      <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">
-                        {stage.from.replace(/_/g, ' ')} → {stage.to.replace(/_/g, ' ')}
-                      </p>
-                      {match ? (
-                        <>
-                          <p className="text-lg font-bold tracking-tight">{fmtDuration(match.avg_minutes)}</p>
-                          <p className="text-[11px] text-muted-foreground">{match.count} orders · {fmtDuration(match.min_minutes)}–{fmtDuration(match.max_minutes)}</p>
-                        </>
-                      ) : (
-                        <p className="text-sm text-muted-foreground">—</p>
-                      )}
-                    </div>
-                  </Fragment>
-                )
-              })}
+                </>
+              )}
             </div>
-          ) : (
-            <div className="h-[80px] flex items-center justify-center text-sm text-muted-foreground">
-              No pipeline data
-            </div>
-          )}
-        </SectionCard>
 
-        {/* Quick Insights */}
-        {!loading && data && (
-          <SectionCard title="Quick Insights" subtitle={periodLabel}>
-            <div className="grid gap-2 sm:grid-cols-2">
-              {generateInsights(data).map((insight, i) => (
-                <div key={i} className="flex items-start gap-2 rounded-lg border border-border p-3">
-                  <span className="mt-0.5 text-sm">{insight.icon}</span>
-                  <div>
-                    <p className="text-sm font-medium">{insight.title}</p>
-                    <p className="text-xs text-muted-foreground">{insight.description}</p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </SectionCard>
-        )}
-
-        {/* Bottom row: Payment methods + Top stores */}
-        <div className="grid gap-4 lg:grid-cols-3">
-          {/* Payment Methods */}
-          <SectionCard title="Payment Methods" subtitle={periodLabel}>
-            {loading ? (
-              <ChartSkeleton />
-            ) : paymentMethods.length > 0 ? (
-              <div className="flex items-center gap-4">
-                <ResponsiveContainer width="100%" height={200}>
-                  <PieChart>
-                    <Pie
-                      data={paymentMethods}
-                      dataKey="count"
-                      nameKey="method"
-                      cx="50%"
-                      cy="50%"
-                      innerRadius={50}
-                      outerRadius={80}
-                      paddingAngle={3}
-                    >
-                      {paymentMethods.map((entry) => (
-                        <Cell
-                          key={entry.method}
-                          fill={PAYMENT_COLORS[entry.method] || colorPrimary}
-                        />
-                      ))}
-                    </Pie>
+            {/* Daily Trend */}
+            <SectionCard title="Order & Revenue Trend" subtitle={periodLabel}>
+              {loading ? (
+                <ChartSkeleton />
+              ) : dailyData.length > 0 ? (
+                <ResponsiveContainer width="100%" height={300}>
+                  <AreaChart data={dailyData} margin={{ top: 5, right: 10, left: -10, bottom: 5 }}>
+                    <defs>
+                      <linearGradient id="colorOrders" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor={colorPrimary} stopOpacity={0.3} />
+                        <stop offset="95%" stopColor={colorPrimary} stopOpacity={0} />
+                      </linearGradient>
+                      <linearGradient id="colorRevenue" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#94a3b8" stopOpacity={0.3} />
+                        <stop offset="95%" stopColor="#94a3b8" stopOpacity={0} />
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
+                    <XAxis dataKey="date" tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }} axisLine={false} tickLine={false} tickFormatter={(v) => v.slice(5)} />
+                    <YAxis yAxisId="left" tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }} axisLine={false} tickLine={false} allowDecimals={false} />
+                    <YAxis yAxisId="right" orientation="right" tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }} axisLine={false} tickLine={false} tickFormatter={(v) => `৳${v.toLocaleString()}`} />
                     <Tooltip content={<CustomTooltip />} />
-                  </PieChart>
+                    <Legend wrapperStyle={{ fontSize: '11px', paddingTop: '12px' }} />
+                    <Area yAxisId="left" type="monotone" dataKey="count" name="Orders" stroke={colorPrimary} fill="url(#colorOrders)" strokeWidth={2} />
+                    <Area yAxisId="right" type="monotone" dataKey="revenue" name="Revenue (৳)" stroke="#475569" fill="url(#colorRevenue)" strokeWidth={2} />
+                  </AreaChart>
                 </ResponsiveContainer>
-                <div className="space-y-2 shrink-0">
-                  {paymentMethods.map((pm) => (
-                    <div key={pm.method} className="flex items-center gap-2 text-xs">
-                      <span
-                        className="h-2.5 w-2.5 rounded-full shrink-0"
-                        style={{ backgroundColor: PAYMENT_COLORS[pm.method] || colorPrimary }}
-                      />
-                      <span className="text-muted-foreground capitalize">
-                        {pm.method === 'cod' ? 'COD' : pm.method === 'bkash' ? 'bKash' : pm.method}
-                      </span>
-                      <span className="font-semibold">{pm.count}</span>
+              ) : (
+                <div className="h-75 flex items-center justify-center text-sm text-muted-foreground">No data for this period</div>
+              )}
+            </SectionCard>
+
+            {/* Quick Insights */}
+            {!loading && data && (
+              <SectionCard title="Quick Insights" subtitle={periodLabel}>
+                <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                  {generateInsights(data).map((insight, i) => (
+                    <div key={i} className="flex items-start gap-2 rounded-lg border border-border p-3">
+                      <span className="mt-0.5 text-sm">{insight.icon}</span>
+                      <div>
+                        <p className="text-sm font-medium">{insight.title}</p>
+                        <p className="text-xs text-muted-foreground">{insight.description}</p>
+                      </div>
                     </div>
                   ))}
                 </div>
-              </div>
-            ) : (
-              <div className="h-[200px] flex items-center justify-center text-sm text-muted-foreground">
-                No data
-              </div>
+              </SectionCard>
             )}
-          </SectionCard>
+          </TabsContent>
 
-          {/* Top Stores */}
-          <SectionCard
-            title="Top Stores"
-            subtitle="Ranked by order volume"
-            className="lg:col-span-2"
-          >
-            {loading ? (
-              <div className="space-y-3">
-                {[1, 2, 3].map((i) => (
-                  <div key={i} className="h-10 rounded bg-muted animate-pulse" />
-                ))}
-              </div>
-            ) : topStores.length > 0 ? (
-              (() => {
-                const maxOrders = Math.max(...topStores.map((s) => s.order_count), 1);
-                return (
-                  <div className="divide-y divide-border/50">
-                    <div className="grid grid-cols-[1fr_1fr_5rem_7rem_5rem_6rem] items-center px-4 pb-2.5">
-                      <span className="text-xs font-extrabold uppercase tracking-widest text-muted-foreground">
-                        Store
-                      </span>
-                      <span className="text-xs font-extrabold uppercase tracking-widest text-muted-foreground">
-                        Branch
-                      </span>
-                      <span className="text-xs font-extrabold uppercase tracking-widest text-muted-foreground text-right">
-                        Orders
-                      </span>
-                      <span className="text-xs font-extrabold uppercase tracking-widest text-muted-foreground text-right">
-                        Revenue
-                      </span>
-                      <span className="text-xs font-extrabold uppercase tracking-widest text-muted-foreground text-right">
-                        Del. Rate
-                      </span>
-                      <span className="text-xs font-extrabold uppercase tracking-widest text-muted-foreground text-right">
-                        Avg Value
-                      </span>
-                    </div>
-                    {topStores.map((store, i) => (
-                      <div
-                        key={`${i}-${store.name}`}
-                        className="grid grid-cols-[1fr_1fr_5rem_7rem_5rem_6rem] items-center px-4 py-3 hover:bg-muted/40 transition-colors"
-                      >
-                        <span className="text-sm font-medium">{store.name}</span>
-                        <span className="text-sm text-muted-foreground">
-                          {store.branch || '—'}
-                        </span>
-                        <span className="relative text-sm font-bold tabular-nums text-right">
-                          <span
-                            className="absolute inset-y-0 left-0 rounded bg-primary/10"
-                            style={{ width: `${(store.order_count / maxOrders) * 100}%` }}
-                          />
-                          <span className="relative">{store.order_count}</span>
-                        </span>
-                        <span className="text-sm font-bold tabular-nums text-right">
-                          ৳{Number(store.revenue).toLocaleString()}
-                        </span>
-                        <span
-                          className={cn(
-                            'text-sm font-bold tabular-nums text-right',
-                            store.delivery_rate >= 50
-                              ? 'text-green-600'
-                              : store.delivery_rate >= 25
-                                ? 'text-yellow-600'
-                                : 'text-red-600'
+          {/* ─── Deliveries Tab ─── */}
+          <TabsContent value="deliveries" className="space-y-4">
+            {/* Orders by Status */}
+            <SectionCard title="Orders by Status" subtitle={periodLabel}>
+              {loading ? (
+                <ChartSkeleton />
+              ) : orderCountsArray.length > 0 ? (
+                <ResponsiveContainer width="100%" height={300}>
+                  <BarChart data={orderCountsArray} margin={{ top: 5, right: 10, left: -10, bottom: 5 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
+                    <XAxis dataKey="status" tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }} axisLine={false} tickLine={false} tickFormatter={(v) => v.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())} />
+                    <YAxis tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }} axisLine={false} tickLine={false} allowDecimals={false} />
+                    <Tooltip content={<CustomTooltip />} />
+                    <Bar dataKey="count" name="Orders" radius={[4, 4, 0, 0]}>
+                      {orderCountsArray.map((entry) => (
+                        <Cell key={entry.status} fill={STATUS_COLORS[entry.status] || colorPrimary} />
+                      ))}
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              ) : (
+                <div className="h-75 flex items-center justify-center text-sm text-muted-foreground">No order data</div>
+              )}
+            </SectionCard>
+
+            {/* Delivery Pipeline */}
+            <SectionCard title="Delivery Pipeline" subtitle={periodLabel}>
+              {loading ? (
+                <ChartSkeleton />
+              ) : pipeline.length > 0 ? (
+                <div className="flex items-stretch gap-0">
+                  {PIPELINE_STAGES.map((stage, idx) => {
+                    const match = pipeline.find(p => p.from_status === stage.from && p.to_status === stage.to)
+                    return (
+                      <Fragment key={stage.from}>
+                        {idx > 0 && (
+                          <div className="flex items-center px-1 text-muted-foreground">
+                            <ChevronRight className="h-5 w-5" />
+                          </div>
+                        )}
+                        <div className="flex-1 rounded-xl border-2 border-border p-3 space-y-1" style={{ borderTopColor: STATUS_COLORS[stage.to], borderTopWidth: '3px' }}>
+                          <p className="text-xs uppercase tracking-wider text-muted-foreground font-semibold">
+                            {stage.from.replace(/_/g, ' ')} → {stage.to.replace(/_/g, ' ')}
+                          </p>
+                          {match ? (
+                            <>
+                              <p className="text-lg font-bold tracking-tight">{fmtDuration(match.avg_minutes)}</p>
+                              <p className="text-xs text-muted-foreground">{match.count} orders · {fmtDuration(match.min_minutes)}–{fmtDuration(match.max_minutes)}</p>
+                            </>
+                          ) : (
+                            <p className="text-sm text-muted-foreground">—</p>
                           )}
-                        >
-                          {store.delivery_rate}%
-                        </span>
-                        <span className="text-sm font-bold tabular-nums text-right">
-                          ৳{Number(store.avg_order_value).toLocaleString()}
-                        </span>
-                      </div>
-                    ))}
+                        </div>
+                      </Fragment>
+                    )
+                  })}
+                </div>
+              ) : (
+                <div className="h-20 flex items-center justify-center text-sm text-muted-foreground">No pipeline data</div>
+              )}
+            </SectionCard>
+
+            {/* Peak Hours & Parcel Types */}
+            <div className="grid gap-4 lg:grid-cols-2">
+              <SectionCard title="Orders by Hour" subtitle="When orders are placed">
+                {loading ? (
+                  <ChartSkeleton />
+                ) : hourlyFull.some((d) => d.count > 0) ? (
+                  <ResponsiveContainer width="100%" height={240}>
+                    <BarChart data={hourlyFull} margin={{ top: 5, right: 10, left: -10, bottom: 5 }}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
+                      <XAxis dataKey="label" tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }} axisLine={false} tickLine={false} interval={2} />
+                      <YAxis tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }} axisLine={false} tickLine={false} allowDecimals={false} />
+                      <Tooltip content={<CustomTooltip />} />
+                      <Bar dataKey="count" name="Orders" fill={colorPrimary} radius={[3, 3, 0, 0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                ) : (
+                  <div className="h-60 flex items-center justify-center text-sm text-muted-foreground">No data</div>
+                )}
+              </SectionCard>
+
+              <SectionCard title="Parcel Types" subtitle="Breakdown by parcel category">
+                {loading ? (
+                  <ChartSkeleton />
+                ) : parcelTypes.length > 0 ? (
+                  <div className="space-y-2.5">
+                    {(() => {
+                      const maxCount = Math.max(...parcelTypes.map((p) => p.count), 1)
+                      return parcelTypes.map((pt) => (
+                        <div key={pt.type} className="flex items-center gap-3">
+                          <span className="text-xs font-medium w-24 text-right text-muted-foreground truncate">
+                            {PARCEL_LABELS[pt.type] || pt.type}
+                          </span>
+                          <div className="flex-1 h-6 rounded bg-muted/50 relative overflow-hidden">
+                            <div className="absolute inset-y-0 left-0 rounded bg-primary/40" style={{ width: `${(pt.count / maxCount) * 100}%` }} />
+                            <span className="relative px-2 text-xs font-semibold leading-6">{pt.count}</span>
+                          </div>
+                          <span className="text-xs tabular-nums text-muted-foreground w-20 text-right">৳{pt.revenue.toLocaleString()}</span>
+                        </div>
+                      ))
+                    })()}
                   </div>
-                );
-              })()
-            ) : (
-              <p className="py-6 text-center text-sm text-muted-foreground">
-                No store data for this period
-              </p>
-            )}
-          </SectionCard>
-        </div>
+                ) : (
+                  <div className="h-60 flex items-center justify-center text-sm text-muted-foreground">No data</div>
+                )}
+              </SectionCard>
+            </div>
+          </TabsContent>
 
-        {/* Peak Hours & Parcel Types row */}
-        <div className="grid gap-4 lg:grid-cols-2">
-          {/* Peak Hours */}
-          <SectionCard title="Orders by Hour" subtitle="When orders are placed">
-            {loading ? (
-              <ChartSkeleton />
-            ) : hourlyFull.some((d) => d.count > 0) ? (
-              <ResponsiveContainer width="100%" height={220}>
-                <BarChart data={hourlyFull} margin={{ top: 5, right: 10, left: -20, bottom: 5 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
-                  <XAxis
-                    dataKey="label"
-                    tick={{ fontSize: 9, fill: 'hsl(var(--muted-foreground))' }}
-                    axisLine={false}
-                    tickLine={false}
-                    interval={2}
-                  />
-                  <YAxis tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }} axisLine={false} tickLine={false} allowDecimals={false} />
-                  <Tooltip content={<CustomTooltip />} />
-                  <Bar dataKey="count" name="Orders" fill={colorPrimary} radius={[3, 3, 0, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
-            ) : (
-              <div className="h-55 flex items-center justify-center text-sm text-muted-foreground">No data</div>
-            )}
-          </SectionCard>
-
-          {/* Parcel Types */}
-          <SectionCard title="Parcel Types" subtitle="Breakdown by parcel category">
-            {loading ? (
-              <ChartSkeleton />
-            ) : parcelTypes.length > 0 ? (
-              <div className="space-y-2.5">
-                {(() => {
-                  const maxCount = Math.max(...parcelTypes.map((p) => p.count), 1)
-                  return parcelTypes.map((pt) => (
-                    <div key={pt.type} className="flex items-center gap-3">
-                      <span className="text-xs font-medium w-24 text-right text-muted-foreground truncate">
-                        {PARCEL_LABELS[pt.type] || pt.type}
-                      </span>
-                      <div className="flex-1 h-6 rounded bg-muted/50 relative overflow-hidden">
-                        <div
-                          className="absolute inset-y-0 left-0 rounded bg-primary/20"
-                          style={{ width: `${(pt.count / maxCount) * 100}%` }}
-                        />
-                        <span className="relative px-2 text-xs font-semibold leading-6">{pt.count}</span>
+          {/* ─── Stores Tab ─── */}
+          <TabsContent value="stores" className="space-y-4">
+            {/* Top Stores Table */}
+            <SectionCard title="Top Stores" subtitle="Ranked by order volume">
+              {loading ? (
+                <div className="space-y-3">
+                  {[1, 2, 3].map((i) => (
+                    <div key={i} className="h-10 rounded bg-muted animate-pulse" />
+                  ))}
+                </div>
+              ) : topStores.length > 0 ? (
+                (() => {
+                  const sorted = [...topStores].sort((a, b) => b.order_count - a.order_count)
+                  const maxOrders = Math.max(...sorted.map((s) => s.order_count), 1)
+                  return (
+                    <div className="overflow-x-auto">
+                    <div className="divide-y divide-border/50 min-w-[600px]">
+                      <div className="grid grid-cols-[1fr_1fr_5rem_7rem_5.5rem_6rem] items-center px-4 pb-2.5">
+                        <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Store</span>
+                        <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Branch</span>
+                        <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground text-right">Orders</span>
+                        <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground text-right">Revenue</span>
+                        <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground text-right">Del. Rate</span>
+                        <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground text-right">Avg Value</span>
                       </div>
-                      <span className="text-xs tabular-nums text-muted-foreground w-20 text-right">
-                        ৳{pt.revenue.toLocaleString()}
-                      </span>
+                      {sorted.map((store, i) => (
+                        <div key={`${i}-${store.name}`} className="grid grid-cols-[1fr_1fr_5rem_7rem_5.5rem_6rem] items-center px-4 py-3 hover:bg-muted/40 transition-colors">
+                          <span className="text-sm font-medium">{store.name}</span>
+                          <span className="text-sm text-muted-foreground">{store.branch || '—'}</span>
+                          <span className="relative text-sm font-bold tabular-nums text-right">
+                            <span className="absolute inset-y-0 left-0 rounded bg-primary/10" style={{ width: `${(store.order_count / maxOrders) * 100}%` }} />
+                            <span className="relative">{store.order_count}</span>
+                          </span>
+                          <span className="text-sm font-bold tabular-nums text-right">৳{Number(store.revenue).toLocaleString()}</span>
+                          <span className={cn('text-sm font-bold tabular-nums text-right', store.delivery_rate >= 50 ? 'text-green-600' : store.delivery_rate >= 25 ? 'text-yellow-600' : 'text-red-600')}>
+                            {store.delivery_rate}%
+                          </span>
+                          <span className="text-sm font-bold tabular-nums text-right">৳{Number(store.avg_order_value).toLocaleString()}</span>
+                        </div>
+                      ))}
                     </div>
-                  ))
-                })()}
+                    </div>
+                  )
+                })()
+              ) : (
+                <p className="py-6 text-center text-sm text-muted-foreground">No store data for this period</p>
+              )}
+            </SectionCard>
+
+            {/* Store Comparison Charts */}
+            {!loading && topStores.length > 1 && (
+              <div className="grid gap-4 lg:grid-cols-2">
+                <SectionCard title="Store-wise Orders" subtitle={periodLabel}>
+                  <ResponsiveContainer width="100%" height={Math.max(200, topStores.length * 50)}>
+                    <BarChart data={topStores.map(s => ({ name: s.name + (s.branch ? ` (${s.branch})` : ''), orders: s.order_count, delivered: s.delivered_count ?? 0 }))} margin={{ top: 5, right: 10, left: 0, bottom: 5 }} layout="vertical">
+                      <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" horizontal={false} />
+                      <XAxis type="number" tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }} axisLine={false} tickLine={false} allowDecimals={false} />
+                      <YAxis dataKey="name" type="category" tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }} axisLine={false} tickLine={false} width={130} />
+                      <Tooltip content={<CustomTooltip />} />
+                      <Legend wrapperStyle={{ fontSize: '11px', paddingTop: '8px' }} />
+                      <Bar dataKey="orders" name="Total Orders" fill={colorPrimary} radius={[0, 4, 4, 0]} />
+                      <Bar dataKey="delivered" name="Delivered" fill="#64748b" radius={[0, 4, 4, 0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </SectionCard>
+
+                <SectionCard title="Store-wise Revenue" subtitle={periodLabel}>
+                  <ResponsiveContainer width="100%" height={Math.max(200, topStores.length * 50)}>
+                    <BarChart data={topStores.map(s => ({ name: s.name + (s.branch ? ` (${s.branch})` : ''), revenue: Number(s.revenue), avgValue: Number(s.avg_order_value) }))} margin={{ top: 5, right: 10, left: 0, bottom: 5 }} layout="vertical">
+                      <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" horizontal={false} />
+                      <XAxis type="number" tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }} axisLine={false} tickLine={false} tickFormatter={(v) => `৳${v.toLocaleString()}`} />
+                      <YAxis dataKey="name" type="category" tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }} axisLine={false} tickLine={false} width={130} />
+                      <Tooltip content={<CustomTooltip />} />
+                      <Bar dataKey="revenue" name="Revenue (৳)" fill={colorPrimary} radius={[0, 4, 4, 0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </SectionCard>
               </div>
-            ) : (
-              <div className="h-55 flex items-center justify-center text-sm text-muted-foreground">No data</div>
             )}
-          </SectionCard>
-        </div>
+          </TabsContent>
 
-        {/* Store Comparison Charts */}
-        {!loading && topStores.length > 1 && (
-          <div className="grid gap-4 lg:grid-cols-2">
-            {/* Store-wise Orders */}
-            <SectionCard title="Store-wise Orders" subtitle={periodLabel}>
-              <ResponsiveContainer width="100%" height={260}>
-                <BarChart
-                  data={topStores.map(s => ({ name: s.name + (s.branch ? ` (${s.branch})` : ''), orders: s.order_count, delivered: Math.round(s.order_count * s.delivery_rate / 100) }))}
-                  margin={{ top: 5, right: 10, left: -10, bottom: 5 }}
-                  layout="vertical"
-                >
-                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" horizontal={false} />
-                  <XAxis type="number" tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }} axisLine={false} tickLine={false} allowDecimals={false} />
-                  <YAxis dataKey="name" type="category" tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }} axisLine={false} tickLine={false} width={100} />
-                  <Tooltip content={<CustomTooltip />} />
-                  <Legend wrapperStyle={{ fontSize: '11px', paddingTop: '8px' }} />
-                  <Bar dataKey="orders" name="Total Orders" fill={colorPrimary} radius={[0, 4, 4, 0]} />
-                  <Bar dataKey="delivered" name="Delivered" fill="#64748b" radius={[0, 4, 4, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
+          {/* ─── Payments Tab ─── */}
+          <TabsContent value="payments" className="space-y-4">
+            {/* Payment Methods Donut */}
+            <SectionCard title="Payment Methods" subtitle={periodLabel}>
+              {loading ? (
+                <ChartSkeleton />
+              ) : paymentMethods.length > 0 ? (
+                <div className="flex flex-col items-center gap-6 sm:flex-row sm:items-start sm:gap-10">
+                  <ResponsiveContainer width="100%" height={280} className="max-w-xs">
+                    <PieChart>
+                      <Pie data={paymentMethods} dataKey="count" nameKey="method" cx="50%" cy="50%" innerRadius={60} outerRadius={100} paddingAngle={3}>
+                        {paymentMethods.map((entry) => (
+                          <Cell key={entry.method} fill={PAYMENT_COLORS[entry.method] || colorPrimary} />
+                        ))}
+                      </Pie>
+                      <Tooltip content={<CustomTooltip />} />
+                    </PieChart>
+                  </ResponsiveContainer>
+                  <div className="space-y-3 py-4">
+                    {paymentMethods.map((pm) => {
+                      const pct = summary.total_orders > 0 ? Math.round((pm.count / summary.total_orders) * 100) : 0
+                      return (
+                        <div key={pm.method} className="flex items-center gap-3">
+                          <span className="h-4 w-4 rounded-full shrink-0" style={{ backgroundColor: PAYMENT_COLORS[pm.method] || colorPrimary }} />
+                          <div>
+                            <p className="text-sm font-medium capitalize">
+                              {pm.method === 'cod' ? 'Cash on Delivery' : pm.method === 'bkash' ? 'bKash' : pm.method === 'prepaid' ? 'Prepaid' : pm.method}
+                            </p>
+                            <p className="text-xs text-muted-foreground">{pm.count} orders ({pct}%) · ৳{pm.revenue.toLocaleString()}</p>
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
+                </div>
+              ) : (
+                <div className="h-50 flex items-center justify-center text-sm text-muted-foreground">No data</div>
+              )}
             </SectionCard>
 
-            {/* Store-wise Revenue */}
-            <SectionCard title="Store-wise Revenue" subtitle={periodLabel}>
-              <ResponsiveContainer width="100%" height={260}>
-                <BarChart
-                  data={topStores.map(s => ({ name: s.name + (s.branch ? ` (${s.branch})` : ''), revenue: Number(s.revenue), avgValue: Number(s.avg_order_value) }))}
-                  margin={{ top: 5, right: 10, left: -10, bottom: 5 }}
-                  layout="vertical"
-                >
-                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" horizontal={false} />
-                  <XAxis type="number" tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }} axisLine={false} tickLine={false} tickFormatter={(v) => `৳${v}`} />
-                  <YAxis dataKey="name" type="category" tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }} axisLine={false} tickLine={false} width={100} />
-                  <Tooltip content={<CustomTooltip />} />
-                  <Bar dataKey="revenue" name="Revenue (৳)" fill={colorPrimary} radius={[0, 4, 4, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
-            </SectionCard>
-          </div>
-        )}
+            {/* COD Collection Summary */}
+            {!loading && summary.total_orders > 0 && (
+              <div className="grid gap-3 grid-cols-2 lg:grid-cols-4">
+                <KpiCard
+                  icon={HandCoins}
+                  label="COD Collected"
+                  value={`৳${(summary.total_cod_collected ?? 0).toLocaleString()}`}
+                  sub="From delivered orders"
+                  color="bg-muted text-foreground"
+                />
+                <KpiCard
+                  icon={Wallet}
+                  label="Delivered Revenue"
+                  value={`৳${(summary.delivered_revenue ?? 0).toLocaleString()}`}
+                  sub={`${summary.delivered_count} orders delivered`}
+                  color="bg-muted text-foreground"
+                />
+                <KpiCard
+                  icon={TrendingUp}
+                  label="COD Ratio"
+                  value={`${summary.delivered_revenue > 0 ? Math.round((summary.total_cod_collected / summary.delivered_revenue) * 100) : 0}%`}
+                  sub="COD / delivered revenue"
+                  color="bg-muted text-foreground"
+                />
+                <KpiCard
+                  icon={Package}
+                  label="Avg Order Value"
+                  value={`৳${(summary.avg_order_value ?? 0).toLocaleString()}`}
+                  sub={`${summary.total_orders} total orders`}
+                  color="bg-muted text-foreground"
+                />
+              </div>
+            )}
+          </TabsContent>
+        </Tabs>
       </div>
     </div>
   )
