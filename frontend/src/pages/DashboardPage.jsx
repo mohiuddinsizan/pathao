@@ -409,6 +409,7 @@ function RecentActivityFeed({ loading, loadingMore, activities, newItemsFrom, er
   const bottomBlurRef = useRef(null);
   const sentinelRef = useRef(null);
   const [showSkeletons, setShowSkeletons] = useState(false);
+  const hasScrolledRef = useRef(false);
 
   // Minimum skeleton display time (1s) for graceful loading feel
   useEffect(() => {
@@ -420,14 +421,23 @@ function RecentActivityFeed({ loading, loadingMore, activities, newItemsFrom, er
     }
   }, [loadingMore]);
 
-  // IntersectionObserver: auto-load when sentinel enters the scroll container
+  // Track user scroll to prevent auto-loading on mount
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    const onScroll = () => { hasScrolledRef.current = true; };
+    el.addEventListener("scroll", onScroll, { passive: true, once: true });
+    return () => el.removeEventListener("scroll", onScroll);
+  }, [loading]);
+
+  // IntersectionObserver: auto-load when sentinel enters the scroll container (only after user scrolls)
   useEffect(() => {
     const sentinel = sentinelRef.current;
     const container = scrollRef.current;
     if (!sentinel || !container || !hasMore || loadingMore || showSkeletons) return;
     const observer = new IntersectionObserver(
       ([entry]) => {
-        if (entry.isIntersecting) onLoadMore();
+        if (entry.isIntersecting && hasScrolledRef.current) onLoadMore();
       },
       { root: container, rootMargin: "0px 0px 100px 0px", threshold: 0 }
     );
