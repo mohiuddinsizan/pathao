@@ -13,7 +13,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { AlertCircle, Search, ChevronRight, SlidersHorizontal, ChevronDown, X, ArrowUp, ArrowDown, Plus, Loader2 } from "lucide-react";
+import { AlertCircle, Search, ChevronRight, X, ArrowUp, ArrowDown, Plus, Loader2, LayoutList, Clock, UserCheck, Package, Truck, CheckCircle, XCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { getAnalytics } from "@/api/analytics";
 
@@ -26,55 +26,65 @@ const statusColors = {
   cancelled:  "negative",  // red (consistent bg-red-500/30 pattern)
 };
 
+const statusIcons = {
+  pending:    Clock,
+  assigned:   UserCheck,
+  picked_up:  Package,
+  in_transit: Truck,
+  delivered:  CheckCircle,
+  cancelled:  XCircle,
+};
+
 // activeClass mirrors Badge variant colors exactly for full consistency
 const STATUS_TABS = [
   {
     key: "all",
     label: "All",
+    icon: LayoutList,
     activeClass: "bg-foreground text-background border border-foreground shadow-sm font-bold",
-    activePillClass: "bg-background/20 text-background",
+    activePillClass: "bg-background/30 text-background",
   },
   {
     key: "pending",
     label: "Pending",
-    // Badge variant="warning" → amber
+    icon: Clock,
     activeClass: "bg-amber-500/30 text-foreground border border-amber-500/40 shadow-sm font-bold",
-    activePillClass: "bg-amber-500/20 text-foreground",
+    activePillClass: "bg-background/80 text-foreground",
   },
   {
     key: "assigned",
     label: "Assigned",
-    // Badge variant="sky" → sky blue (unique vs indigo/violet)
+    icon: UserCheck,
     activeClass: "bg-sky-500/30 text-foreground border border-sky-500/40 shadow-sm font-bold",
-    activePillClass: "bg-sky-500/20 text-foreground",
+    activePillClass: "bg-background/80 text-foreground",
   },
   {
     key: "picked_up",
     label: "Picked Up",
-    // Badge variant="teal" → teal (clearly different from sky/orange)
+    icon: Package,
     activeClass: "bg-teal-500/30 text-foreground border border-teal-500/40 shadow-sm font-bold",
-    activePillClass: "bg-teal-500/20 text-foreground",
+    activePillClass: "bg-background/80 text-foreground",
   },
   {
     key: "in_transit",
     label: "In Transit",
-    // Badge variant="orange" → orange (warm, distinct from teal)
+    icon: Truck,
     activeClass: "bg-orange-500/30 text-foreground border border-orange-500/40 shadow-sm font-bold",
-    activePillClass: "bg-orange-500/20 text-foreground",
+    activePillClass: "bg-background/80 text-foreground",
   },
   {
     key: "delivered",
     label: "Delivered",
-    // Badge variant="success" → emerald
+    icon: CheckCircle,
     activeClass: "bg-emerald-500/30 text-foreground border border-emerald-500/40 shadow-sm font-bold",
-    activePillClass: "bg-emerald-500/20 text-foreground",
+    activePillClass: "bg-background/80 text-foreground",
   },
   {
     key: "cancelled",
     label: "Cancelled",
-    // Badge variant="negative" → red-500/30 (same pattern as all other statuses)
+    icon: XCircle,
     activeClass: "bg-red-500/30 text-foreground border border-red-500/40 shadow-sm font-bold",
-    activePillClass: "bg-red-500/20 text-foreground",
+    activePillClass: "bg-background/80 text-foreground",
   },
 ];
 
@@ -102,7 +112,7 @@ function SortIcon({ field, sortField, sortDir }) {
 
 function SkeletonRow() {
   return (
-    <div className="grid grid-cols-[1.1fr_1.7fr_1.3fr_1.1fr_0.9fr_1.3fr] gap-x-4">
+    <div className="grid grid-cols-[0.95fr_1.35fr_1.1fr_1fr_0.95fr_1.25fr] gap-x-5">
       {Array.from({ length: 6 }).map((_, i) => (
         <div key={i} className="py-3 px-4 flex items-center">
           <div className="h-4 w-20 rounded bg-muted animate-pulse" />
@@ -124,9 +134,9 @@ export default function DeliveriesPage() {
   const [search, setSearch] = useState("");
   const [stores, setStores] = useState([]);
   const [storeFilter, setStoreFilter] = useState("all");
-  const [filtersOpen, setFiltersOpen] = useState(false);
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
+  const [selectedDatePreset, setSelectedDatePreset] = useState(null);
   const [sortField, setSortField] = useState(null); // "amount" | "created_at" | null
   const [sortDir, setSortDir] = useState("desc");
 
@@ -168,6 +178,7 @@ export default function DeliveriesPage() {
     setStoreFilter("all");
     setDateFrom("");
     setDateTo("");
+    setSelectedDatePreset(null);
     setSearch("");
     setPage(1);
   };
@@ -176,17 +187,26 @@ export default function DeliveriesPage() {
   const totalPages = ordersData?.pages ?? 0;
   const hasNextPage = totalPages > 0 ? page < totalPages : orders.length === 20;
   const loadingMore = loading && allOrders.length > 0;
-  const [showSkeletons, setShowSkeletons] = useState(false);
+  const [autoLoadPhase, setAutoLoadPhase] = useState("idle"); // idle | pending | fetching
+  const showSkeletons = autoLoadPhase !== "idle";
 
-  // Minimum skeleton display time (1s) for graceful loading feel
+  // Graceful auto-load: keep a stable phase flow to avoid loading flicker
   useEffect(() => {
-    if (loadingMore) {
-      setShowSkeletons(true);
-    } else if (showSkeletons) {
-      const timer = setTimeout(() => setShowSkeletons(false), 1000);
-      return () => clearTimeout(timer);
-    }
-  }, [loadingMore]);
+    if (autoLoadPhase !== "pending") return;
+    const timer = setTimeout(() => {
+      setPage((p) => p + 1);
+      setAutoLoadPhase("fetching");
+    }, 1000);
+    return () => clearTimeout(timer);
+  }, [autoLoadPhase]);
+
+  // Exit fetching phase only after the request settles, with a small buffer
+  useEffect(() => {
+    if (autoLoadPhase !== "fetching") return;
+    if (loading || loadingMore) return;
+    const timer = setTimeout(() => setAutoLoadPhase("idle"), 250);
+    return () => clearTimeout(timer);
+  }, [autoLoadPhase, loading, loadingMore]);
 
   // Accumulate orders across pages
   useEffect(() => {
@@ -199,34 +219,45 @@ export default function DeliveriesPage() {
     });
   }, [orders, page]);
 
-  // Reset accumulated orders when filters actually change (skip initial mount)
+  // Reset page when filters change (skip initial mount). 
+  // Don't clear allOrders — let the accumulation effect replace them when new data arrives
+  // to avoid a flash of empty state.
   const prevFilterRef = useRef({ filter, storeFilter });
   useEffect(() => {
     const prev = prevFilterRef.current;
     if (prev.filter === filter && prev.storeFilter === storeFilter) return;
     prevFilterRef.current = { filter, storeFilter };
-    setAllOrders([]);
+    setAutoLoadPhase("idle");
     setPage(1);
   }, [filter, storeFilter]);
 
   // IntersectionObserver: auto-load next page when sentinel enters viewport
   const loadNextPage = useCallback(() => {
-    if (!loading && hasNextPage) setPage((p) => p + 1);
-  }, [loading, hasNextPage]);
+    if (!loading && hasNextPage && autoLoadPhase === "idle") setAutoLoadPhase("pending");
+  }, [loading, hasNextPage, autoLoadPhase]);
 
   useEffect(() => {
     const sentinel = sentinelRef.current;
     const container = scrollRef.current;
-    if (!sentinel || !container || !hasNextPage || loading || showSkeletons) return;
+    if (!sentinel || !container || !hasNextPage || loading || autoLoadPhase !== "idle") return;
     const observer = new IntersectionObserver(
       ([entry]) => { if (entry.isIntersecting) loadNextPage(); },
       { root: container, threshold: 0.1 }
     );
     observer.observe(sentinel);
     return () => observer.disconnect();
-  }, [hasNextPage, loading, showSkeletons, loadNextPage]);
+  }, [hasNextPage, loading, autoLoadPhase, loadNextPage, allOrders.length]);
 
-  const filtered = allOrders
+  const statusScopedOrders =
+    filter === "all"
+      ? allOrders
+      : (() => {
+          const matched = allOrders.filter((o) => o.status === filter);
+          if (matched.length === 0 && loading) return allOrders;
+          return matched;
+        })();
+
+  const filtered = statusScopedOrders
     .filter((o) =>
       !search ||
       (o.recipient_name || "").toLowerCase().includes(search.toLowerCase()) ||
@@ -245,11 +276,6 @@ export default function DeliveriesPage() {
   const activeFilterCount = [
     search.trim() !== "",
     filter !== "all",
-    storeFilter !== "all",
-    dateFrom !== "" || dateTo !== "",
-  ].filter(Boolean).length;
-
-  const panelFilterCount = [
     storeFilter !== "all",
     dateFrom !== "" || dateTo !== "",
   ].filter(Boolean).length;
@@ -302,69 +328,51 @@ export default function DeliveriesPage() {
       el.removeEventListener("scroll", updateScrollIndicators);
       window.removeEventListener("resize", updateScrollIndicators);
     };
-  }, [filtersOpen, loading, filtered.length, page]);
+  }, [loading, filtered.length, page]);
 
   return (
     <div className="flex flex-col h-full overflow-hidden p-4 lg:p-6 gap-4">
-      <div className="shrink-0 flex items-center justify-between gap-3">
+      {/* Page bar: title + Create Parcel CTA */}
+      <div className="shrink-0 flex items-center justify-between">
         <h1 className="text-2xl font-bold tracking-tight">Deliveries</h1>
+        <Button
+          size="sm"
+          className="h-9 gap-1.5 cursor-pointer"
+          onClick={() => navigate("/deliveries/new")}
+        >
+          <Plus className="h-4 w-4" />
+          Create Parcel
+        </Button>
+      </div>
+
+      {/* Filter card */}
+      <div className="shrink-0 rounded-xl border-2 border-border bg-card p-3 space-y-3">
+        {/* Row 1: Search + Store */}
         <div className="flex items-center gap-2">
-          <Button
-            size="sm"
-            className="h-9 gap-1.5 cursor-pointer"
-            onClick={() => navigate("/deliveries/new")}
-          >
-            <Plus className="h-4 w-4" />
-            New Delivery
-          </Button>
-          <div className="relative w-60 xl:w-72">
+          <div className="relative w-56 xl:w-64">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <Input
               placeholder="Name, phone, or ID..."
               value={search}
               onChange={(e) => { setSearch(e.target.value); setPage(1); }}
-              className="pl-9 h-9 text-sm"
+              className="pl-9 h-8 text-sm"
             />
             {search && (
               <button
                 type="button"
                 onClick={() => { setSearch(""); setPage(1); }}
-                className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground cursor-pointer"
                 aria-label="Clear search"
               >
                 <X className="h-3.5 w-3.5" />
               </button>
             )}
           </div>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setFiltersOpen((v) => !v)}
-            className={cn(
-              "gap-2 cursor-pointer transition-colors duration-200 h-9",
-              panelFilterCount > 0 && "border-primary/30 bg-primary/5"
-            )}
-          >
-            <SlidersHorizontal className="h-4 w-4" />
-            Filters
-            {panelFilterCount > 0 && (
-              <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-primary px-1.5 text-[10px] font-bold text-primary-foreground">
-                {panelFilterCount}
-              </span>
-            )}
-            <ChevronDown className={cn("h-4 w-4 transition-transform duration-200", filtersOpen && "rotate-180")} />
-          </Button>
-        </div>
-      </div>
-
-      {/* Collapsible Filters */}
-      {filtersOpen && (
-        <div className="shrink-0 flex flex-col sm:flex-row gap-3 flex-wrap items-center">
           <Select
             value={storeFilter}
             onValueChange={(v) => { setStoreFilter(v); setPage(1); }}
           >
-            <SelectTrigger className="h-8 w-45 text-xs">
+            <SelectTrigger className={cn("h-8 w-40 text-xs", storeFilter !== "all" && "border-primary bg-primary/10 text-primary")}>
               <SelectValue placeholder="All Stores" />
             </SelectTrigger>
             <SelectContent>
@@ -376,130 +384,159 @@ export default function DeliveriesPage() {
               ))}
             </SelectContent>
           </Select>
-          <div className="flex items-center gap-1">
-            {[
-              { label: "Today", from: 0, to: 0 },
-              { label: "Yesterday", from: 1, to: 1 },
-              { label: "7 days", from: 6, to: 0 },
-              { label: "30 days", from: 29, to: 0 },
-              { label: "This month", from: "month", to: 0 },
-            ].map(({ label, from, to }) => {
-              const apply = () => {
-                const fmt = (d) => d.toISOString().split("T")[0];
-                const today = new Date();
-                today.setHours(0, 0, 0, 0);
-                let start;
-                if (from === "month") {
-                  start = new Date(today.getFullYear(), today.getMonth(), 1);
-                } else {
-                  start = new Date(today);
-                  start.setDate(start.getDate() - from);
-                }
-                const end = new Date(today);
-                end.setDate(end.getDate() - to);
-                setDateFrom(fmt(start));
-                setDateTo(fmt(end));
-                setPage(1);
-              };
-              return (
-                <button
-                  key={label}
-                  type="button"
-                  onClick={apply}
-                  className="h-7 rounded-md border border-input bg-background px-2 text-[11px] font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground cursor-pointer"
-                >
-                  {label}
-                </button>
-              );
-            })}
-          </div>
-          <div className="flex items-center gap-1.5">
-            <input
-              type="date"
-              value={dateFrom}
-              onChange={(e) => { setDateFrom(e.target.value); setPage(1); }}
-              className="h-8 rounded-md border border-input bg-background px-2 text-xs text-foreground cursor-pointer"
-              title="From date"
-            />
-            <span className="text-xs text-muted-foreground">–</span>
-            <input
-              type="date"
-              value={dateTo}
-              onChange={(e) => { setDateTo(e.target.value); setPage(1); }}
-              className="h-8 rounded-md border border-input bg-background px-2 text-xs text-foreground cursor-pointer"
-              title="To date"
-            />
-          </div>
-          {panelFilterCount > 0 && (
-            <Button
-              variant="ghost"
-              size="sm"
+          {activeFilterCount > 0 && (
+            <button
+              type="button"
               onClick={handleClearFilters}
-              className="gap-1.5 h-8 text-xs text-muted-foreground hover:text-foreground cursor-pointer"
+              className="ml-auto inline-flex items-center gap-1 h-7 rounded-md px-2.5 text-xs font-medium text-destructive/70 transition-colors hover:bg-destructive/10 hover:text-destructive cursor-pointer"
             >
-              <X className="h-3.5 w-3.5" />
+              <X className="h-3 w-3" />
               Clear all
-            </Button>
+            </button>
           )}
         </div>
-      )}
 
-      {/* Status filter tabs */}
-      <div className="shrink-0 flex items-center gap-1.5 overflow-x-auto pb-0.5">
-        {STATUS_TABS.map(({ key, label, activeClass, activePillClass }) => {
-          const count = key === "all" ? totalCount : (orderCounts[key] ?? 0);
-          const isActive = filter === key;
-          return (
-            <button
-              key={key}
-              type="button"
-              onClick={() => { setFilter(key); setPage(1); }}
-              className={cn(
-                "inline-flex shrink-0 items-center justify-center gap-2 rounded-full px-3.5 py-1.5 text-sm font-medium leading-none whitespace-nowrap transition-all duration-200 ease-out cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500/30 focus-visible:ring-offset-2 min-w-32",
-                isActive
-                  ? activeClass
-                  : "text-slate-500 border border-transparent bg-transparent hover:bg-slate-100 hover:text-slate-700 dark:text-slate-400 dark:hover:bg-slate-800/70 dark:hover:text-slate-200"
-              )}
-            >
-              {label}
-              {!statsLoading && (
+        {/* Row 2: Date presets + Custom range */}
+        <div className="flex items-center gap-2 flex-wrap">
+          {[
+            { label: "Today", key: "today", from: 0, to: 0 },
+            { label: "Yesterday", key: "yesterday", from: 1, to: 1 },
+            { label: "7d", key: "7d", from: 6, to: 0 },
+            { label: "30d", key: "30d", from: 29, to: 0 },
+          ].map(({ label, key, from, to }) => {
+            const isPresetActive = selectedDatePreset === key;
+            const apply = () => {
+              if (isPresetActive) {
+                setDateFrom("");
+                setDateTo("");
+                setSelectedDatePreset(null);
+                setPage(1);
+                return;
+              }
+              const fmt = (d) => d.toISOString().split("T")[0];
+              const today = new Date();
+              today.setHours(0, 0, 0, 0);
+              const start = new Date(today);
+              start.setDate(start.getDate() - from);
+              const end = new Date(today);
+              end.setDate(end.getDate() - to);
+              setDateFrom(fmt(start));
+              setDateTo(fmt(end));
+              setSelectedDatePreset(key);
+              setPage(1);
+            };
+            return (
+              <button
+                key={label}
+                type="button"
+                onClick={apply}
+                className={cn(
+                  "h-7 rounded-md border px-2.5 text-xs font-medium transition-colors cursor-pointer",
+                  isPresetActive
+                    ? "border-primary bg-primary/10 text-primary"
+                    : "border-input bg-background text-muted-foreground hover:bg-muted hover:text-foreground"
+                )}
+              >
+                {label}
+              </button>
+            );
+          })}
+
+          <div className="h-5 w-px bg-border" />
+
+          <input
+            type="date"
+            value={dateFrom}
+            onChange={(e) => { setDateFrom(e.target.value); setSelectedDatePreset(null); setPage(1); }}
+            className={cn(
+              "h-8 rounded-md border bg-background px-2 text-xs cursor-pointer",
+              dateFrom ? "border-primary bg-primary/10 text-primary" : "border-input text-foreground"
+            )}
+            title="From date"
+          />
+          <span className="text-xs text-muted-foreground">–</span>
+          <input
+            type="date"
+            value={dateTo}
+            onChange={(e) => { setDateTo(e.target.value); setSelectedDatePreset(null); setPage(1); }}
+            className={cn(
+              "h-8 rounded-md border bg-background px-2 text-xs cursor-pointer",
+              dateTo ? "border-primary bg-primary/10 text-primary" : "border-input text-foreground"
+            )}
+            title="To date"
+          />
+        </div>
+
+        {/* Divider */}
+        <div className="border-t border-border" />
+
+        {/* Row 3: Status tabs */}
+        <div className="flex items-center gap-2 overflow-x-auto pb-0.5">
+          {STATUS_TABS.map(({ key, label, icon: Icon, activeClass, activePillClass }) => {
+            const hasClientFilters = search.trim() !== "" || dateFrom !== "" || dateTo !== "";
+            let count;
+            if (filter === "all") {
+              count = key === "all" ? filtered.length : filtered.filter((o) => o.status === key).length;
+            } else if (key === filter) {
+              count = filtered.length;
+            } else if (!hasClientFilters && !statsLoading) {
+              count = key === "all" ? totalCount : (orderCounts[key] ?? 0);
+            } else {
+              count = "–";
+            }
+            const isActive = filter === key;
+            return (
+              <button
+                key={key}
+                type="button"
+                onClick={() => { setFilter(key); setPage(1); }}
+                className={cn(
+                  "inline-flex shrink-0 items-center justify-center gap-1.5 rounded-full border px-3 py-1.5 text-[10px] font-bold font-mono uppercase leading-none whitespace-nowrap transition-all duration-200 ease-out cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500/30 focus-visible:ring-offset-2",
+                  isActive
+                    ? activeClass
+                    : "border-border text-muted-foreground bg-transparent hover:bg-muted hover:text-foreground"
+                )}
+              >
+                  <Icon className="h-3.5 w-3.5 stroke-[2.4]" />
+                {label}
                 <span
                   className={cn(
-                    "inline-flex min-w-5 items-center justify-center rounded-full px-1.5 py-0.5 text-[11px] font-semibold tabular-nums",
+                    "inline-flex min-w-5 items-center justify-center rounded-full px-1.5 py-0.5 text-[10px] font-semibold tabular-nums",
                     isActive
-                      ? "bg-white text-gray-800 shadow-sm ring-1 ring-inset ring-black/10 dark:bg-slate-900 dark:text-gray-100 dark:ring-white/20"
-                      : "bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-slate-300"
+                      ? activePillClass
+                      : "bg-muted text-muted-foreground"
                   )}
+                  title={count === "–" ? "Count unavailable — clear filters to see all counts" : undefined}
                 >
                   {count}
                 </span>
-              )}
-            </button>
-          );
-        })}
+              </button>
+            );
+          })}
+        </div>
       </div>
 
       {/* Table */}
       <div className="flex flex-col flex-1 min-h-0 overflow-hidden rounded-xl border-2 border-border bg-card">
         <div className="relative shrink-0 bg-muted/40 dark:bg-muted/30">
-          <div className="grid grid-cols-[1.1fr_1.7fr_1.3fr_1.1fr_0.9fr_1.3fr] gap-x-4 items-center px-4 py-2.5 text-[11px] font-bold uppercase tracking-wider text-foreground/60">
-            <div>Order ID</div>
-            <div>Recipient</div>
-            <div>Phone</div>
+          <div className="grid grid-cols-[0.95fr_1.35fr_1.1fr_1fr_0.95fr_1.25fr] gap-x-5 items-center px-4 py-2.5 text-[11px] font-bold uppercase tracking-wider text-foreground/60">
+            <div className="text-left pl-2">Order ID</div>
+            <div className="text-left">Recipient</div>
+            <div className="text-left pl-1">Phone</div>
             <div className="text-center">Status</div>
             <button
               type="button"
               onClick={() => toggleSort("amount")}
-              className="flex items-center justify-end gap-1 cursor-pointer hover:text-foreground/90 transition-colors text-right"
+              className="flex items-center justify-end pr-3 gap-1 cursor-pointer hover:text-foreground/90 transition-colors text-right"
             >
               Amount <SortIcon field="amount" sortField={sortField} sortDir={sortDir} />
             </button>
             <button
               type="button"
               onClick={() => toggleSort("created_at")}
-              className="flex items-center gap-1 cursor-pointer hover:text-foreground/90 transition-colors"
+              className="flex items-center justify-center gap-1 cursor-pointer hover:text-foreground/90 transition-colors"
             >
-              Placed On <SortIcon field="created_at" sortField={sortField} sortDir={sortDir} />
+              Time <SortIcon field="created_at" sortField={sortField} sortDir={sortDir} />
             </button>
           </div>
           <div className="absolute bottom-0 left-0 right-0 h-0.75 overflow-hidden bg-border">
@@ -513,7 +550,7 @@ export default function DeliveriesPage() {
         <div className="relative flex-1 min-h-0">
           <div ref={scrollRef} className="h-full overflow-y-auto scrollbar-hidden">
             <div className="min-w-full text-sm">
-              {loading ? (
+              {loading && allOrders.length === 0 ? (
                 <div className="divide-y divide-border/50">
                   <SkeletonRow />
                   <SkeletonRow />
@@ -540,29 +577,35 @@ export default function DeliveriesPage() {
                   {sortedFiltered.map((order) => (
                     <div
                       key={order.order_id}
-                      className="grid grid-cols-[1.1fr_1.7fr_1.3fr_1.1fr_0.9fr_1.3fr] gap-x-4 items-center px-4 py-3 hover:bg-muted/40 transition-colors duration-200 cursor-pointer"
+                      className="grid grid-cols-[0.95fr_1.35fr_1.1fr_1fr_0.95fr_1.25fr] gap-x-5 items-center px-4 py-3 border-l-2 border-l-transparent hover:border-l-primary hover:bg-muted/80 transition-all duration-150 cursor-pointer"
                       onClick={() => navigate(`/deliveries/${order.order_id}`)}
                     >
-                      <div className="font-mono text-xs font-semibold">
+                      <div className="font-mono text-xs font-semibold text-left pl-2">
                         {order.order_id}
                       </div>
-                      <div className="text-sm font-medium">
+                      <div className="text-sm font-medium truncate text-left">
                         {order.recipient_name || "—"}
                       </div>
-                      <div className="text-sm font-normal text-muted-foreground">
+                      <div className="text-sm font-normal text-muted-foreground text-left pl-1">
                         {order.recipient_phone || "—"}
                       </div>
                       <div className="flex justify-center">
-                        <Badge variant={statusColors[order.status] || "secondary"} className="uppercase tracking-widest text-[10px] font-bold font-mono min-w-26 justify-center">
-                          {(order.status || "unknown").replace(/_/g, " ")}
-                        </Badge>
+                        {(() => {
+                          const StatusIcon = statusIcons[order.status];
+                          return (
+                            <Badge variant={statusColors[order.status] || "secondary"} className="uppercase text-[10px] font-bold font-mono min-w-26 justify-center gap-1">
+                              {StatusIcon && <StatusIcon className="h-3.5 w-3.5 stroke-[2.4]" />}
+                              {(order.status || "unknown").replace(/_/g, " ")}
+                            </Badge>
+                          );
+                        })()}
                       </div>
-                      <div className="text-sm font-medium text-right tabular-nums">
+                      <div className="text-sm font-medium text-right tabular-nums pr-3">
                         {order.amount != null ? `৳${order.amount}` : "—"}
                       </div>
-                      <div className="flex items-center gap-1.5 text-sm font-medium text-muted-foreground">
-                        <span>{formatOrderDate(order.created_at)}</span>
-                        <ChevronRight className="h-3.5 w-3.5 shrink-0 text-muted-foreground/40 ml-auto" />
+                      <div className="relative flex items-center justify-center text-sm font-medium text-muted-foreground">
+                        <span className="text-center">{formatOrderDate(order.created_at)}</span>
+                        <ChevronRight className="absolute right-0 h-3.5 w-3.5 shrink-0 text-muted-foreground/40" />
                       </div>
                     </div>
                   ))}

@@ -34,7 +34,7 @@ function StatCard({ title, value, icon: Icon, href, variant = "metric" }) {
       className={`flex flex-col gap-2 rounded-xl border-2 transition-all duration-200 ${
         isCta
           ? "cursor-pointer border-primary/30 bg-primary/5 px-4 py-3 hover:border-primary/60 hover:bg-primary/10 dark:bg-primary/8 dark:hover:bg-primary/15"
-          : `border-border bg-card px-4 py-3 ${href ? "cursor-pointer hover:bg-muted/50 dark:hover:bg-muted/55" : ""}`
+          : `border-border bg-card px-4 py-3 ${href ? "cursor-pointer hover:bg-accent hover:border-primary/25 hover:shadow-sm dark:hover:bg-muted/55" : ""}`
       }`}
       onClick={() => href && navigate(href)}
       role={href ? "link" : undefined}
@@ -408,42 +408,48 @@ function RecentActivityFeed({ loading, loadingMore, activities, newItemsFrom, er
   const topBlurRef = useRef(null);
   const bottomBlurRef = useRef(null);
   const sentinelRef = useRef(null);
-  const [showSkeletons, setShowSkeletons] = useState(false);
-  const hasScrolledRef = useRef(false);
+  const [pendingLoad, setPendingLoad] = useState(false);
+  const timersRef = useRef([]);
 
-  // Minimum skeleton display time (1s) for graceful loading feel
+  // Show skeletons when pendingLoad (3s delay) or loadingMore (actual fetch)
+  const showSkeletons = pendingLoad || loadingMore;
+
+  // When pendingLoad is set, wait 3s, fire the fetch, then clear pendingLoad after 500ms buffer
+  const onLoadMoreRef = useRef(onLoadMore);
+  onLoadMoreRef.current = onLoadMore;
+  const pendingRef = useRef(false);
   useEffect(() => {
-    if (loadingMore) {
-      setShowSkeletons(true);
-    } else if (showSkeletons) {
-      const timer = setTimeout(() => setShowSkeletons(false), 1000);
-      return () => clearTimeout(timer);
-    }
-  }, [loadingMore]);
+    pendingRef.current = pendingLoad;
+  }, [pendingLoad]);
+  useEffect(() => {
+    if (!pendingLoad) return;
+    const t1 = setTimeout(() => {
+      onLoadMoreRef.current();
+      const t2 = setTimeout(() => setPendingLoad(false), 500);
+      timersRef.current.push(t2);
+    }, 1500);
+    timersRef.current.push(t1);
+    return () => {
+      timersRef.current.forEach(clearTimeout);
+      timersRef.current = [];
+    };
+  }, [pendingLoad]);
 
-  // Track user scroll to prevent auto-loading on mount
+  // Scroll-based loading: when user scrolls near the bottom, start 3s pending load
   useEffect(() => {
     const el = scrollRef.current;
-    if (!el) return;
-    const onScroll = () => { hasScrolledRef.current = true; };
-    el.addEventListener("scroll", onScroll, { passive: true, once: true });
+    if (!el || !hasMore) return;
+    let armed = false;
+    const onScroll = () => {
+      if (pendingRef.current || loadingMore) return;
+      const { scrollTop, scrollHeight, clientHeight } = el;
+      const nearBottom = scrollTop + clientHeight >= scrollHeight - 100;
+      if (nearBottom && armed) setPendingLoad(true);
+      if (!nearBottom) armed = true;
+    };
+    el.addEventListener("scroll", onScroll, { passive: true });
     return () => el.removeEventListener("scroll", onScroll);
-  }, [loading]);
-
-  // IntersectionObserver: auto-load when sentinel enters the scroll container (only after user scrolls)
-  useEffect(() => {
-    const sentinel = sentinelRef.current;
-    const container = scrollRef.current;
-    if (!sentinel || !container || !hasMore || loadingMore || showSkeletons) return;
-    const observer = new IntersectionObserver(
-      ([entry]) => {
-        if (entry.isIntersecting && hasScrolledRef.current) onLoadMore();
-      },
-      { root: container, rootMargin: "0px 0px 100px 0px", threshold: 0 }
-    );
-    observer.observe(sentinel);
-    return () => observer.disconnect();
-  }, [hasMore, loadingMore, showSkeletons, onLoadMore]);
+  }, [hasMore, loadingMore]);
 
   useEffect(() => {
     const element = scrollRef.current;
