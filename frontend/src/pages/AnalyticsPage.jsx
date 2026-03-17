@@ -428,13 +428,15 @@ export default function AnalyticsPage() {
           </div>
         )}
 
-        <Tabs defaultValue="overview" className="gap-3">
-          <TabsList className="w-full justify-start">
-            <TabsTrigger value="overview">Overview</TabsTrigger>
-            <TabsTrigger value="deliveries">Deliveries</TabsTrigger>
-            <TabsTrigger value="stores">Stores</TabsTrigger>
-            <TabsTrigger value="payments">Payments</TabsTrigger>
-          </TabsList>
+        <Tabs defaultValue="overview" className="flex flex-col gap-0 h-full">
+          <div className="sticky top-0 z-10 bg-background/95 backdrop-blur-sm pb-3 -mt-0.5 pt-0.5">
+            <TabsList className="w-full justify-start">
+              <TabsTrigger value="overview">Overview</TabsTrigger>
+              <TabsTrigger value="deliveries">Deliveries</TabsTrigger>
+              <TabsTrigger value="stores">Stores</TabsTrigger>
+              <TabsTrigger value="payments">Payments</TabsTrigger>
+            </TabsList>
+          </div>
 
           {/* ─── Overview Tab ─── */}
           <TabsContent value="overview" className="space-y-4">
@@ -691,11 +693,13 @@ export default function AnalyticsPage() {
             </SectionCard>
 
             {/* Store Comparison Charts */}
-            {!loading && topStores.length > 1 && (
+            {!loading && topStores.length > 1 && (() => {
+              const chartStores = topStores.slice(0, 8)
+              return (
               <div className="grid gap-4 lg:grid-cols-2">
                 <SectionCard title="Store-wise Orders" subtitle={periodLabel}>
-                  <ResponsiveContainer width="100%" height={Math.max(200, topStores.length * 50)}>
-                    <BarChart data={topStores.map(s => ({ name: s.name + (s.branch ? ` (${s.branch})` : ''), orders: s.order_count, delivered: s.delivered_count ?? 0 }))} margin={{ top: 5, right: 10, left: 0, bottom: 5 }} layout="vertical">
+                  <ResponsiveContainer width="100%" height={Math.max(200, chartStores.length * 50)}>
+                    <BarChart data={chartStores.map(s => ({ name: s.name + (s.branch ? ` (${s.branch})` : ''), orders: s.order_count, delivered: s.delivered_count ?? 0 }))} margin={{ top: 5, right: 10, left: 0, bottom: 5 }} layout="vertical">
                       <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" horizontal={false} />
                       <XAxis type="number" tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }} axisLine={false} tickLine={false} allowDecimals={false} />
                       <YAxis dataKey="name" type="category" tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }} axisLine={false} tickLine={false} width={130} />
@@ -708,8 +712,8 @@ export default function AnalyticsPage() {
                 </SectionCard>
 
                 <SectionCard title="Store-wise Revenue" subtitle={periodLabel}>
-                  <ResponsiveContainer width="100%" height={Math.max(200, topStores.length * 50)}>
-                    <BarChart data={topStores.map(s => ({ name: s.name + (s.branch ? ` (${s.branch})` : ''), revenue: Number(s.revenue), avgValue: Number(s.avg_order_value) }))} margin={{ top: 5, right: 10, left: 0, bottom: 5 }} layout="vertical">
+                  <ResponsiveContainer width="100%" height={Math.max(200, chartStores.length * 50)}>
+                    <BarChart data={chartStores.map(s => ({ name: s.name + (s.branch ? ` (${s.branch})` : ''), revenue: Number(s.revenue), avgValue: Number(s.avg_order_value) }))} margin={{ top: 5, right: 10, left: 0, bottom: 5 }} layout="vertical">
                       <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" horizontal={false} />
                       <XAxis type="number" tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }} axisLine={false} tickLine={false} tickFormatter={(v) => `৳${v.toLocaleString()}`} />
                       <YAxis dataKey="name" type="category" tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }} axisLine={false} tickLine={false} width={130} />
@@ -719,7 +723,8 @@ export default function AnalyticsPage() {
                   </ResponsiveContainer>
                 </SectionCard>
               </div>
-            )}
+              )
+            })()}
           </TabsContent>
 
           {/* ─── Payments Tab ─── */}
