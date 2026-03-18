@@ -13,7 +13,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { AlertCircle, Search, ChevronRight, X, ArrowUp, ArrowDown, Plus, Loader2, LayoutList, Clock, UserCheck, Package, Truck, CheckCircle, XCircle } from "lucide-react";
+import { AlertCircle, Search, ChevronRight, X, ArrowUp, ArrowDown, Plus, Loader2, LayoutList, Clock, UserCheck, Package, Truck, CheckCircle, XCircle, Eye } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { getAnalytics } from "@/api/analytics";
 
@@ -112,7 +112,7 @@ function SortIcon({ field, sortField, sortDir }) {
 
 function SkeletonRow() {
   return (
-    <div className="grid grid-cols-[0.95fr_1.35fr_1.1fr_1fr_0.95fr_1.25fr] gap-x-5">
+    <div className="grid grid-cols-[0.85fr_1.2fr_1fr_0.95fr_0.8fr_1.1fr_auto] gap-x-3">
       {Array.from({ length: 6 }).map((_, i) => (
         <div key={i} className="py-3 px-4 flex items-center">
           <div className="h-4 w-20 rounded bg-muted animate-pulse" />
@@ -535,7 +535,7 @@ export default function DeliveriesPage() {
       {/* Table */}
       <div className="flex flex-col flex-1 min-h-0 overflow-hidden rounded-xl border-2 border-border bg-card">
         <div className="relative shrink-0 bg-muted/40 dark:bg-muted/30">
-          <div className="grid grid-cols-[0.95fr_1.35fr_1.1fr_1fr_0.95fr_1.25fr] gap-x-5 items-center px-4 py-2.5 text-[11px] font-bold uppercase tracking-wider text-foreground/60">
+          <div className="grid grid-cols-[0.85fr_1.2fr_1fr_0.95fr_0.8fr_1.1fr_auto] gap-x-3 items-center px-4 py-2.5 text-[11px] font-bold uppercase tracking-wider text-foreground/60">
             <div className="text-left pl-2">Order ID</div>
             <div className="text-left">Recipient</div>
             <div className="text-left pl-1">Phone</div>
@@ -554,6 +554,7 @@ export default function DeliveriesPage() {
             >
               Time <SortIcon field="created_at" sortField={sortField} sortDir={sortDir} />
             </button>
+            <div className="text-center">Detail</div>
           </div>
           <div className="absolute bottom-0 left-0 right-0 h-0.75 overflow-hidden bg-border">
             <div
@@ -593,8 +594,7 @@ export default function DeliveriesPage() {
                   {sortedFiltered.map((order) => (
                     <div
                       key={order.order_id}
-                      className="grid grid-cols-[0.95fr_1.35fr_1.1fr_1fr_0.95fr_1.25fr] gap-x-5 items-center px-4 py-3 border-l-2 border-l-transparent hover:border-l-primary hover:bg-muted/80 transition-all duration-150 cursor-pointer"
-                      onClick={() => navigate(`/deliveries/${order.order_id}`)}
+                      className="grid grid-cols-[0.85fr_1.2fr_1fr_0.95fr_0.8fr_1.1fr_auto] gap-x-3 items-center px-4 py-3 border-l-2 border-l-transparent hover:border-l-primary hover:bg-muted/80 transition-all duration-150"
                     >
                       <div className="font-mono text-xs font-semibold text-left pl-2">
                         {order.order_id}
@@ -621,7 +621,16 @@ export default function DeliveriesPage() {
                       </div>
                       <div className="relative flex items-center justify-center text-sm font-medium text-muted-foreground">
                         <span className="text-center">{formatOrderDate(order.created_at)}</span>
-                        <ChevronRight className="absolute right-0 h-3.5 w-3.5 shrink-0 text-muted-foreground/40" />
+                      </div>
+                      <div className="flex items-center justify-center">
+                        <button
+                          type="button"
+                          onClick={() => navigate(`/deliveries/${order.order_id}`)}
+                          className="inline-flex items-center justify-center h-7 w-7 rounded-md text-muted-foreground hover:bg-muted hover:text-foreground transition-colors cursor-pointer"
+                          title="View details"
+                        >
+                          <Eye className="h-3.5 w-3.5" />
+                        </button>
                       </div>
                     </div>
                   ))}

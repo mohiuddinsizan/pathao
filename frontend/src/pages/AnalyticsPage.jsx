@@ -171,10 +171,13 @@ function ChartSkeleton() {
 
 function KpiSkeleton() {
   return (
-    <div className="rounded-xl border-2 border-border bg-card p-4 space-y-2 animate-pulse">
-      <div className="h-3 w-20 rounded bg-muted" />
-      <div className="h-7 w-28 rounded bg-muted" />
-      <div className="h-3 w-16 rounded bg-muted" />
+    <div className="rounded-lg border border-border bg-card px-3 py-2.5 flex items-start gap-2.5 animate-pulse">
+      <div className="h-7 w-7 rounded-md bg-muted" />
+      <div className="space-y-1.5">
+        <div className="h-3 w-16 rounded bg-muted" />
+        <div className="h-5 w-20 rounded bg-muted" />
+        <div className="h-3 w-14 rounded bg-muted" />
+      </div>
     </div>
   )
 }
@@ -207,11 +210,11 @@ function TableRowSkeleton() {
 /* ─── Card wrapper ─── */
 function SectionCard({ title, subtitle, children, className }) {
   return (
-    <div className={cn('rounded-xl border-2 border-border bg-card p-5 space-y-4', className)}>
+    <div className={cn('rounded-lg border border-border bg-card p-4 space-y-3', className)}>
       <div>
-        <h2 className="text-lg font-semibold tracking-tight">{title}</h2>
+        <h2 className="text-base font-semibold tracking-tight">{title}</h2>
         {subtitle && (
-          <p className="text-xs text-muted-foreground mt-0.5">{subtitle}</p>
+          <p className="text-[11px] text-muted-foreground">{subtitle}</p>
         )}
       </div>
       {children}
@@ -222,14 +225,14 @@ function SectionCard({ title, subtitle, children, className }) {
 /* ─── KPI Card ─── */
 function KpiCard({ icon: Icon, label, value, sub, color }) {
   return (
-    <div className="rounded-xl border-2 border-border bg-card p-4 flex items-start gap-3">
-      <div className={cn('rounded-lg p-2', color)}>
-        <Icon className="h-4 w-4" />
+    <div className="rounded-lg border border-border bg-card px-3 py-2.5 flex items-start gap-2.5">
+      <div className={cn('rounded-md p-1.5', color)}>
+        <Icon className="h-3.5 w-3.5" />
       </div>
       <div className="min-w-0">
-        <p className="text-xs text-muted-foreground font-medium">{label}</p>
-        <p className="text-xl font-bold tracking-tight mt-0.5">{value}</p>
-        {sub && <p className="text-xs text-muted-foreground mt-0.5">{sub}</p>}
+        <p className="text-[11px] text-muted-foreground font-medium leading-tight">{label}</p>
+        <p className="text-lg font-bold tracking-tight leading-snug">{value}</p>
+        {sub && <p className="text-[11px] text-muted-foreground leading-tight line-clamp-1">{sub}</p>}
       </div>
     </div>
   )
@@ -373,7 +376,7 @@ export default function AnalyticsPage() {
         </TabsList>
 
         {/* Date & store filter bar */}
-        <div className="rounded-xl border-2 border-border bg-card p-3">
+        <div className="rounded-lg border border-border bg-card p-2.5">
           <div className="flex items-center gap-2 flex-wrap">
             {DATE_PRESETS.map((preset) => (
               <button
@@ -473,7 +476,7 @@ export default function AnalyticsPage() {
         )}
 
           {/* ─── Overview Tab ─── */}
-          <TabsContent value="overview" className="space-y-4">
+          <TabsContent value="overview" className="space-y-3">
             {/* KPI Cards */}
             <div className="grid gap-3 grid-cols-2 lg:grid-cols-4">
               {loading ? (
@@ -574,7 +577,7 @@ export default function AnalyticsPage() {
           </TabsContent>
 
           {/* ─── Deliveries Tab ─── */}
-          <TabsContent value="deliveries" className="space-y-4">
+          <TabsContent value="deliveries" className="space-y-3">
             {/* Orders by Status */}
             <SectionCard title="Orders by Status" subtitle={periodLabel}>
               {loading ? (
@@ -684,7 +687,7 @@ export default function AnalyticsPage() {
           </TabsContent>
 
           {/* ─── Stores Tab ─── */}
-          <TabsContent value="stores" className="space-y-4">
+          <TabsContent value="stores" className="space-y-3">
             {/* Inter-store Comparison Stats */}
             {loading ? (
               <div className="grid gap-3 grid-cols-2 lg:grid-cols-4">
@@ -817,7 +820,7 @@ export default function AnalyticsPage() {
           </TabsContent>
 
           {/* ─── Payments Tab ─── */}
-          <TabsContent value="payments" className="space-y-4">
+          <TabsContent value="payments" className="space-y-3">
             {/* Payment Methods Donut */}
             <SectionCard title="Payment Methods" subtitle={periodLabel}>
               {loading ? (

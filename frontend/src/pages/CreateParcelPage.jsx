@@ -263,55 +263,55 @@ export default function CreateParcelPage() {
         </div>
       </div>
 
+      {/* Wizard Stepper — fixed above scroll area */}
+      <Card className="shrink-0 mx-4 lg:mx-6 mt-4 lg:mt-6 px-4 sm:px-6 py-4">
+        <ol className="grid grid-cols-5" aria-label="Order progress">
+          {WIZARD_STEPS.map((s, i) => {
+            const isCompleted = step > s.id
+            const isCurrent = step === s.id
+            const isLast = i === WIZARD_STEPS.length - 1
+            const Icon = s.id === 1 ? MapPin : s.id === 2 ? User : s.id === 3 ? Package : s.id === 4 ? Wallet : Receipt
+            return (
+              <li key={s.id} className="relative flex flex-col items-center">
+                {/* Connector line */}
+                {!isLast && (
+                  <div
+                    className={`absolute top-[17px] left-1/2 w-full h-1 transition-colors duration-300 ${
+                      isCompleted ? 'bg-primary' : 'bg-muted-foreground/20'
+                    }`}
+                    aria-hidden="true"
+                  />
+                )}
+                <button
+                  type="button"
+                  onClick={() => s.id < step && setStep(s.id)}
+                  disabled={s.id > step}
+                  aria-current={isCurrent ? 'step' : undefined}
+                  className={`relative z-10 flex h-9 w-9 shrink-0 items-center justify-center rounded-full border-2 transition-all duration-200 ${
+                    isCompleted
+                      ? 'border-primary bg-primary text-primary-foreground cursor-pointer'
+                      : isCurrent
+                      ? 'border-primary bg-card text-primary ring-4 ring-primary/15'
+                      : 'border-muted-foreground/30 bg-card text-muted-foreground cursor-not-allowed'
+                  }`}
+                >
+                  {isCompleted ? <Check className="h-4 w-4" /> : <Icon className="h-4 w-4" />}
+                </button>
+                <span
+                  className={`mt-1.5 text-[11px] sm:text-xs font-medium text-center leading-tight ${
+                    isCurrent ? 'text-primary' : isCompleted ? 'text-foreground' : 'text-muted-foreground'
+                  }`}
+                >
+                  {s.label}
+                </span>
+              </li>
+            )
+          })}
+        </ol>
+      </Card>
+
       {/* Scrollable Content Area */}
       <div className="flex-1 overflow-y-auto p-4 lg:p-6 pb-24 space-y-4">
-        {/* Wizard Stepper */}
-        <Card className="sticky top-0 z-10 px-4 sm:px-6 py-4">
-          <ol className="grid grid-cols-5" aria-label="Order progress">
-            {WIZARD_STEPS.map((s, i) => {
-              const isCompleted = step > s.id
-              const isCurrent = step === s.id
-              const isLast = i === WIZARD_STEPS.length - 1
-              const Icon = s.id === 1 ? MapPin : s.id === 2 ? User : s.id === 3 ? Package : s.id === 4 ? Wallet : Receipt
-              return (
-                <li key={s.id} className="relative flex flex-col items-center">
-                  {/* Connector line */}
-                  {!isLast && (
-                    <div
-                      className={`absolute top-[17px] left-1/2 w-full h-1 transition-colors duration-300 ${
-                        isCompleted ? 'bg-primary' : 'bg-muted-foreground/20'
-                      }`}
-                      aria-hidden="true"
-                    />
-                  )}
-                  <button
-                    type="button"
-                    onClick={() => s.id < step && setStep(s.id)}
-                    disabled={s.id > step}
-                    aria-current={isCurrent ? 'step' : undefined}
-                    className={`relative z-10 flex h-9 w-9 shrink-0 items-center justify-center rounded-full border-2 transition-all duration-200 ${
-                      isCompleted
-                        ? 'border-primary bg-primary text-primary-foreground cursor-pointer'
-                        : isCurrent
-                        ? 'border-primary bg-card text-primary ring-4 ring-primary/15'
-                        : 'border-muted-foreground/30 bg-card text-muted-foreground cursor-not-allowed'
-                    }`}
-                  >
-                    {isCompleted ? <Check className="h-4 w-4" /> : <Icon className="h-4 w-4" />}
-                  </button>
-                  <span
-                    className={`mt-1.5 text-[11px] sm:text-xs font-medium text-center leading-tight ${
-                      isCurrent ? 'text-primary' : isCompleted ? 'text-foreground' : 'text-muted-foreground'
-                    }`}
-                  >
-                    {s.label}
-                  </span>
-                </li>
-              )
-            })}
-          </ol>
-        </Card>
-
       {/* Submit error banner */}
       {errors.submit && (
         <div role="alert" aria-live="assertive" className="rounded-lg border border-destructive/50 bg-destructive/10 p-4 text-sm text-destructive">
