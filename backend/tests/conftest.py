@@ -1,17 +1,20 @@
-"""Shared fixtures for the test suite."""
-
 import os
 import uuid
+from pathlib import Path
+
 import pytest
 import httpx
+from dotenv import load_dotenv
 from httpx import ASGITransport
 from asgi_lifespan import LifespanManager
 
-# Set env vars BEFORE any app import
-os.environ.setdefault("DATABASE_URL", "postgresql://postgres.defytzcrqdhjjeipnvya:tEpEsR837TQ6QB%2C@aws-1-ap-southeast-2.pooler.supabase.com:5432/postgres")
+load_dotenv(Path(__file__).resolve().parents[1] / ".env")
+
 os.environ.setdefault("JWT_SECRET", "test-secret-key-for-ci")
 os.environ.setdefault("JWT_EXPIRY_HOURS", "1")
 os.environ.setdefault("FRONTEND_URL", "http://localhost:5173")
+
+DATABASE_URL = os.getenv("DATABASE_URL") or os.getenv("TEST_DATABASE_URL")
 
 from app.main import app
 
@@ -22,6 +25,9 @@ def unique_email(prefix="auto_test"):
 
 @pytest.fixture
 async def client():
+    if not DATABASE_URL:
+        pytest.skip("Integration tests require DATABASE_URL or TEST_DATABASE_URL")
+
     async with LifespanManager(app):
         async with httpx.AsyncClient(
             transport=ASGITransport(app=app),

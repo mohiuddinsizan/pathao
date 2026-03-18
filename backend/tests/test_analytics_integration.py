@@ -1,7 +1,9 @@
 import pytest
 from .conftest import register_and_login, unique_email
 
-pytestmark = pytest.mark.asyncio
+pytestmark = [pytest.mark.asyncio, pytest.mark.integration]
+
+# pytestmark = pytest.mark.asyncio
 
 
 def build_store_payload(name="Analytics Store"):
