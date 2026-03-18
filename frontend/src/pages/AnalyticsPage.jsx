@@ -179,6 +179,31 @@ function KpiSkeleton() {
   )
 }
 
+function InsightSkeleton() {
+  return (
+    <div className="flex items-start gap-2 rounded-lg border border-border p-3 animate-pulse">
+      <div className="h-5 w-5 rounded bg-muted mt-0.5" />
+      <div className="flex-1 space-y-1.5">
+        <div className="h-3.5 w-3/4 rounded bg-muted" />
+        <div className="h-3 w-1/2 rounded bg-muted" />
+      </div>
+    </div>
+  )
+}
+
+function TableRowSkeleton() {
+  return (
+    <div className="grid grid-cols-[1fr_1fr_5rem_7rem_5.5rem_6rem] items-center px-4 py-3 animate-pulse">
+      <div className="h-4 w-24 rounded bg-muted" />
+      <div className="h-4 w-20 rounded bg-muted" />
+      <div className="h-4 w-8 rounded bg-muted ml-auto" />
+      <div className="h-4 w-16 rounded bg-muted ml-auto" />
+      <div className="h-4 w-10 rounded bg-muted ml-auto" />
+      <div className="h-4 w-14 rounded bg-muted ml-auto" />
+    </div>
+  )
+}
+
 /* ─── Card wrapper ─── */
 function SectionCard({ title, subtitle, children, className }) {
   return (
@@ -525,8 +550,12 @@ export default function AnalyticsPage() {
             </SectionCard>
 
             {/* Quick Insights */}
-            {!loading && data && (
-              <SectionCard title="Quick Insights" subtitle={periodLabel}>
+            <SectionCard title="Quick Insights" subtitle={periodLabel}>
+              {loading ? (
+                <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                  {[1, 2, 3, 4].map((i) => <InsightSkeleton key={i} />)}
+                </div>
+              ) : data && generateInsights(data).length > 0 ? (
                 <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
                   {generateInsights(data).map((insight, i) => (
                     <div key={i} className="flex items-start gap-2 rounded-lg border border-border p-3">
@@ -538,8 +567,10 @@ export default function AnalyticsPage() {
                     </div>
                   ))}
                 </div>
-              </SectionCard>
-            )}
+              ) : (
+                <p className="py-4 text-center text-sm text-muted-foreground">No insights available</p>
+              )}
+            </SectionCard>
           </TabsContent>
 
           {/* ─── Deliveries Tab ─── */}
@@ -655,7 +686,11 @@ export default function AnalyticsPage() {
           {/* ─── Stores Tab ─── */}
           <TabsContent value="stores" className="space-y-4">
             {/* Inter-store Comparison Stats */}
-            {!loading && topStores.length > 1 && (() => {
+            {loading ? (
+              <div className="grid gap-3 grid-cols-2 lg:grid-cols-4">
+                <KpiSkeleton /><KpiSkeleton /><KpiSkeleton /><KpiSkeleton />
+              </div>
+            ) : topStores.length > 1 && (() => {
               const sorted = [...topStores].sort((a, b) => b.order_count - a.order_count)
               const best = sorted[0]
               const avgRevenue = topStores.reduce((s, t) => s + t.revenue, 0) / topStores.length
@@ -699,10 +734,8 @@ export default function AnalyticsPage() {
             {/* Top Stores Table */}
             <SectionCard title="Top Stores" subtitle="Ranked by order volume">
               {loading ? (
-                <div className="space-y-3">
-                  {[1, 2, 3].map((i) => (
-                    <div key={i} className="h-10 rounded bg-muted animate-pulse" />
-                  ))}
+                <div className="space-y-0 divide-y divide-border/50">
+                  {[1, 2, 3, 4].map((i) => <TableRowSkeleton key={i} />)}
                 </div>
               ) : topStores.length > 0 ? (
                 (() => {
@@ -744,7 +777,12 @@ export default function AnalyticsPage() {
             </SectionCard>
 
             {/* Store Comparison Charts */}
-            {!loading && topStores.length > 1 && (() => {
+            {loading ? (
+              <div className="grid gap-4 lg:grid-cols-2">
+                <SectionCard title="Store-wise Orders" subtitle={periodLabel}><ChartSkeleton /></SectionCard>
+                <SectionCard title="Store-wise Revenue" subtitle={periodLabel}><ChartSkeleton /></SectionCard>
+              </div>
+            ) : topStores.length > 1 && (() => {
               const chartStores = topStores.slice(0, 8)
               return (
               <div className="grid gap-4 lg:grid-cols-2">
@@ -819,7 +857,11 @@ export default function AnalyticsPage() {
             </SectionCard>
 
             {/* COD Collection Summary */}
-            {!loading && summary.total_orders > 0 && (
+            {loading ? (
+              <div className="grid gap-3 grid-cols-2 lg:grid-cols-4">
+                <KpiSkeleton /><KpiSkeleton /><KpiSkeleton /><KpiSkeleton />
+              </div>
+            ) : summary.total_orders > 0 && (
               <div className="grid gap-3 grid-cols-2 lg:grid-cols-4">
                 <KpiCard
                   icon={HandCoins}
