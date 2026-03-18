@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { createOrder } from '@/api/orders'
 import { getStores } from '@/api/stores'
@@ -62,8 +62,27 @@ const WIZARD_STEPS = [
   { id: 5, label: 'Review & Confirm' },
 ]
 
+const ORDER_REQUEST_TIMEOUT_MS = 15000
+
+const FIELD_STEP_MAP = {
+  store_id: 1,
+  pickup_address: 1,
+  recipient_name: 2,
+  recipient_phone: 2,
+  recipient_address: 2,
+  destination_area: 2,
+  parcel_type: 3,
+  item_description: 3,
+  item_weight: 3,
+  notes: 3,
+  amount: 4,
+  payment_method: 4,
+  charge_delivery: 4,
+}
+
 export default function CreateParcelPage() {
   const navigate = useNavigate()
+  const scrollAreaRef = useRef(null)
 
   const [stores, setStores] = useState([])
   const [storesLoading, setStoresLoading] = useState(true)
@@ -183,11 +202,19 @@ export default function CreateParcelPage() {
   }
 
   async function handleSubmit(e) {
-    e.preventDefault()
+    e?.preventDefault?.()
     const errs = validate()
     if (Object.keys(errs).length > 0) {
       setErrors(errs)
-      focusFirstError(errs)
+      const firstField = Object.keys(errs)[0]
+      const targetStep = FIELD_STEP_MAP[firstField] || 1
+      if (step !== targetStep) {
+        setStep(targetStep)
+        // Wait for step content to render before attempting to focus.
+        setTimeout(() => focusFirstError(errs), 60)
+      } else {
+        focusFirstError(errs)
+      }
       return
     }
     setErrors({})
@@ -216,7 +243,12 @@ export default function CreateParcelPage() {
       }
       if (!payload.pickup_address?.trim()) delete payload.pickup_address
 
-      const orderData = await createOrder(payload)
+      const orderData = await Promise.race([
+        createOrder(payload),
+        new Promise((_, reject) => {
+          setTimeout(() => reject(new Error('Request timed out. Please try again.')), ORDER_REQUEST_TIMEOUT_MS)
+        }),
+      ])
       const orderId = orderData?.order_id
       try {
         localStorage.removeItem(DRAFT_KEY)
@@ -226,7 +258,10 @@ export default function CreateParcelPage() {
         navigate(orderId ? `/deliveries/${orderId}` : '/deliveries')
       }, 900)
     } catch (err) {
-      setErrors({ submit: err.message })
+      setErrors({ submit: err.message || 'Could not create parcel. Please try again.' })
+      requestAnimationFrame(() => {
+        scrollAreaRef.current?.scrollTo({ top: 0, behavior: 'smooth' })
+      })
     } finally {
       setLoading(false)
     }
@@ -312,7 +347,7 @@ export default function CreateParcelPage() {
       </Card>
 
       {/* Scrollable Content Area */}
-      <div className="flex-1 overflow-y-auto p-4 lg:p-6 pb-24 space-y-4">
+      <div ref={scrollAreaRef} className="flex-1 overflow-y-auto p-4 lg:p-6 pb-24 space-y-4">
       {/* Submit error banner */}
       {errors.submit && (
         <div role="alert" aria-live="assertive" className="rounded-lg border border-destructive/50 bg-destructive/10 p-4 text-sm text-destructive">
@@ -868,11 +903,22 @@ export default function CreateParcelPage() {
             <ArrowRight className="ml-2 h-4 w-4" />
           </Button>
         ) : (
-          <Button type="submit" form="parcel-form" disabled={loading} className="min-w-30 cursor-pointer">
+          <Button
+            type="button"
+            onClick={handleSubmit}
+            disabled={loading}
+            className="min-w-30 cursor-pointer"
+          >
             {loading ? 'Creating…' : 'Confirm'}
           </Button>
         )}
       </div>
+
+      {errors.submit && (
+        <div className="shrink-0 px-4 lg:px-6 pb-3 text-sm text-destructive" role="alert" aria-live="assertive">
+          {errors.submit}
+        </div>
+      )}
 
       {/* Redirect loading overlay */}
       {redirecting && (
