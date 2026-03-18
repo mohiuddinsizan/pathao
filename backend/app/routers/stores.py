@@ -94,3 +94,73 @@ async def update_store(
         store_id,
     )
     return dict(row)
+
+
+@router.delete("/{store_id}")
+async def deactivate_store(
+    store_id: str,
+    merchant: dict = Depends(get_current_merchant),
+    db=Depends(get_db),
+):
+    """Soft-delete a store by setting is_active = false."""
+    row = await db.fetchrow(
+        "SELECT id FROM stores WHERE id = $1 AND merchant_id = $2",
+        store_id,
+        merchant["id"],
+    )
+    if row is None:
+        raise HTTPException(status_code=404, detail="Store not found")
+
+    await db.execute(
+        "UPDATE stores SET is_active = false, updated_at = NOW() WHERE id = $1",
+        store_id,
+    )
+    return {"message": "Store deactivated"}
+
+
+@router.post("/{store_id}/reactivate")
+async def reactivate_store(
+    store_id: str,
+    merchant: dict = Depends(get_current_merchant),
+    db=Depends(get_db),
+):
+    """Re-activate a previously deactivated store."""
+    row = await db.fetchrow(
+        "SELECT id, is_active FROM stores WHERE id = $1 AND merchant_id = $2",
+        store_id,
+        merchant["id"],
+    )
+    if row is None:
+        raise HTTPException(status_code=404, detail="Store not found")
+    if row["is_active"]:
+        raise HTTPException(status_code=400, detail="Store is already active")
+
+    await db.execute(
+        "UPDATE stores SET is_active = true, updated_at = NOW() WHERE id = $1",
+        store_id,
+    )
+    return {"message": "Store reactivated"}
+
+
+@router.delete("/{store_id}/permanent")
+async def permanently_delete_store(
+    store_id: str,
+    merchant: dict = Depends(get_current_merchant),
+    db=Depends(get_db),
+):
+    """Permanently delete a store. Only inactive stores can be permanently deleted."""
+    row = await db.fetchrow(
+        "SELECT id, is_active FROM stores WHERE id = $1 AND merchant_id = $2",
+        store_id,
+        merchant["id"],
+    )
+    if row is None:
+        raise HTTPException(status_code=404, detail="Store not found")
+    if row["is_active"]:
+        raise HTTPException(
+            status_code=400,
+            detail="Store must be deactivated before it can be permanently deleted",
+        )
+
+    await db.execute("DELETE FROM stores WHERE id = $1", store_id)
+    return {"message": "Store permanently deleted"}

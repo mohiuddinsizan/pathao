@@ -161,7 +161,9 @@ CREATE TABLE IF NOT EXISTS orders (
                             'large_parcel', 'fragile'
                         )),
     item_description    TEXT,                             -- what's inside
-    item_weight         VARCHAR(20),                      -- "0-1kg", "1-5kg", "5-10kg"
+    item_weight         VARCHAR(20),                      -- legacy display weight, kept for backward compatibility
+    item_weight_kg      DECIMAL(10,3)                     -- exact parcel weight in kilograms
+                        CHECK (item_weight_kg IS NULL OR item_weight_kg > 0),
 
     -- ── Pricing ──
     amount              DECIMAL(10,2) NOT NULL            -- total delivery charge (BDT)
