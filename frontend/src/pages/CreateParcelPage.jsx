@@ -204,6 +204,7 @@ export default function CreateParcelPage() {
         amount: productValue,
         cod_amount: codAmount,
         item_weight: form.item_weight ? String(form.item_weight) : '',
+        item_weight_kg: form.item_weight ? Number(form.item_weight) : null,
       }
       delete payload.charge_delivery
       if (!payload.store_id) {
@@ -276,7 +277,7 @@ export default function CreateParcelPage() {
                 {/* Connector line */}
                 {!isLast && (
                   <div
-                    className={`absolute top-[17px] left-1/2 w-full h-1 transition-colors duration-300 ${
+                    className={`absolute left-1/2 top-4.25 h-1 w-full transition-colors duration-300 ${
                       isCompleted ? 'bg-primary' : 'bg-muted-foreground/20'
                     }`}
                     aria-hidden="true"
@@ -531,19 +532,23 @@ export default function CreateParcelPage() {
                 )}
               </div>
 
-              <div className="space-y-2 md:col-span-2">
-                <Label>Item Description</Label>
-                <Textarea
+              <div className="space-y-2">
+                <Label htmlFor="item_description">Product Name</Label>
+                <Input
+                  id="item_description"
                   value={form.item_description}
                   onChange={(e) => setField('item_description', e.target.value)}
+                  placeholder="e.g. Wireless Mouse"
                 />
               </div>
 
-              <div className="space-y-2 md:col-span-2">
-                <Label>Notes</Label>
+              <div className="space-y-2">
+                <Label htmlFor="notes">Additional Info</Label>
                 <Textarea
+                  id="notes"
                   value={form.notes}
                   onChange={(e) => setField('notes', e.target.value)}
+                  placeholder="Color, quantity, handling instructions, or anything the rider should know"
                 />
               </div>
             </div>
@@ -682,8 +687,8 @@ export default function CreateParcelPage() {
                     </div>
                   )}
                   <div className="flex items-center justify-between">
-                    <span className="text-sm font-bold text-foreground">Total Delivery Cost</span>
-                    <span className="text-sm font-bold text-foreground">৳{fee}</span>
+                    <span className="text-sm font-bold text-foreground">Total Amount</span>
+                    <span className="text-sm font-bold text-foreground">৳{productValue + fee}</span>
                   </div>
                 </div>
               )
@@ -716,64 +721,83 @@ export default function CreateParcelPage() {
               dropoffAddress={form.recipient_address}
             />
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <Card className="p-4 space-y-2">
-                <div className="flex items-center justify-between">
-                  <h3 className="text-sm font-bold flex items-center gap-2">
-                    <MapPin className="h-4 w-4 text-primary" /> Pickup
-                  </h3>
-                  <Button type="button" variant="link" size="xs" onClick={() => setStep(1)} className="h-auto p-0 cursor-pointer">Edit</Button>
-                </div>
-                <p className="text-sm text-muted-foreground">
-                  {form.store_id ? stores.find(s => String(s.id) === form.store_id)?.name || 'Selected Store' : form.pickup_address || '—'}
-                </p>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5">
+              {/* Pickup Summary */}
+              <Card className="gap-0 rounded-lg border border-border bg-card py-0">
+                <CardHeader className="px-3.5 pb-0 pt-2">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex items-center gap-1.5">
+                      <MapPin className="h-3.5 w-3.5 text-primary" />
+                      <span className="text-sm font-bold uppercase tracking-wide text-foreground/75">Pickup</span>
+                    </div>
+                    <Button type="button" variant="link" size="xs" onClick={() => setStep(1)} className="h-auto p-0 text-[11px] cursor-pointer">Edit</Button>
+                  </div>
+                </CardHeader>
+                <CardContent className="px-3.5 pb-2.5 pt-1">
+                  <p className="text-sm leading-snug text-foreground">
+                    {form.store_id ? stores.find(s => String(s.id) === form.store_id)?.name || 'Selected Store' : form.pickup_address || '—'}
+                  </p>
+                </CardContent>
               </Card>
 
               {/* Receiver Summary */}
-              <Card className="p-4 space-y-2">
-                <div className="flex items-center justify-between">
-                  <h3 className="text-sm font-bold flex items-center gap-2">
-                    <User className="h-4 w-4 text-primary" /> Receiver
-                  </h3>
-                  <Button type="button" variant="link" size="xs" onClick={() => setStep(2)} className="h-auto p-0 cursor-pointer">Edit</Button>
-                </div>
-                <p className="text-sm font-medium">{form.recipient_name || '—'}</p>
-                <p className="text-sm text-muted-foreground">{form.recipient_phone || '—'}</p>
-                <p className="text-sm text-muted-foreground">{form.recipient_address || '—'}</p>
+              <Card className="gap-0 rounded-lg border border-border bg-card py-0">
+                <CardHeader className="px-3.5 pb-0 pt-2">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex items-center gap-1.5">
+                      <User className="h-3.5 w-3.5 text-primary" />
+                      <span className="text-sm font-bold uppercase tracking-wide text-foreground/75">Receiver</span>
+                    </div>
+                    <Button type="button" variant="link" size="xs" onClick={() => setStep(2)} className="h-auto p-0 text-[11px] cursor-pointer">Edit</Button>
+                  </div>
+                </CardHeader>
+                <CardContent className="space-y-0 px-3.5 pb-2.5 pt-1">
+                  <p className="text-sm font-semibold leading-snug">{form.recipient_name || '—'}</p>
+                  <p className="text-[13px] leading-snug text-muted-foreground">{form.recipient_phone || '—'}</p>
+                  <p className="text-[13px] leading-snug text-muted-foreground">{form.recipient_address || '—'}</p>
+                </CardContent>
               </Card>
 
               {/* Parcel Summary */}
-              <Card className="p-4 space-y-2">
-                <div className="flex items-center justify-between">
-                  <h3 className="text-sm font-bold flex items-center gap-2">
-                    <Package className="h-4 w-4 text-primary" /> Parcel
-                  </h3>
-                  <Button type="button" variant="link" size="xs" onClick={() => setStep(3)} className="h-auto p-0 cursor-pointer">Edit</Button>
-                </div>
-                <p className="text-sm">
-                  <span className="font-medium capitalize">{form.parcel_type?.replace('_', ' ')}</span>
-                  {form.item_weight && <span className="text-muted-foreground"> • {form.item_weight} kg</span>}
-                </p>
-                {form.item_weight && Number(form.item_weight) > 0 && (
-                  <p className="text-xs text-muted-foreground">{getWeightTier(Number(form.item_weight))}</p>
-                )}
-                {form.item_description && <p className="text-sm text-muted-foreground">{form.item_description}</p>}
-                {form.notes && <p className="text-sm text-muted-foreground italic">Note: {form.notes}</p>}
+              <Card className="gap-0 rounded-lg border border-border bg-card py-0">
+                <CardHeader className="px-3.5 pb-0 pt-2">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex items-center gap-1.5">
+                      <Package className="h-3.5 w-3.5 text-primary" />
+                      <span className="text-sm font-bold uppercase tracking-wide text-foreground/75">Parcel</span>
+                    </div>
+                    <Button type="button" variant="link" size="xs" onClick={() => setStep(3)} className="h-auto p-0 text-[11px] cursor-pointer">Edit</Button>
+                  </div>
+                </CardHeader>
+                <CardContent className="space-y-0 px-3.5 pb-2.5 pt-1">
+                  <p className="text-sm leading-snug">
+                    <span className="font-semibold capitalize">{form.parcel_type?.replace('_', ' ')}</span>
+                    {form.item_weight && <span className="text-muted-foreground"> · {form.item_weight} kg</span>}
+                  </p>
+                  {form.item_weight && Number(form.item_weight) > 0 && (
+                    <p className="text-[11px] leading-snug text-muted-foreground">{getWeightTier(Number(form.item_weight))}</p>
+                  )}
+                  {form.item_description && <p className="text-[13px] leading-snug text-muted-foreground">Product: {form.item_description}</p>}
+                  {form.notes && <p className="text-[13px] leading-snug text-muted-foreground italic">Info: {form.notes}</p>}
+                </CardContent>
               </Card>
 
               {/* Payment Summary */}
-              <Card className="p-4 space-y-2">
-                <div className="flex items-center justify-between">
-                  <h3 className="text-sm font-bold flex items-center gap-2">
-                    <Wallet className="h-4 w-4 text-primary" /> Payment
-                  </h3>
-                  <Button type="button" variant="link" size="xs" onClick={() => setStep(4)} className="h-auto p-0 cursor-pointer">Edit</Button>
-                </div>
-                <p className="text-sm">
-                  <span className="font-medium capitalize">{form.payment_method === 'cod' ? 'Cash on Delivery' : form.payment_method === 'bkash' ? 'bKash' : 'Prepaid'}</span>
-                </p>
-                <p className="text-sm">Product Value: <span className="font-medium">৳{form.amount || '0'}</span></p>
-                <p className="text-sm">Delivery: <span className="font-medium">{form.charge_delivery ? 'Customer pays' : 'Free (Merchant pays)'}</span></p>
+              <Card className="gap-0 rounded-lg border border-border bg-card py-0">
+                <CardHeader className="px-3.5 pb-0 pt-2">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex items-center gap-1.5">
+                      <Wallet className="h-3.5 w-3.5 text-primary" />
+                      <span className="text-sm font-bold uppercase tracking-wide text-foreground/75">Payment</span>
+                    </div>
+                    <Button type="button" variant="link" size="xs" onClick={() => setStep(4)} className="h-auto p-0 text-[11px] cursor-pointer">Edit</Button>
+                  </div>
+                </CardHeader>
+                <CardContent className="space-y-0 px-3.5 pb-2.5 pt-1">
+                  <p className="text-sm font-semibold leading-snug capitalize">{form.payment_method === 'cod' ? 'Cash on Delivery' : form.payment_method === 'bkash' ? 'bKash' : 'Prepaid'}</p>
+                  <p className="text-[13px] leading-snug text-muted-foreground">Product Value: ৳{form.amount || '0'}</p>
+                  <p className="text-[13px] leading-snug text-muted-foreground">Delivery: {form.charge_delivery ? 'Customer pays' : 'Free (Merchant pays)'}</p>
+                </CardContent>
               </Card>
             </div>
 
@@ -805,8 +829,8 @@ export default function CreateParcelPage() {
                   )}
                   <Separator />
                   <div className="flex items-center justify-between">
-                    <span className="text-base font-bold text-foreground">Delivery Cost</span>
-                    <span className="text-lg font-bold text-foreground">৳{fee}</span>
+                    <span className="text-base font-bold text-foreground">Total Amount</span>
+                    <span className="text-lg font-bold text-foreground">৳{productValue + fee}</span>
                   </div>
                 </div>
               )
@@ -839,12 +863,12 @@ export default function CreateParcelPage() {
           </Button>
         )}
         {step < 5 ? (
-          <Button type="button" onClick={handleNextStep} className="cursor-pointer min-w-[120px]">
+          <Button type="button" onClick={handleNextStep} className="min-w-30 cursor-pointer">
             Next
             <ArrowRight className="ml-2 h-4 w-4" />
           </Button>
         ) : (
-          <Button type="submit" form="parcel-form" disabled={loading} className="cursor-pointer min-w-[120px]">
+          <Button type="submit" form="parcel-form" disabled={loading} className="min-w-30 cursor-pointer">
             {loading ? 'Creating…' : 'Confirm'}
           </Button>
         )}

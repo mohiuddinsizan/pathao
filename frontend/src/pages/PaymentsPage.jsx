@@ -12,6 +12,7 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import {
   Dialog,
@@ -23,7 +24,7 @@ import {
 import {
   AlertCircle, Search, X, ArrowUp, ArrowDown,
   Loader2, LayoutList, Banknote, CreditCard, Wallet, Package,
-  Eye, Download, CheckCircle,
+  Eye, Download, CheckCircle, SlidersHorizontal,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 
@@ -126,6 +127,7 @@ export default function PaymentsPage() {
   const [previewItem, setPreviewItem] = useState(null)
   const [previewDetail, setPreviewDetail] = useState(null)
   const [previewLoading, setPreviewLoading] = useState(false)
+  const [filtersVisible, setFiltersVisible] = useState(false)
 
   const tabCacheRef = useRef({})
 
@@ -163,6 +165,14 @@ export default function PaymentsPage() {
       .finally(() => setPreviewLoading(false))
   }, [previewItem])
 
+  const displayWeight = (value, exactValue) => {
+    if (exactValue != null && exactValue !== '') return `${exactValue} kg`
+    if (value == null || value === '') return '—'
+    const raw = String(value).trim()
+    if (!raw) return '—'
+    return /kg$/i.test(raw) ? raw : `${raw} kg`
+  }
+
   const downloadInvoice = (item) => {
     const d = previewDetail || item
     const method = d.payment_method === "cod" ? "COD" : d.payment_method === "bkash" ? "bKash" : (d.payment_method || "").toUpperCase()
@@ -188,9 +198,9 @@ export default function PaymentsPage() {
 <div class="row"><span class="label">Pickup Address</span><span class="value">${d.pickup_address || "—"}</span></div></div>
 <div class="section"><h3>Parcel Details</h3>
 <div class="row"><span class="label">Type</span><span class="value">${(d.parcel_type || "—").replace(/_/g, " ")}</span></div>
-<div class="row"><span class="label">Description</span><span class="value">${d.item_description || "—"}</span></div>
-<div class="row"><span class="label">Weight</span><span class="value">${d.item_weight ? d.item_weight + " kg" : "—"}</span></div>
-${d.notes ? `<div class="row"><span class="label">Notes</span><span class="value">${d.notes}</span></div>` : ""}</div>
+<div class="row"><span class="label">Product</span><span class="value">${d.item_description || "—"}</span></div>
+<div class="row"><span class="label">Weight</span><span class="value">${displayWeight(d.item_weight, d.item_weight_kg)}</span></div>
+<div class="row"><span class="label">Additional Info</span><span class="value">${d.notes || "—"}</span></div></div>
 <div class="section"><h3>Payment</h3>
 <div class="row"><span class="label">Method</span><span class="value">${method}</span></div>
 <div class="row"><span class="label">COD Amount</span><span class="value">৳${Number(d.cod_amount || 0).toLocaleString()}</span></div></div>
@@ -370,12 +380,27 @@ ${d.notes ? `<div class="row"><span class="label">Notes</span><span class="value
           <div className="flex items-center gap-2 rounded-lg border border-border bg-card px-3 py-1.5">
             <Banknote className="h-3.5 w-3.5 text-muted-foreground" />
             <span className="text-xs text-muted-foreground">Revenue</span>
-            <span className="text-sm font-bold tabular-nums">\u09F3{totalRevenue.toLocaleString()}</span>
+            <span className="text-sm font-bold tabular-nums">৳{totalRevenue.toLocaleString()}</span>
           </div>
+          <Button
+            variant="outline"
+            size="sm"
+            className={`h-9 gap-1.5 cursor-pointer ${filtersVisible || activeFilterCount > 0 ? "border-primary text-primary" : ""}`}
+            onClick={() => setFiltersVisible((v) => !v)}
+          >
+            <SlidersHorizontal className="h-3.5 w-3.5" />
+            {activeFilterCount > 0 && (
+              <span className="text-xs bg-primary text-primary-foreground rounded-full h-4 w-4 inline-flex items-center justify-center">
+                {activeFilterCount}
+              </span>
+            )}
+          </Button>
         </div>
       </div>
 
-      <div className="shrink-0 rounded-xl border-2 border-border bg-card p-3 space-y-3">
+      {/* Collapsible filter card */}
+      {filtersVisible && (
+      <div className="shrink-0 rounded-lg border border-border bg-card p-3 space-y-3">
         <div className="flex items-center gap-2">
           <div className="relative w-56 xl:w-64">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
@@ -526,6 +551,7 @@ ${d.notes ? `<div class="row"><span class="label">Notes</span><span class="value
           })}
         </div>
       </div>
+      )}
 
       <div className="flex flex-col flex-1 min-h-0 overflow-hidden rounded-xl border-2 border-border bg-card">
         <div className="relative shrink-0 bg-muted/40 dark:bg-muted/30">
@@ -707,9 +733,9 @@ ${d.notes ? `<div class="row"><span class="label">Notes</span><span class="value
               <div className="space-y-1.5">
                 <h4 className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Parcel Details</h4>
                 <div className="flex justify-between"><span className="text-muted-foreground">Type</span><span className="font-medium capitalize">{(d.parcel_type || "—").replace(/_/g, " ")}</span></div>
-                {d.item_description && <div className="flex justify-between gap-4"><span className="text-muted-foreground shrink-0">Description</span><span className="font-medium text-right">{d.item_description}</span></div>}
-                {d.item_weight && <div className="flex justify-between"><span className="text-muted-foreground">Weight</span><span className="font-medium">{d.item_weight} kg</span></div>}
-                {d.notes && <div className="flex justify-between gap-4"><span className="text-muted-foreground shrink-0">Notes</span><span className="font-medium text-right">{d.notes}</span></div>}
+                <div className="flex justify-between gap-4"><span className="text-muted-foreground shrink-0">Product</span><span className="font-medium text-right">{d.item_description || "—"}</span></div>
+                <div className="flex justify-between"><span className="text-muted-foreground">Weight</span><span className="font-medium">{displayWeight(d.item_weight, d.item_weight_kg)}</span></div>
+                <div className="flex justify-between gap-4"><span className="text-muted-foreground shrink-0">Additional Info</span><span className="font-medium text-right">{d.notes || "—"}</span></div>
               </div>
               <div className="border-t border-border" />
               <div className="space-y-1.5">

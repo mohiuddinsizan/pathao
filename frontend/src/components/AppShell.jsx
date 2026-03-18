@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, useLocation, useNavigate, Outlet } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
 import ThemeToggle from "@/components/ThemeToggle";
@@ -44,10 +44,12 @@ const navItems = [
   { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { to: "/deliveries", label: "Deliveries", icon: Package },
   { to: "/stores", label: "Stores", icon: Store },
-  { to: "/analytics", label: "Analytics", icon: BarChart3 },
   { to: "/payments", label: "Payments", icon: CreditCard },
+  { to: "/analytics", label: "Analytics", icon: BarChart3 },
   { to: "/settings", label: "Settings", icon: Settings },
 ];
+
+const SIDEBAR_COLLAPSED_STORAGE_KEY = "pathao-merchant.sidebar-collapsed";
 
 function getNotificationBadgeVariant(type) {
   if (type === "success") return "success";
@@ -253,7 +255,13 @@ export default function AppShell() {
   const navigate = useNavigate();
   const { user, logout } = useAuth();
   const [mobileOpen, setMobileOpen] = useState(false);
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
+    try {
+      return localStorage.getItem(SIDEBAR_COLLAPSED_STORAGE_KEY) === "true";
+    } catch {
+      return false;
+    }
+  });
   const [notifications, setNotifications] = useState([
     {
       id: "notif-1",
@@ -326,6 +334,14 @@ export default function AppShell() {
   const handleClearAll = () => {
     setNotifications([]);
   };
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(SIDEBAR_COLLAPSED_STORAGE_KEY, String(sidebarCollapsed));
+    } catch {
+      // Ignore storage failures and keep the current in-memory state.
+    }
+  }, [sidebarCollapsed]);
 
   return (
     <div className="flex h-svh flex-col overflow-hidden bg-background text-foreground">

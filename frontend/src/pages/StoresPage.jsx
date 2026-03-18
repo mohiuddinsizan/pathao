@@ -31,13 +31,28 @@ const BLANK_FORM = {
   phone: "",
 };
 
+function StoreInfoRow({ icon: Icon, label, value }) {
+  if (!value) return null;
+
+  return (
+    <div className="flex items-start gap-1.5 py-0.5">
+      <Icon className="mt-0.5 h-3.5 w-3.5 shrink-0 text-muted-foreground/60" />
+      <span className="w-16 shrink-0 text-[11px] leading-4 text-muted-foreground">{label}</span>
+      <span className="min-w-0 flex-1 text-sm leading-snug wrap-break-word">{value}</span>
+    </div>
+  );
+}
+
 function SkeletonCard() {
   return (
-    <Card>
-      <CardContent className="p-5 space-y-3">
-        <div className="h-4 w-36 rounded bg-muted animate-pulse" />
-        <div className="h-4 w-48 rounded bg-muted animate-pulse" />
-        <div className="h-4 w-32 rounded bg-muted animate-pulse" />
+    <Card className="gap-0 rounded-lg border border-border bg-card py-0">
+      <CardHeader className="px-3.5 pb-0 pt-2">
+        <div className="h-4 w-28 rounded bg-muted animate-pulse" />
+      </CardHeader>
+      <CardContent className="space-y-2 px-3.5 pb-2.5 pt-1">
+        <div className="h-3.5 w-full rounded bg-muted animate-pulse" />
+        <div className="h-3.5 w-5/6 rounded bg-muted animate-pulse" />
+        <div className="h-3.5 w-2/3 rounded bg-muted animate-pulse" />
       </CardContent>
     </Card>
   );
@@ -331,7 +346,7 @@ export default function StoresPage() {
   ].filter(Boolean).length;
 
   return (
-    <div className="flex flex-col h-full overflow-hidden p-4 lg:p-6 gap-4">
+    <div className="flex h-full flex-col gap-3 overflow-hidden p-4 lg:p-6">
       {/* Sticky header */}
       <div className="shrink-0 flex items-center justify-between">
         <h1 className="text-2xl font-bold tracking-tight">Stores</h1>
@@ -358,7 +373,7 @@ export default function StoresPage() {
 
       {/* Collapsible filter bar */}
       {filtersVisible && (
-        <div className="shrink-0 rounded-xl border-2 border-border bg-card p-3">
+        <div className="shrink-0 rounded-lg border border-border bg-card px-3 py-2.5">
           <div className="flex items-center gap-2 flex-wrap">
             <div className="relative w-56">
               <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
@@ -458,7 +473,7 @@ export default function StoresPage() {
 
       {/* Scrollable store cards */}
       <div className="flex-1 min-h-0 overflow-y-auto">
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
         {loading ? (
           <>
             <SkeletonCard />
@@ -469,93 +484,91 @@ export default function StoresPage() {
           filteredStores.map((store) => (
             <Card
               key={store.id}
-              className={`transition-shadow duration-200 ${
-                store.is_active === false ? "opacity-50" : "hover:shadow-md"
+              className={`gap-0 rounded-lg border border-border bg-card py-0 transition-shadow duration-200 ${
+                store.is_active === false ? "opacity-55" : "hover:shadow-sm"
               }`}
             >
-              <CardHeader className="pb-3">
+              <CardHeader className="px-3.5 pb-0 pt-2">
                 <div className="flex items-start justify-between gap-2">
                   <div className="min-w-0 flex-1">
-                    <CardTitle className="text-base">
+                    <CardTitle className="text-sm font-bold uppercase tracking-wide text-foreground/75">
                       {store.branch || store.name || "Unnamed Store"}
                     </CardTitle>
-                    <CardDescription>
-                      {store.zone && store.city
-                        ? `${store.zone}, ${store.city}`
-                        : store.zone || store.city || ""}
+                    <CardDescription className="pt-0.5 text-[11px] leading-4 text-muted-foreground">
+                      {store.branch && store.name
+                        ? store.name
+                        : store.zone && store.city
+                          ? `${store.zone}, ${store.city}`
+                          : store.zone || store.city || ""}
                     </CardDescription>
                   </div>
 
                   <div className="flex items-center gap-1 shrink-0">
                     {store.is_active === false && (
-                      <Badge variant="destructive">Inactive</Badge>
+                      <Badge variant="destructive" className="h-5 px-1.5 text-[10px] uppercase tracking-wide">Inactive</Badge>
                     )}
                     <Button
                       variant="ghost"
                       size="icon"
-                      className="h-7 w-7 cursor-pointer"
+                      className="h-6.5 w-6.5 cursor-pointer"
                       onClick={() => openEditModal(store)}
                       title="Edit store"
                     >
-                      <Pencil className="h-3.5 w-3.5" />
+                      <Pencil className="h-3.25 w-3.25" />
                     </Button>
                     {store.is_active !== false && (
                       <Button
                         variant="ghost"
                         size="icon"
-                        className="h-7 w-7 text-destructive hover:text-destructive cursor-pointer"
+                        className="h-6.5 w-6.5 cursor-pointer text-destructive hover:text-destructive"
                         onClick={() => requestDeactivate(store)}
                         title="Deactivate store"
                       >
-                        <PowerOff className="h-3.5 w-3.5" />
+                        <PowerOff className="h-3.25 w-3.25" />
                       </Button>
                     )}
                     {store.is_active === false && (
                       <Button
                         variant="ghost"
                         size="icon"
-                        className="h-7 w-7 text-emerald-600 hover:text-emerald-600 cursor-pointer"
+                        className="h-6.5 w-6.5 cursor-pointer text-emerald-600 hover:text-emerald-600"
                         onClick={() => handleReactivate(store)}
                         disabled={reactivating === store.id}
                         title="Reactivate store"
                       >
-                        <Power className="h-3.5 w-3.5" />
+                        <Power className="h-3.25 w-3.25" />
                       </Button>
                     )}
                     {store.is_active === false && (
                       <Button
                         variant="ghost"
                         size="icon"
-                        className="h-7 w-7 text-destructive hover:text-destructive cursor-pointer"
+                        className="h-6.5 w-6.5 cursor-pointer text-destructive hover:text-destructive"
                         onClick={() => requestPermanentDelete(store)}
                         title="Permanently delete store"
                       >
-                        <Trash2 className="h-3.5 w-3.5" />
+                        <Trash2 className="h-3.25 w-3.25" />
                       </Button>
                     )}
                   </div>
                 </div>
               </CardHeader>
 
-              <CardContent className="space-y-2">
-                {store.address && (
-                  <div className="flex items-start gap-2 text-sm text-muted-foreground">
-                    <MapPin className="h-4 w-4 shrink-0 mt-0.5" />
-                    <span>{store.address}</span>
-                  </div>
-                )}
-                {store.phone && (
-                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                    <Phone className="h-4 w-4 shrink-0" />
-                    <span>{store.phone}</span>
-                  </div>
-                )}
+              <CardContent className="space-y-0 px-3.5 pb-2.5 pt-1">
+                {store.branch ? <StoreInfoRow icon={MapPin} label="Store" value={store.name || ""} /> : null}
+                <StoreInfoRow
+                  icon={MapPin}
+                  label="Area"
+                  value={store.zone && store.city ? `${store.zone}, ${store.city}` : store.zone || store.city || ""}
+                />
+                <StoreInfoRow icon={MapPin} label="Address" value={store.address} />
+                <StoreInfoRow icon={Phone} label="Phone" value={store.phone} />
               </CardContent>
             </Card>
           ))
         ) : (
-          <Card className="col-span-full">
-            <CardContent className="py-8 text-center text-muted-foreground">
+          <Card className="col-span-full gap-0 rounded-lg border border-border bg-card py-0">
+            <CardContent className="px-3.5 py-8 text-center text-sm text-muted-foreground">
               {activeFilterCount > 0
                 ? "No stores match your filters."
                 : "No stores found. Click \"Add Store\" to create your first pickup location."}

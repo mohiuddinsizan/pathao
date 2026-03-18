@@ -13,7 +13,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { AlertCircle, Search, ChevronRight, X, ArrowUp, ArrowDown, Plus, Loader2, LayoutList, Clock, UserCheck, Package, Truck, CheckCircle, XCircle, Eye } from "lucide-react";
+import { AlertCircle, Search, ChevronRight, X, ArrowUp, ArrowDown, Plus, Loader2, LayoutList, Clock, UserCheck, Package, Truck, CheckCircle, XCircle, Eye, SlidersHorizontal } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { getAnalytics } from "@/api/analytics";
 
@@ -139,6 +139,7 @@ export default function DeliveriesPage() {
   const [selectedDatePreset, setSelectedDatePreset] = useState(null);
   const [sortField, setSortField] = useState(null); // "amount" | "created_at" | null
   const [sortDir, setSortDir] = useState("desc");
+  const [filtersVisible, setFiltersVisible] = useState(false);
 
   // Per-tab cache: remembers loaded orders + page for each status tab
   const tabCacheRef = useRef({});
@@ -351,18 +352,34 @@ export default function DeliveriesPage() {
       {/* Page bar: title + Create Parcel CTA */}
       <div className="shrink-0 flex items-center justify-between">
         <h1 className="text-2xl font-bold tracking-tight">Deliveries</h1>
-        <Button
-          size="sm"
-          className="h-9 gap-1.5 cursor-pointer"
-          onClick={() => navigate("/deliveries/new")}
-        >
-          <Plus className="h-4 w-4" />
-          Create Parcel
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            className={`h-9 gap-1.5 cursor-pointer ${filtersVisible || activeFilterCount > 0 ? "border-primary text-primary" : ""}`}
+            onClick={() => setFiltersVisible((v) => !v)}
+          >
+            <SlidersHorizontal className="h-3.5 w-3.5" />
+            {activeFilterCount > 0 && (
+              <span className="text-xs bg-primary text-primary-foreground rounded-full h-4 w-4 inline-flex items-center justify-center">
+                {activeFilterCount}
+              </span>
+            )}
+          </Button>
+          <Button
+            size="sm"
+            className="h-9 gap-1.5 cursor-pointer"
+            onClick={() => navigate("/deliveries/new")}
+          >
+            <Plus className="h-4 w-4" />
+            Create Parcel
+          </Button>
+        </div>
       </div>
 
-      {/* Filter card */}
-      <div className="shrink-0 rounded-xl border-2 border-border bg-card p-3 space-y-3">
+      {/* Collapsible filter card */}
+      {filtersVisible && (
+      <div className="shrink-0 rounded-lg border border-border bg-card p-3 space-y-3">
         {/* Row 1: Search + Store */}
         <div className="flex items-center gap-2">
           <div className="relative w-56 xl:w-64">
@@ -531,6 +548,7 @@ export default function DeliveriesPage() {
           })}
         </div>
       </div>
+      )}
 
       {/* Table */}
       <div className="flex flex-col flex-1 min-h-0 overflow-hidden rounded-xl border-2 border-border bg-card">

@@ -1,16 +1,18 @@
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { useParams, useNavigate } from "react-router-dom"
 import { getOrder, updateOrderStatus, updateOrder } from "@/api/orders"
 import { useCachedQuery } from "@/hooks/use-cached-query"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import {
   ArrowLeft, Clock, UserCheck, Package, Truck, CheckCircle2, XCircle,
   Pencil, X, MapPin, Phone, User, Wallet, Banknote, FileText,
   Scale, ShoppingBag, Calendar, Hash, Store, CreditCard, StickyNote,
+  Eye, Download,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 
@@ -95,13 +97,83 @@ function formatShortDate(timestamp) {
   return `${day}${suffix} ${months[d.getMonth()]} \u2022 ${time}`
 }
 
+function formatWeight(value) {
+  if (value == null || value === "") return "\u2014"
+  const raw = String(value).trim()
+  if (!raw) return "\u2014"
+  return /kg$/i.test(raw) ? raw : `${raw} kg`
+}
+
+function getDisplayWeight(order) {
+  if (order?.item_weight_kg != null && order.item_weight_kg !== "") {
+    return formatWeight(order.item_weight_kg)
+  }
+  return formatWeight(order?.item_weight)
+}
+
+function formatPaymentMethod(method) {
+  if (!method) return "\u2014"
+  if (method === "cod") return "COD"
+  if (method === "bkash") return "bKash"
+  return method.toUpperCase()
+}
+
+function buildInvoiceHtml(order) {
+  const date = order.created_at
+    ? new Date(order.created_at).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" })
+    : "\u2014"
+
+  return `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Invoice ${order.order_id}</title>
+<style>*{margin:0;padding:0;box-sizing:border-box}body{font-family:-apple-system,BlinkMacSystemFont,sans-serif;padding:40px;color:#1a1a1a;max-width:700px;margin:0 auto}
+.hdr{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:3px solid #111;padding-bottom:20px;margin-bottom:24px}
+.hdr h1{font-size:28px;font-weight:800;letter-spacing:-0.5px}.hdr .meta{text-align:right;font-size:13px;color:#666;line-height:1.6}
+.section{margin-bottom:20px}.section h3{font-size:11px;text-transform:uppercase;letter-spacing:1.5px;color:#888;margin-bottom:8px}
+.row{display:flex;justify-content:space-between;gap:16px;padding:6px 0;font-size:14px;border-bottom:1px solid #eee}.row .label{color:#666}.row .value{font-weight:600;text-align:right}
+.total{margin-top:16px;border-top:2px solid #111;padding-top:12px;display:flex;justify-content:space-between;font-size:18px;font-weight:800}
+.footer{margin-top:40px;text-align:center;font-size:11px;color:#aaa}
+@media print{body{padding:20px}}</style></head><body>
+<div class="hdr"><div><h1>INVOICE</h1><p style="color:#666;font-size:13px;margin-top:4px">Pathao Courier</p></div>
+<div class="meta"><div><strong>#${order.order_id}</strong></div><div>${date}</div><div style="margin-top:4px">Status: ${STATUS_META[order.status]?.label || "Order"}</div></div></div>
+<div class="section"><h3>Recipient</h3>
+<div class="row"><span class="label">Name</span><span class="value">${order.recipient_name || "—"}</span></div>
+<div class="row"><span class="label">Phone</span><span class="value">${order.recipient_phone || "—"}</span></div>
+<div class="row"><span class="label">Address</span><span class="value">${order.recipient_address || "—"}</span></div>
+<div class="row"><span class="label">Area</span><span class="value">${order.destination_area || "—"}</span></div></div>
+<div class="section"><h3>Pickup Store</h3>
+<div class="row"><span class="label">Store</span><span class="value">${order.store_name || "—"}${order.store_branch ? " · " + order.store_branch : ""}</span></div>
+<div class="row"><span class="label">Pickup Address</span><span class="value">${order.pickup_address || "—"}</span></div></div>
+<div class="section"><h3>Parcel Details</h3>
+<div class="row"><span class="label">Type</span><span class="value">${(order.parcel_type || "—").replace(/_/g, " ")}</span></div>
+<div class="row"><span class="label">Product</span><span class="value">${order.item_description || "—"}</span></div>
+<div class="row"><span class="label">Weight</span><span class="value">${getDisplayWeight(order)}</span></div>
+<div class="row"><span class="label">Additional Info</span><span class="value">${order.notes || "—"}</span></div></div>
+<div class="section"><h3>Payment</h3>
+<div class="row"><span class="label">Method</span><span class="value">${formatPaymentMethod(order.payment_method)}</span></div>
+<div class="row"><span class="label">COD Amount</span><span class="value">৳${Number(order.cod_amount || 0).toLocaleString()}</span></div></div>
+<div class="total"><span>Total Amount</span><span>৳${Number(order.amount || 0).toLocaleString()}</span></div>
+<div class="footer">This is a system-generated invoice from Pathao Courier.</div>
+</body></html>`
+}
+
+function downloadInvoice(order) {
+  const blob = new Blob([buildInvoiceHtml(order)], { type: "text/html" })
+  const url = URL.createObjectURL(blob)
+  const popup = window.open(url, "_blank")
+  if (popup) {
+    popup.onload = () => {
+      URL.revokeObjectURL(url)
+      popup.print()
+    }
+  }
+}
+
 // \u2500\u2500 Info row \u2500\u2500
 function InfoRow({ icon: Icon, label, value, mono, bold }) {
   return (
-    <div className="flex items-center gap-2 py-0.5">
-      <Icon className="h-3.5 w-3.5 shrink-0 text-muted-foreground/60" />
-      <span className="text-xs text-muted-foreground shrink-0 w-16">{label}</span>
-      <span className={cn("text-sm leading-snug truncate", mono && "font-mono", bold && "font-semibold")}>
+    <div className="flex items-start gap-1.5 py-0.5">
+      <Icon className="mt-0.5 h-3.5 w-3.5 shrink-0 text-muted-foreground/60" />
+      <span className="w-20 shrink-0 text-[11px] leading-4 text-muted-foreground">{label}</span>
+      <span className={cn("min-w-0 flex-1 text-sm leading-snug wrap-break-word", mono && "font-mono", bold && "font-semibold")}>
         {value || "\u2014"}
       </span>
     </div>
@@ -109,16 +181,19 @@ function InfoRow({ icon: Icon, label, value, mono, bold }) {
 }
 
 // \u2500\u2500 Section wrapper \u2500\u2500
-function Section({ title, icon: Icon, children, className }) {
+function Section({ title, icon: Icon, children, className, actions, stretch = false, contentClassName }) {
   return (
-    <Card className={cn("rounded-xl border-2 border-border bg-card", className)}>
-      <CardHeader className="pb-0 pt-3 px-4">
-        <div className="flex items-center gap-1.5">
-          {Icon && <Icon className="h-3.5 w-3.5 text-primary" />}
-          <CardTitle className="text-xs font-bold tracking-tight uppercase text-foreground/70">{title}</CardTitle>
+    <Card className={cn(stretch ? "h-full self-stretch" : "self-start", "gap-0 rounded-lg border border-border bg-card py-0", className)}>
+      <CardHeader className="px-3.5 pb-0 pt-2">
+        <div className="flex items-start justify-between gap-3">
+          <div className="flex items-center gap-1.5">
+            {Icon && <Icon className="h-3.5 w-3.5 text-primary" />}
+            <CardTitle className="text-sm font-bold uppercase tracking-wide text-foreground/75">{title}</CardTitle>
+          </div>
+          {actions ? <div className="flex flex-wrap items-center justify-end gap-1.5">{actions}</div> : null}
         </div>
       </CardHeader>
-      <CardContent className="px-4 pb-3 pt-1.5">{children}</CardContent>
+      <CardContent className={cn("px-3.5 pb-2.5 pt-1", stretch && "flex-1", contentClassName)}>{children}</CardContent>
     </Card>
   )
 }
@@ -126,19 +201,19 @@ function Section({ title, icon: Icon, children, className }) {
 // \u2500\u2500 Skeleton loader \u2500\u2500
 function PageSkeleton() {
   return (
-    <div className="h-full flex flex-col animate-pulse">
-      <div className="shrink-0 flex items-center gap-3 px-4 lg:px-6 py-3 border-b border-border">
+    <div className="animate-pulse">
+      <div className="flex items-center gap-3 px-4 lg:px-6 py-3 border-b border-border">
         <div className="h-8 w-8 rounded bg-muted" />
         <div className="h-6 w-40 rounded bg-muted" />
       </div>
-      <div className="flex-1 overflow-y-auto p-4 lg:p-6 space-y-4">
-        <div className="h-10 rounded-xl bg-muted" />
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          <div className="h-44 rounded-xl bg-muted" />
-          <div className="h-44 rounded-xl bg-muted" />
-          <div className="h-44 rounded-xl bg-muted" />
+      <div className="space-y-3 p-4 lg:p-6">
+        <div className="h-8 rounded-lg bg-muted" />
+        <div className="grid items-start gap-2.5 md:grid-cols-2 lg:grid-cols-3">
+          <div className="h-40 rounded-lg bg-muted" />
+          <div className="h-40 rounded-lg bg-muted" />
+          <div className="h-40 rounded-lg bg-muted" />
         </div>
-        <div className="h-64 rounded-xl bg-muted" />
+        <div className="h-60 rounded-lg bg-muted" />
       </div>
     </div>
   )
@@ -176,7 +251,7 @@ function TimelineItem({ entry, isFirst, isLast }) {
       </div>
 
       {/* Right: card */}
-      <div className="rounded-2xl border-2 border-border/80 px-4 py-2.5 transition-all duration-300 ease-out group-hover:border-border group-hover:shadow-sm">
+      <div className="rounded-lg border border-border/80 px-4 py-2.5 transition-all duration-300 ease-out group-hover:border-border group-hover:shadow-sm">
         <p className="text-sm font-semibold leading-snug text-foreground">{meta.label}</p>
         <div className="mt-0.5 inline-flex items-center gap-1 text-xs text-muted-foreground">
           <Clock className="h-3 w-3" />
@@ -186,6 +261,24 @@ function TimelineItem({ entry, isFirst, isLast }) {
           <p className="mt-1 text-xs text-muted-foreground italic">{noteText}</p>
         )}
       </div>
+    </div>
+  )
+}
+
+function InvoiceRow({ label, value, mono, className }) {
+  return (
+    <div className={cn("grid grid-cols-[6rem_minmax(0,1fr)] items-start gap-3 border-b border-border/70 px-3 py-2.5 last:border-b-0", className)}>
+      <span className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">{label}</span>
+      <span className={cn("min-w-0 text-right text-sm font-medium leading-snug wrap-break-word", mono && "font-mono")}>{value || "\u2014"}</span>
+    </div>
+  )
+}
+
+function InvoiceSection({ title, children }) {
+  return (
+    <div className="space-y-1">
+      <h4 className="text-sm font-bold uppercase tracking-[0.16em] text-foreground/75">{title}</h4>
+      <div className="overflow-hidden rounded-lg border border-border bg-card">{children}</div>
     </div>
   )
 }
@@ -202,12 +295,30 @@ export default function OrderDetailPage() {
   const [simulating, setSimulating] = useState(false)
   const [editOpen, setEditOpen] = useState(false)
   const [editForm, setEditForm] = useState({})
+  const [invoiceOpen, setInvoiceOpen] = useState(false)
   const [saving, setSaving] = useState(false)
 
-  if (!loading && !order) {
-    navigate("/deliveries")
-    return null
-  }
+  useEffect(() => {
+    if (!loading && !order) {
+      navigate("/deliveries")
+    }
+  }, [loading, navigate, order])
+
+  useEffect(() => {
+    const scrollHosts = Array.from(document.querySelectorAll(".scrollbar-thin"))
+      .map((node) => ({
+        node,
+        rect: node.getBoundingClientRect(),
+      }))
+      .filter(({ rect }) => rect.width > 0 && rect.height > 200)
+      .map(({ node }) => node)
+
+    scrollHosts.forEach((node) => node.classList.add("scrollbar-hidden"))
+
+    return () => {
+      scrollHosts.forEach((node) => node.classList.remove("scrollbar-hidden"))
+    }
+  }, [])
 
   async function handleSimulate(nextStatus) {
     setSimulating(true)
@@ -244,11 +355,13 @@ export default function OrderDetailPage() {
   const history = order.status_history || []
   const hasDriver = order.driver_name || order.driver_phone
   const hasStore = order.store_name
+  const canInvoice = order.status === "delivered"
+  const paymentMethodLabel = formatPaymentMethod(order.payment_method)
 
   return (
-    <div className="h-full flex flex-col">
+    <div>
       {/* \u2500\u2500 Fixed Header \u2500\u2500 */}
-      <div className="shrink-0 flex items-center gap-3 px-4 lg:px-6 py-3 border-b border-border">
+      <div className="flex items-center gap-3 px-4 lg:px-6 py-3 border-b border-border">
         <Button
           variant="outline"
           size="icon"
@@ -271,7 +384,7 @@ export default function OrderDetailPage() {
       </div>
 
       {/* \u2500\u2500 Scrollable Content \u2500\u2500 */}
-      <div className="flex-1 overflow-y-auto p-4 lg:p-6 space-y-3">
+      <div className="p-4 lg:p-6 space-y-3">
 
         {/* \u2500\u2500 Quick Stats Row \u2500\u2500 */}
         <div className="flex flex-wrap items-center gap-1.5">
@@ -287,11 +400,11 @@ export default function OrderDetailPage() {
             <span className="text-[11px] text-muted-foreground">Payment</span>
             <span className="text-xs font-bold uppercase">{order.payment_method || "\u2014"}</span>
           </div>
-          {order.item_weight && (
+          {(order.item_weight || order.item_weight_kg != null) && (
             <div className="inline-flex items-center gap-1.5 rounded-md border border-border bg-card px-2.5 py-1">
               <Scale className="h-3 w-3 text-muted-foreground" />
               <span className="text-[11px] text-muted-foreground">Weight</span>
-              <span className="text-xs font-bold">{order.item_weight}</span>
+              <span className="text-xs font-bold">{getDisplayWeight(order)}</span>
             </div>
           )}
           {order.parcel_type && (
@@ -303,134 +416,137 @@ export default function OrderDetailPage() {
           )}
         </div>
 
-        {/* \u2500\u2500 Info Sections (3-col grid) \u2500\u2500 */}
-        <div className="grid gap-3 md:grid-cols-2 lg:grid-cols-3">
-
-          {/* Recipient */}
-          <Section title="Recipient" icon={User}>
-            <div className="space-y-0.5">
-              <InfoRow icon={User} label="Name" value={order.recipient_name} bold />
-              <InfoRow icon={Phone} label="Phone" value={order.recipient_phone} mono />
-              <InfoRow icon={MapPin} label="Address" value={order.recipient_address} />
-              {order.destination_area && (
-                <InfoRow icon={StickyNote} label="Area / Note" value={order.destination_area} />
-              )}
-            </div>
-          </Section>
-
-          {/* Pickup & Store */}
-          <Section title={hasStore ? "Pickup Store" : "Pickup"} icon={Store}>
-            <div className="space-y-0.5">
-              {hasStore && (
-                <>
-                  <InfoRow icon={Store} label="Store" value={order.store_name} bold />
-                  {order.store_branch && (
-                    <InfoRow icon={Hash} label="Branch" value={order.store_branch} />
-                  )}
-                </>
-              )}
-              {order.pickup_address && (
-                <InfoRow icon={MapPin} label="Pickup Address" value={order.pickup_address} />
-              )}
-              {!hasStore && !order.pickup_address && (
-                <p className="text-sm text-muted-foreground py-2">No pickup info available</p>
-              )}
-            </div>
-          </Section>
-
-          {/* Payment & Charges */}
-          <Section title="Payment" icon={Wallet}>
-            <div className="space-y-0.5">
-              <InfoRow icon={CreditCard} label="Method" value={order.payment_method ? order.payment_method.toUpperCase() : null} bold />
-              <InfoRow icon={Banknote} label="Amount" value={order.amount != null ? `\u09F3${Number(order.amount).toLocaleString()}` : null} bold />
-              {order.cod_amount != null && Number(order.cod_amount) > 0 && (
-                <InfoRow icon={Banknote} label="COD Amount" value={`\u09F3${Number(order.cod_amount).toLocaleString()}`} />
-              )}
-            </div>
-          </Section>
-
-          {/* Parcel Details */}
-          <Section title="Parcel Details" icon={Package}>
-            <div className="space-y-0.5">
-              {order.parcel_type && (
-                <InfoRow icon={Package} label="Type" value={(order.parcel_type || "").replace(/_/g, " ")} />
-              )}
-              {order.item_description && (
-                <InfoRow icon={FileText} label="Description" value={order.item_description} />
-              )}
-              {order.item_weight && (
-                <InfoRow icon={Package} label="Weight" value={`${order.item_weight} kg`} />
-              )}
-              {order.notes && (
-                <InfoRow icon={StickyNote} label="Notes" value={order.notes} />
-              )}
-              {!order.parcel_type && !order.item_description && !order.item_weight && !order.notes && (
-                <p className="text-xs text-muted-foreground py-1">No parcel details available</p>
-              )}
-            </div>
-          </Section>
-
-          {/* Driver (if assigned) */}
-          {hasDriver && (
-            <Section title="Assigned Driver" icon={Truck}>
+        <div className="grid gap-3 xl:grid-cols-[minmax(0,1fr)_minmax(320px,0.78fr)] xl:items-stretch">
+          <div className="space-y-2.5">
+            <Section title="Recipient" icon={User}>
               <div className="space-y-0.5">
-                <InfoRow icon={User} label="Driver Name" value={order.driver_name} bold />
-                <InfoRow icon={Phone} label="Driver Phone" value={order.driver_phone} mono />
+                <InfoRow icon={User} label="Name" value={order.recipient_name} bold />
+                <InfoRow icon={Phone} label="Phone" value={order.recipient_phone} mono />
+                <InfoRow icon={MapPin} label="Address" value={order.recipient_address} />
+                {order.destination_area && (
+                  <InfoRow icon={StickyNote} label="Area / Note" value={order.destination_area} />
+                )}
               </div>
             </Section>
-          )}
-        </div>
 
-        {/* \u2500\u2500 Status Timeline \u2500\u2500 */}
-        <Section title="Delivery Timeline" icon={Clock} className="overflow-hidden">
-          {history.length > 0 ? (
-            <div className="relative space-y-4 py-2">
-              {/* Vertical line */}
-              <div className="pointer-events-none absolute bottom-4 left-5.5 top-4 z-0 w-1.5 -translate-x-1/2 rounded-full bg-slate-500/55 dark:bg-slate-400/30" />
-              {history.map((h, i) => (
-                <TimelineItem
-                  key={`${h.status}-${h.changed_at}-${i}`}
-                  entry={h}
-                  isFirst={i === 0}
-                  isLast={i === history.length - 1}
-                />
-              ))}
-            </div>
-          ) : (
-            <p className="py-4 text-sm text-muted-foreground text-center">No status history available</p>
-          )}
-        </Section>
+            <Section title={hasStore ? "Pickup Store" : "Pickup"} icon={Store}>
+              <div className="space-y-0.5">
+                {hasStore && (
+                  <>
+                    <InfoRow icon={Store} label="Store" value={order.store_name} bold />
+                    {order.store_branch && (
+                      <InfoRow icon={Hash} label="Branch" value={order.store_branch} />
+                    )}
+                  </>
+                )}
+                {order.pickup_address && (
+                  <InfoRow icon={MapPin} label="Pickup Address" value={order.pickup_address} />
+                )}
+                {!hasStore && !order.pickup_address && (
+                  <p className="py-2 text-sm text-muted-foreground">No pickup info available</p>
+                )}
+              </div>
+            </Section>
 
-        {/* \u2500\u2500 Actions: Simulate Status \u2500\u2500 */}
-        {nextStatuses.length > 0 && (
-          <Section title="Simulate Status Change" icon={Truck}>
-            <p className="text-xs text-muted-foreground mb-3">
-              Click to simulate the next status transition for this order.
-            </p>
-            <div className="flex flex-wrap gap-2">
-              {nextStatuses.map((ns) => {
-                const nsMeta = STATUS_META[ns] || FALLBACK_META
-                const NsIcon = nsMeta.icon
-                return (
+            <Section
+              title="Payment"
+              icon={Wallet}
+              actions={canInvoice ? (
+                <>
                   <Button
-                    key={ns}
+                    type="button"
                     variant="outline"
-                    disabled={simulating}
-                    onClick={() => handleSimulate(ns)}
-                    className="gap-2 capitalize cursor-pointer"
+                    size="sm"
+                    onClick={() => setInvoiceOpen(true)}
+                    className="h-7 gap-1.5 px-2.5 text-[11px] cursor-pointer"
                   >
-                    <NsIcon className="h-4 w-4" />
-                    {ns.replace(/_/g, " ")}
+                    <Eye className="h-3.5 w-3.5" />
+                    Show Invoice
                   </Button>
-                )
-              })}
-            </div>
-          </Section>
-        )}
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => downloadInvoice(order)}
+                    className="h-7 gap-1.5 px-2.5 text-[11px] cursor-pointer"
+                  >
+                    <Download className="h-3.5 w-3.5" />
+                    Download
+                  </Button>
+                </>
+              ) : null}
+            >
+              <div className="space-y-0.5">
+                <InfoRow icon={CreditCard} label="Method" value={paymentMethodLabel} bold />
+                <InfoRow icon={Banknote} label="Amount" value={order.amount != null ? `\u09F3${Number(order.amount).toLocaleString()}` : null} bold />
+                {order.cod_amount != null && Number(order.cod_amount) > 0 && (
+                  <InfoRow icon={Banknote} label="COD Amount" value={`\u09F3${Number(order.cod_amount).toLocaleString()}`} />
+                )}
+                {!canInvoice && (
+                  <p className="pt-1 text-[11px] text-muted-foreground">
+                    Invoice actions appear after the parcel reaches a delivered state.
+                  </p>
+                )}
+              </div>
+            </Section>
 
-        {/* \u2500\u2500 Edit Order (pending only) \u2500\u2500 */}
-        {order.status === "pending" && (
-          <Section title="Edit Order" icon={Pencil}>
+            <Section title="Parcel Details" icon={Package}>
+              <div className="space-y-0.5">
+                {order.parcel_type && (
+                  <InfoRow icon={Package} label="Type" value={(order.parcel_type || "").replace(/_/g, " ")} />
+                )}
+                {order.item_description && (
+                  <InfoRow icon={FileText} label="Product" value={order.item_description} />
+                )}
+                {(order.item_weight || order.item_weight_kg != null) && (
+                  <InfoRow icon={Package} label="Weight" value={getDisplayWeight(order)} />
+                )}
+                {order.notes && (
+                  <InfoRow icon={StickyNote} label="Additional Info" value={order.notes} />
+                )}
+                {!order.parcel_type && !order.item_description && order.item_weight_kg == null && !order.item_weight && !order.notes && (
+                  <p className="py-1 text-xs text-muted-foreground">No parcel details available</p>
+                )}
+              </div>
+            </Section>
+
+            {hasDriver && (
+              <Section title="Assigned Driver" icon={Truck}>
+                <div className="space-y-0.5">
+                  <InfoRow icon={User} label="Driver Name" value={order.driver_name} bold />
+                  <InfoRow icon={Phone} label="Driver Phone" value={order.driver_phone} mono />
+                </div>
+              </Section>
+            )}
+
+            {nextStatuses.length > 0 && (
+              <Section title="Simulate Status Change" icon={Truck}>
+                <p className="mb-3 text-xs text-muted-foreground">
+                  Click to simulate the next status transition for this order.
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  {nextStatuses.map((ns) => {
+                    const nsMeta = STATUS_META[ns] || FALLBACK_META
+                    const NsIcon = nsMeta.icon
+                    return (
+                      <Button
+                        key={ns}
+                        variant="outline"
+                        disabled={simulating}
+                        onClick={() => handleSimulate(ns)}
+                        className="gap-2 capitalize cursor-pointer"
+                      >
+                        <NsIcon className="h-4 w-4" />
+                        {ns.replace(/_/g, " ")}
+                      </Button>
+                    )
+                  })}
+                </div>
+              </Section>
+            )}
+
+            {order.status === "pending" && (
+              <Section title="Edit Order" icon={Pencil}>
             {!editOpen ? (
               <Button
                 variant="outline"
@@ -442,7 +558,7 @@ export default function OrderDetailPage() {
                     recipient_address: order.recipient_address || "",
                     destination_area: order.destination_area || "",
                     item_description: order.item_description || "",
-                    item_weight: order.item_weight || "",
+                    item_weight: order.item_weight_kg ?? (order.item_weight || ""),
                   })
                   setEditOpen(true)
                 }}
@@ -495,7 +611,7 @@ export default function OrderDetailPage() {
                     />
                   </div>
                   <div className="space-y-1.5 sm:col-span-2">
-                    <Label htmlFor="edit-desc">Item Description</Label>
+                    <Label htmlFor="edit-desc">Product Name</Label>
                     <Input
                       id="edit-desc"
                       value={editForm.item_description}
@@ -514,12 +630,96 @@ export default function OrderDetailPage() {
                 </div>
               </form>
             )}
-          </Section>
-        )}
+              </Section>
+            )}
+          </div>
+
+          <div className="space-y-2.5 self-stretch">
+            <Section title="Delivery Timeline" icon={Clock} className="overflow-hidden" stretch contentClassName="flex">
+              {history.length > 0 ? (
+                <div className="relative w-full space-y-4 py-2">
+                  <div className="pointer-events-none absolute bottom-4 left-5.5 top-4 z-0 w-1 rounded-full bg-slate-500/45 dark:bg-slate-400/25" />
+                  {history.map((h, i) => (
+                    <TimelineItem
+                      key={`${h.status}-${h.changed_at}-${i}`}
+                      entry={h}
+                      isFirst={i === 0}
+                      isLast={i === history.length - 1}
+                    />
+                  ))}
+                </div>
+              ) : (
+                <p className="py-4 text-center text-sm text-muted-foreground">No status history available</p>
+              )}
+            </Section>
+          </div>
+        </div>
 
         {/* bottom spacer */}
         <div className="h-4" />
       </div>
+
+      <Dialog open={invoiceOpen} onOpenChange={setInvoiceOpen}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Wallet className="h-5 w-5 text-primary" />
+              Invoice #{order.order_id}
+            </DialogTitle>
+            <DialogDescription>
+              {order.created_at ? new Date(order.created_at).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" }) : "\u2014"}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3 text-sm">
+            <div className="rounded-lg border border-border bg-card p-3">
+              <div className="grid gap-2 sm:grid-cols-3">
+                <div>
+                  <div className="text-[11px] uppercase tracking-wide text-muted-foreground">Invoice</div>
+                  <div className="mt-1 font-semibold">#{order.order_id}</div>
+                </div>
+                <div>
+                  <div className="text-[11px] uppercase tracking-wide text-muted-foreground">Status</div>
+                  <div className="mt-1 font-semibold">{meta.label}</div>
+                </div>
+                <div>
+                  <div className="text-[11px] uppercase tracking-wide text-muted-foreground">Total</div>
+                  <div className="mt-1 font-semibold tabular-nums">৳{Number(order.amount || 0).toLocaleString()}</div>
+                </div>
+              </div>
+            </div>
+
+            <InvoiceSection title="Recipient">
+              <InvoiceRow label="Name" value={order.recipient_name} />
+              <InvoiceRow label="Phone" value={order.recipient_phone} mono />
+              <InvoiceRow label="Address" value={order.recipient_address} />
+              {order.destination_area && <InvoiceRow label="Area" value={order.destination_area} />}
+            </InvoiceSection>
+
+            <InvoiceSection title="Pickup">
+              <InvoiceRow label="Store" value={`${order.store_name || "\u2014"}${order.store_branch ? ` · ${order.store_branch}` : ""}`} />
+              {order.pickup_address && <InvoiceRow label="Address" value={order.pickup_address} />}
+            </InvoiceSection>
+
+            <InvoiceSection title="Parcel Details">
+              <InvoiceRow label="Type" value={(order.parcel_type || "\u2014").replace(/_/g, " ")} />
+              <InvoiceRow label="Product" value={order.item_description || "\u2014"} />
+              <InvoiceRow label="Weight" value={getDisplayWeight(order)} />
+              <InvoiceRow label="Additional Info" value={order.notes || "\u2014"} />
+            </InvoiceSection>
+
+            <InvoiceSection title="Payment">
+              <InvoiceRow label="Method" value={paymentMethodLabel} />
+              <InvoiceRow label="COD Amount" value={`৳${Number(order.cod_amount || 0).toLocaleString()}`} />
+              <InvoiceRow label="Status" value={meta.label} />
+            </InvoiceSection>
+
+            <Button type="button" onClick={() => downloadInvoice(order)} className="w-full gap-2 cursor-pointer">
+              <Download className="h-4 w-4" />
+              Download Invoice
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

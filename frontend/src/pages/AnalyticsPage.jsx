@@ -358,7 +358,7 @@ export default function AnalyticsPage() {
         </div>
 
         {/* Tab navigation — always visible */}
-        <TabsList className="w-full justify-start bg-transparent h-auto p-0 rounded-none border-b border-border">
+        <TabsList className="w-full justify-start bg-muted rounded-lg p-1 h-auto gap-1">
           {[
             { value: 'overview', label: 'Overview' },
             { value: 'deliveries', label: 'Deliveries' },
@@ -368,7 +368,7 @@ export default function AnalyticsPage() {
             <TabsTrigger
               key={tab.value}
               value={tab.value}
-              className="rounded-none border-b-2 border-transparent px-4 py-2 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground data-[state=active]:border-primary data-[state=active]:text-foreground data-[state=active]:font-semibold data-[state=active]:bg-transparent data-[state=active]:shadow-none"
+              className="rounded-md px-5 py-2 text-sm font-medium text-muted-foreground transition-all hover:bg-background/60 hover:text-foreground data-[state=active]:bg-background data-[state=active]:text-primary data-[state=active]:font-semibold data-[state=active]:shadow"
             >
               {tab.label}
             </TabsTrigger>

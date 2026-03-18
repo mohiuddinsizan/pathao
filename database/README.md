@@ -134,7 +134,8 @@ python seed_realistic.py
 | `destination_area` | VARCHAR(255)  |                                           | Area label (e.g. Banani)  |
 | `parcel_type`      | VARCHAR(50)   | CHECK (document/small_box/medium_parcel/large_parcel/fragile) | |
 | `item_description` | TEXT          |                                           | What's inside             |
-| `item_weight`      | VARCHAR(20)   |                                           | 0-1kg / 1-5kg / 5-10kg   |
+| `item_weight`      | VARCHAR(20)   |                                           | Legacy display weight    |
+| `item_weight_kg`   | DECIMAL(10,3) | CHECK > 0                                 | Exact parcel weight in kg|
 | `amount`           | DECIMAL(10,2) | NOT NULL, CHECK ≥ 0                       | Delivery charge (BDT)    |
 | `payment_method`   | VARCHAR(20)   | CHECK (cod/prepaid/bkash), default 'cod'  | Payment type              |
 | `cod_amount`       | DECIMAL(10,2) | NOT NULL, CHECK ≥ 0, default 0            | Collect-on-delivery amt   |
