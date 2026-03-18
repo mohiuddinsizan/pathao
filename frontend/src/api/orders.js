@@ -1,4 +1,5 @@
 import { api } from './client'
+import { invalidateDashboardCaches } from './dashboard'
 
 const unwrap = (res) => (res && res.data !== undefined ? res.data : res)
 
@@ -14,14 +15,23 @@ export function getOrder(orderId) {
 }
 
 export function createOrder(data) {
-  return api.post('/api/orders', data).then(unwrap)
+  return api.post('/api/orders', data).then((res) => {
+    invalidateDashboardCaches()
+    return unwrap(res)
+  })
 }
 
 export function updateOrderStatus(orderId, status, note) {
-  return api.patch(`/api/orders/${orderId}/status`, { status, note }).then(unwrap)
+  return api.patch(`/api/orders/${orderId}/status`, { status, note }).then((res) => {
+    invalidateDashboardCaches()
+    return unwrap(res)
+  })
 }
 
 export function updateOrder(orderId, data) {
-  return api.put(`/api/orders/${orderId}`, data).then(unwrap)
+  return api.put(`/api/orders/${orderId}`, data).then((res) => {
+    invalidateDashboardCaches()
+    return unwrap(res)
+  })
 }
 

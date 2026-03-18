@@ -1,16 +1,14 @@
 import { api } from './client'
 
 /**
- * Fetch all analytics data for the logged-in merchant.
- *
- * @param {string|null} dateFrom  – YYYY-MM-DD start date (optional)
- * @param {string|null} dateTo    – YYYY-MM-DD end date   (optional, inclusive)
+ * Fetch analytics data for the logged-in merchant.
+ * @param {{ date_from?: string, date_to?: string }} [params]
  */
-export function getAnalyticsSummary(dateFrom = null, dateTo = null) {
-  const params = new URLSearchParams()
-  if (dateFrom) params.set('date_from', dateFrom)
-  if (dateTo)   params.set('date_to',   dateTo)
-
-  const qs = params.toString()
-  return api.get(`/api/analytics/summary${qs ? `?${qs}` : ''}`)
+export function getAnalytics(params = {}) {
+  const searchParams = new URLSearchParams()
+  if (params.date_from) searchParams.set('date_from', params.date_from)
+  if (params.date_to) searchParams.set('date_to', params.date_to)
+  if (params.store_id) searchParams.set('store_id', params.store_id)
+  const qs = searchParams.toString()
+  return api.get(`/api/analytics${qs ? '?' + qs : ''}`)
 }

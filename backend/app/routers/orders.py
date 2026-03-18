@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 
 from app.auth.dependencies import get_current_merchant
 from app.database import get_db
-from app.schemas.order import CreateOrderRequest
+from app.schemas.order import CreateOrderRequest, format_exact_weight, parse_exact_weight
 
 router = APIRouter()
 
@@ -111,8 +111,8 @@ async def create_order(
         INSERT INTO orders (
             order_id, merchant_id, store_id, recipient_name, recipient_phone,
             recipient_address, pickup_address, destination_area, parcel_type,
-            item_description, item_weight, amount, payment_method, cod_amount, notes
-        ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)
+            item_description, item_weight, item_weight_kg, amount, payment_method, cod_amount, notes
+        ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16)
         RETURNING *
         """,
         oid,
@@ -126,6 +126,7 @@ async def create_order(
         data.parcel_type,
         data.item_description,
         data.item_weight,
+        data.item_weight_kg,
         data.amount,
         data.payment_method,
         data.cod_amount,
@@ -231,8 +232,17 @@ async def edit_order(
     editable = [
         "recipient_name", "recipient_phone", "recipient_address",
         "destination_area", "parcel_type", "item_description",
-        "item_weight", "amount", "payment_method", "cod_amount",
+        "item_weight", "item_weight_kg", "amount", "payment_method", "cod_amount",
     ]
+
+    if "item_weight" in data or "item_weight_kg" in data:
+        exact_weight = data.get("item_weight_kg")
+        if exact_weight is None:
+            exact_weight = parse_exact_weight(data.get("item_weight"))
+        if exact_weight is None:
+            raise HTTPException(status_code=400, detail="Item weight must be an exact numeric kg value")
+        data["item_weight_kg"] = exact_weight
+        data["item_weight"] = format_exact_weight(exact_weight)
 
     # Build dynamic UPDATE from provided non-None fields
     updates = []

@@ -1,5 +1,5 @@
 import re
-from decimal import Decimal
+from decimal import Decimal, InvalidOperation
 from uuid import UUID
 
 from pydantic import BaseModel, Field, field_validator, model_validator
@@ -16,6 +16,34 @@ PAYMENT_METHOD_ALIASES = {
     "card": "prepaid",
 }
 
+EXACT_WEIGHT_PATTERN = re.compile(r"^\d+(?:\.\d+)?(?:\s*kg)?$", re.IGNORECASE)
+
+
+def parse_exact_weight(value):
+    if value is None:
+        return None
+    if isinstance(value, Decimal):
+        return value
+    if isinstance(value, (int, float)):
+        return Decimal(str(value))
+    if isinstance(value, str):
+        normalized = value.strip().lower()
+        if not normalized or not EXACT_WEIGHT_PATTERN.fullmatch(normalized):
+            return None
+        normalized = re.sub(r"\s*kg$", "", normalized).strip()
+        try:
+            return Decimal(normalized)
+        except InvalidOperation:
+            return None
+    return None
+
+
+def format_exact_weight(value):
+    parsed = parse_exact_weight(value)
+    if parsed is None:
+        return None
+    return format(parsed.normalize(), "f").rstrip("0").rstrip(".") or "0"
+
 
 class CreateOrderRequest(BaseModel):
     store_id: UUID | None = None
@@ -27,6 +55,7 @@ class CreateOrderRequest(BaseModel):
     parcel_type: str = "small_box"
     item_description: str | None = None
     item_weight: str | None = "0-1kg"
+    item_weight_kg: Decimal | None = Field(default=None, gt=Decimal("0"), le=Decimal("100"))
     amount: Decimal = Field(ge=0, le=Decimal("99999999"))
     payment_method: str = "cod"
     cod_amount: Decimal = Field(default=Decimal("0"), ge=0, le=Decimal("99999999"))
@@ -97,6 +126,12 @@ class CreateOrderRequest(BaseModel):
         allowed_payment_methods = {"cod", "prepaid", "bkash"}
         if self.payment_method not in allowed_payment_methods:
             raise ValueError("Invalid payment method. Use one of: cod, prepaid, bkash")
+
+        exact_weight = self.item_weight_kg or parse_exact_weight(self.item_weight)
+        if exact_weight is None:
+            raise ValueError("Item weight must be an exact numeric kg value")
+        self.item_weight_kg = exact_weight
+        self.item_weight = format_exact_weight(exact_weight)
 
         if self.payment_method != "cod":
             self.cod_amount = Decimal("0")
