@@ -38,3 +38,9 @@ npm-debug.log*
 htmlcov/
 .pytest_cache/
 session_store
+backend/.env.example
+**/.env*
+backend/.env.example
+backend/.env.example
+**/.env*
+backend/.env.example
